@@ -1,0 +1,60 @@
+# Dependencies
+node_modules/
+react-app/node_modules/
+
+# Environment variables / secrets
+.env
+.env.*
+react-app/.env
+react-app/.env.*
+!.env.example
+!react-app/.env.example
+
+# Production builds
+build/
+build/**
+dist/
+dist/**
+react-app/build/
+react-app/build/**
+react-app/dist/
+react-app/dist/**
+
+# Hosting / deployment metadata
+.vercel/
+.vercel/**
+.netlify/
+.netlify/**
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Caches / test output
+coverage/
+coverage/**
+.cache/
+.cache/**
+.parcel-cache/
+.parcel-cache/**
+.eslintcache
+.npm/
+.npm/**
+
+# Local databases / generated data
+*.sqlite
+*.sqlite3
+*.db
+*.db-journal
+data/
+
+# OS / editor files
+.DS_Store
+Thumbs.db
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.example.json
