@@ -34,7 +34,7 @@ describe('App', () => {
   test('renders the Precis feed after loading articles', async () => {
     render(<App />);
 
-    expect(await screen.findByText('Weekly Tech Brief')).toBeInTheDocument();
+    expect(await screen.findByText('Daily Tech Brief')).toBeInTheDocument();
     expect(await screen.findByText('A deployable Precis story')).toBeInTheDocument();
   });
 });

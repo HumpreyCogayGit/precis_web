@@ -234,9 +234,9 @@ function App() {
               <a className="brand hero-brand" href="/" aria-label="Precis home">
                 <span>PRECIS</span>
               </a>
-              <h1 id="hero-title">Weekly Tech Brief</h1>
+              <h1 id="hero-title">Daily Tech Brief</h1>
               <p className="hero-deck">
-                Curated news, blog posts, and product updates from leading tech teams, refreshed weekly.
+                Curated news, blog posts, and product updates from leading tech teams, refreshed daily.
               </p>
 
               {(sites.length > 0 || topics.length > 0) && (
