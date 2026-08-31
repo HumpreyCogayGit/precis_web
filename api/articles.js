@@ -8,7 +8,11 @@ module.exports = async function handler(req, res) {
 
   try {
     res.setHeader('Cache-Control', 's-maxage=60, stale-while-revalidate=300');
-    res.status(200).json(await fetchArticles({ topic: req.query.topic }));
+    res.status(200).json(await fetchArticles({
+      topic: req.query.topic,
+      limit: req.query.limit,
+      offset: req.query.offset,
+    }));
   } catch (err) {
     sendServerError(res, 'Failed to fetch articles', err);
   }

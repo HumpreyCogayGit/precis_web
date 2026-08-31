@@ -2,9 +2,10 @@ import './App.css';
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import axios from 'axios';
 
-const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || (process.env.NODE_ENV === 'development' ? 'http://localhost:5000' : '');
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || (import.meta.env.DEV ? 'http://localhost:5000' : '');
 const INITIAL_ARTICLE_COUNT = 12;
 const ARTICLES_PER_PAGE = 12;
+const API_ARTICLE_LIMIT = 100;
 
 const proxiedImageUrl = (imageUrl) => (
   imageUrl ? `${API_BASE_URL}/api/image-proxy?url=${encodeURIComponent(imageUrl)}` : ''
@@ -58,6 +59,9 @@ const buildArticleUrl = (site = '', topic = '') => {
   if (topic) {
     params.set('topic', topic);
   }
+
+  params.set('limit', String(API_ARTICLE_LIMIT));
+  params.set('offset', '0');
 
   const query = params.toString();
   return `${API_BASE_URL}${path}${query ? `?${query}` : ''}`;
@@ -125,7 +129,9 @@ function App() {
       setVisibleCount(getInitialVisibleCount(site, topic));
       setError(null);
     } catch (err) {
-      setError('Failed to fetch articles');
+      setError(import.meta.env.DEV
+        ? 'Failed to fetch articles. Start the Precis web server, then refresh this page'
+        : 'Failed to fetch articles. Check the deployment environment variables and database connection');
       console.error('Error fetching articles:', err);
     } finally {
       setLoading(false);
@@ -213,7 +219,7 @@ function App() {
         <div className="message-card">
           <p className="state-kicker">No connection</p>
           <h1>The article list did not load.</h1>
-          <p>{error}. Start the Precis web server, then refresh this page.</p>
+          <p>{error}.</p>
         </div>
       </div>
     );
