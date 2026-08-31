@@ -1,24 +1,36 @@
 {
   "version": 2,
-  "buildCommand": "npm run build",
-  "outputDirectory": "public",
-  "rewrites": [
+  "builds": [
     {
-      "source": "/api/articles/:site",
-      "destination": "/api/articles/[site]"
+      "src": "api/**/*.js",
+      "use": "@vercel/node",
+      "config": {
+        "maxDuration": 10
+      }
     },
     {
-      "source": "/api/:path*",
-      "destination": "/api/:path*"
-    },
-    {
-      "source": "/(.*)",
-      "destination": "/index.html"
+      "src": "package.json",
+      "use": "@vercel/static-build",
+      "config": {
+        "distDir": "public"
+      }
     }
   ],
-  "functions": {
-    "api/**/*.js": {
-      "maxDuration": 10
+  "routes": [
+    {
+      "src": "/api/articles/([^/]+)",
+      "dest": "/api/articles/[site].js?site=$1"
+    },
+    {
+      "src": "/api/(.*)",
+      "dest": "/api/$1.js"
+    },
+    {
+      "handle": "filesystem"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "/index.html"
     }
-  }
+  ]
 }
