@@ -27,8 +27,19 @@ const parseDateTimestamp = (dateValue) => {
 };
 
 const getArticleTimestamp = (article) => {
-  return parseDateTimestamp(article.published_at) || parseDateTimestamp(article.fetched_at);
+  return parseDateTimestamp(article.published_at);
 };
+
+const sortArticlesNewestFirst = (articles) => (
+  [...articles].sort((a, b) => {
+    const timestampDelta = getArticleTimestamp(b) - getArticleTimestamp(a);
+    if (timestampDelta !== 0) {
+      return timestampDelta;
+    }
+
+    return parseDateTimestamp(b.fetched_at) - parseDateTimestamp(a.fetched_at);
+  })
+);
 
 const getInitialVisibleCount = (site = '', topic = '') => (
   site || topic ? INITIAL_ARTICLE_COUNT : Number.POSITIVE_INFINITY
@@ -168,7 +179,7 @@ function App() {
   };
 
   const sortedArticles = useMemo(
-    () => [...articles].sort((a, b) => getArticleTimestamp(b) - getArticleTimestamp(a)),
+    () => sortArticlesNewestFirst(articles),
     [articles]
   );
 
@@ -340,6 +351,9 @@ function App() {
                 {topStories.map((article, index) => (
                   <a key={article.url} href={article.url} target="_blank" rel="noopener noreferrer" className="story-row">
                     <span className="story-rank">{String(index + 1).padStart(2, '0')}</span>
+                    <span className={`story-thumbnail${article.image_url ? '' : ' story-thumbnail--empty'}`} aria-hidden="true">
+                      {article.image_url && <img src={proxiedImageUrl(article.image_url)} alt="" />}
+                    </span>
                     <span className="story-topic">{article.topic || formatSiteName(article.site)}</span>
                     <strong>{article.title}</strong>
                     <small>{article.published_at ? formatDisplayDate(article.published_at) : 'Date not captured'}</small>
