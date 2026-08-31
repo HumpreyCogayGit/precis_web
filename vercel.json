@@ -11,32 +11,8 @@
       "destination": "/api/:path*"
     },
     {
-      "source": "/assets/:path*",
-      "destination": "/react-app/dist/assets/:path*"
-    },
-    {
-      "source": "/favicon.ico",
-      "destination": "/react-app/dist/favicon.ico"
-    },
-    {
-      "source": "/manifest.json",
-      "destination": "/react-app/dist/manifest.json"
-    },
-    {
-      "source": "/robots.txt",
-      "destination": "/react-app/dist/robots.txt"
-    },
-    {
-      "source": "/logo192.png",
-      "destination": "/react-app/dist/logo192.png"
-    },
-    {
-      "source": "/logo512.png",
-      "destination": "/react-app/dist/logo512.png"
-    },
-    {
       "source": "/(.*)",
-      "destination": "/react-app/dist/index.html"
+      "destination": "/index.html"
     }
   ],
   "functions": {

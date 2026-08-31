@@ -11,6 +11,8 @@ react-app/.env.*
 !react-app/.env.example
 
 # Production builds
+public/
+public/**
 build/
 build/**
 dist/

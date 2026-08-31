@@ -26,7 +26,7 @@ Vercel
   - `GET /api/image-proxy?url=...`
 - `precis_web/lib/*` centralizes DB queries and image proxy behavior so local Express and Vercel use the same logic.
 - `precis_web/react-app` uses Vite, same-origin API routes in production, and `http://localhost:5000` as the local dev default.
-- `precis_web/vercel.json` builds `react-app/dist` and rewrites `/api/*` to serverless functions while serving React routes from `index.html`.
+- `precis_web/vercel.json` builds the Vite app, copies `react-app/dist` to Vercel's root `public/` directory, rewrites `/api/*` to serverless functions, and serves React routes from `index.html`.
 
 ## Deployment steps
 
