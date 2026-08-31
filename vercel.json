@@ -1,7 +1,6 @@
 {
   "version": 2,
   "buildCommand": "npm run build",
-  "outputDirectory": "react-app/dist",
   "rewrites": [
     {
       "source": "/api/articles/:site",
