@@ -1,0 +1,29 @@
+# Keep local secrets and generated artifacts out of Vercel CLI uploads.
+.env
+.env.*
+*.env
+*.local.env
+secrets/
+secrets.*
+*.secret
+*.secrets
+*.pem
+*.key
+*.crt
+*.p12
+*.pfx
+
+# Dependencies/build outputs should be recreated by Vercel.
+node_modules/
+react-app/node_modules/
+public/
+build/
+dist/
+react-app/build/
+react-app/dist/
+
+# Local/editor files.
+.DS_Store
+.vscode/
+coverage/
+.cache/

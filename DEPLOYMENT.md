@@ -37,7 +37,7 @@ Use Vercel Postgres/Neon/Supabase/Railway or another provider that allows extern
 - Vercel Serverless Functions
 - Your local machine running the scraper
 
-Prefer a pooled connection string for Vercel, usually ending with `sslmode=require`.
+Prefer a pooled Neon/Vercel connection string for Vercel, usually including `channel_binding=require&sslmode=require`.
 
 ### 2. Initialize the database schema
 
@@ -71,7 +71,9 @@ In Vercel:
 
 | Variable | Where | Purpose |
 | --- | --- | --- |
-| `DATABASE_URL` or `POSTGRES_URL` | Vercel Production/Preview | Hosted PostgreSQL connection string for API functions |
+| `DATABASE_URL` or `POSTGRES_URL` | Vercel Production/Preview | Pooled hosted PostgreSQL connection string for API functions |
+| `POSTGRES_PRISMA_URL` | Vercel Production/Preview, optional | Alternative pooled Neon/Vercel URL with connection timeout |
+| `DATABASE_URL_UNPOOLED` or `POSTGRES_URL_NON_POOLING` | Local/admin jobs only, optional | Direct database connection for uses that require no pooler |
 | `PGSSLMODE=require` | Vercel Production/Preview, if your URL does not include `sslmode=require` | Enables SSL for hosted Postgres |
 | `PG_POOL_MAX=1` | Vercel Production/Preview | Keeps serverless Postgres connection usage low unless you use a pooled DB URL |
 | `VITE_API_BASE_URL` | Usually unset on Vercel | Leave blank so the browser calls same-origin `/api/*` |
@@ -116,4 +118,4 @@ The web deployment does not need scraper configs or local snapshots. HTML snapsh
 
 ## Important security note
 
-Do not commit real database credentials. Store production credentials only in Vercel environment variables and local shell/private `.env` files. If any real database password has been committed previously, rotate it before deploying publicly.
+Do not commit real database credentials. Store production credentials only in Vercel Environment Variables and local shell/private `.env` files. `.env`, `.env.*`, `.vercel/`, key/certificate files, and common secret files are ignored. If any real database password has been committed previously or shared outside a trusted channel, rotate it before deploying publicly.
