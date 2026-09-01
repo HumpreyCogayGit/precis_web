@@ -6,6 +6,7 @@ const test = require('node:test');
 
 const {
   buildFetchArticlesQuery,
+  WORKING_SET_LIMIT,
   MAX_LIMIT,
   MAX_OFFSET,
   MAX_SITE_LENGTH,
@@ -188,13 +189,13 @@ test('site and topic filters are trimmed and length-limited', () => {
 });
 
 test('article list queries use the public view and expose only public fields', () => {
-  const built = buildFetchArticlesQuery({ site: 'nvidia', topic: 'AI', limit: '10', offset: '5' });
+  const built = buildFetchArticlesQuery({ site: 'nvidia', topic: 'AI' });
 
   assert.match(built.text, new RegExp(`FROM\\s+${PUBLIC_ARTICLES_RELATION.replace('.', '\\.')}`, 'i'));
   assert.doesNotMatch(built.text, /FROM\s+(?:public\.)?articles\b/i);
   assert.doesNotMatch(built.text, /body_text|content_hash|matched_strategy|flag_reason|raw_html_path|needs_review/i);
   assert.match(built.text, /\bexcerpt\b/i);
-  assert.deepEqual(built.params, ['nvidia', 'AI', 10, 5]);
+  assert.deepEqual(built.params, ['nvidia', 'AI', WORKING_SET_LIMIT]);
 });
 
 test('public articles view withholds review-held records and truncates body text in SQL', () => {

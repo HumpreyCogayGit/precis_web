@@ -39,20 +39,34 @@ const safeHttpUrl = (url) => {
   }
 };
 
+// Matches an explicit time-of-day (e.g. "14:47" or "T09:00"). Date-only strings
+// (no time component) are ambiguous: JS parses them as the viewer's local time,
+// which makes ordering depend on each visitor's timezone rather than the
+// article's actual date. Pin those to UTC midnight so sorting is deterministic.
+const HAS_TIME_COMPONENT = /\d{1,2}:\d{2}/;
+
 const parseDateTimestamp = (dateValue) => {
   if (!dateValue) {
     return 0;
   }
 
   const normalizedDate = String(dateValue).trim().replace(/^Published\s+/i, '');
-  const timestamp = Date.parse(normalizedDate);
-
-  if (!Number.isNaN(timestamp)) {
-    return timestamp;
+  if (!normalizedDate) {
+    return 0;
   }
 
-  const utcTimestamp = Date.parse(`${normalizedDate} UTC`);
-  return Number.isNaN(utcTimestamp) ? 0 : utcTimestamp;
+  const candidates = HAS_TIME_COMPONENT.test(normalizedDate)
+    ? [normalizedDate, `${normalizedDate} UTC`]
+    : [`${normalizedDate} UTC`, normalizedDate];
+
+  for (const candidate of candidates) {
+    const timestamp = Date.parse(candidate);
+    if (!Number.isNaN(timestamp)) {
+      return timestamp;
+    }
+  }
+
+  return 0;
 };
 
 const getArticleTimestamp = (article) => {
@@ -94,7 +108,10 @@ const formatShortDate = (dateValue) => {
     return 'Date not captured';
   }
 
-  return new Intl.DateTimeFormat('en', { month: 'short', day: 'numeric' }).format(new Date(timestamp));
+  // published_at is pinned to UTC when the source only gives a date (see
+  // parseDateTimestamp), so render in UTC too — otherwise the displayed day can
+  // drift by one depending on the viewer's own timezone.
+  return new Intl.DateTimeFormat('en', { month: 'short', day: 'numeric', timeZone: 'UTC' }).format(new Date(timestamp));
 };
 
 const formatRelativeTime = (dateValue) => {
