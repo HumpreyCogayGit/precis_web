@@ -4,10 +4,11 @@ import axios from 'axios';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || (import.meta.env.DEV ? 'http://localhost:5000' : '');
 const INITIAL_ARTICLE_COUNT = 12;
-const ARTICLES_PER_PAGE = 12;
 const API_ARTICLE_LIMIT = 100;
 const BRIEF_COUNT = 5;
 const DEFAULT_TOPIC = 'AI';
+const PAGE_SIZE_OPTIONS = [12, 24, 48, 96];
+const EVERYTHING_VIEW_MODES = ['cards', 'list', 'small-list'];
 
 const proxiedImageUrl = (imageUrl) => (
   imageUrl ? `${API_BASE_URL}/api/image-proxy?url=${encodeURIComponent(imageUrl)}` : ''
@@ -84,10 +85,6 @@ const sortArticlesNewestFirst = (articles) => (
     return parseDateTimestamp(b.fetched_at) - parseDateTimestamp(a.fetched_at);
   })
 );
-
-// Everything-else is now a card grid with images, so start capped even when
-// unfiltered — 94 image cards loading at once would be needlessly heavy.
-const getInitialVisibleCount = () => INITIAL_ARTICLE_COUNT;
 
 const formatSiteName = (site = '') => {
   const normalizedSite = String(site).trim().toLowerCase();
@@ -285,6 +282,74 @@ const BookmarkIcon = () => (
   </svg>
 );
 
+const CardsViewIcon = () => (
+  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true">
+    <rect x="3" y="3" width="7" height="7" rx="1" />
+    <rect x="14" y="3" width="7" height="7" rx="1" />
+    <rect x="3" y="14" width="7" height="7" rx="1" />
+    <rect x="14" y="14" width="7" height="7" rx="1" />
+  </svg>
+);
+
+const ListViewIcon = () => (
+  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true">
+    <rect x="3" y="4" width="6" height="6" rx="1" />
+    <path d="M12 5.5h9" />
+    <rect x="3" y="14" width="6" height="6" rx="1" />
+    <path d="M12 15.5h9" />
+  </svg>
+);
+
+const SmallListViewIcon = () => (
+  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true">
+    <path d="M4 6h16" />
+    <path d="M4 12h16" />
+    <path d="M4 18h16" />
+  </svg>
+);
+
+const EVERYTHING_VIEW_OPTIONS = [
+  { id: 'cards', label: 'Cards', Icon: CardsViewIcon },
+  { id: 'list', label: 'List', Icon: ListViewIcon },
+  { id: 'small-list', label: 'Small list', Icon: SmallListViewIcon },
+];
+
+const ViewModeToggle = ({ value, onChange }) => (
+  <div className="view-toggle" role="group" aria-label="Everything else layout">
+    {EVERYTHING_VIEW_OPTIONS.map(({ id, label, Icon }) => (
+      <button
+        key={id}
+        type="button"
+        className={`view-toggle-btn${value === id ? ' active' : ''}`}
+        aria-pressed={value === id}
+        title={label}
+        onClick={() => onChange(id)}
+      >
+        <Icon />
+        <span className="sr-only">{label}</span>
+      </button>
+    ))}
+  </div>
+);
+
+const PageSizeSelect = ({ value, onChange }) => (
+  <label className="page-size-select">
+    <span className="page-size-select-label">Show</span>
+    <select
+      value={Number.isFinite(value) ? value : 'all'}
+      onChange={(event) => {
+        const { value: rawValue } = event.target;
+        onChange(rawValue === 'all' ? Infinity : Number(rawValue));
+      }}
+    >
+      {PAGE_SIZE_OPTIONS.map((count) => (
+        <option key={count} value={count}>{count}</option>
+      ))}
+      <option value="all">All</option>
+    </select>
+  </label>
+);
+
 // Length-tiered so long names (e.g. "KrebsOnSecurity", "Anthropic") shrink to
 // fit on one line instead of wrapping mid-word into the subtitle below.
 const getSourceNameSizeClass = (name) => {
@@ -403,13 +468,26 @@ const EverythingCard = ({ article }) => {
   );
 };
 
+const SmallListRow = ({ article }) => (
+  <li className="small-list-row">
+    <h4><SafeArticleTitle article={article} /></h4>
+    <span className="small-list-meta">
+      <span>{formatSiteName(article.site)}</span>
+      <span aria-hidden="true">&middot;</span>
+      <span>{formatRelativeTime(article.published_at)}</span>
+    </span>
+  </li>
+);
+
 function App() {
   const [articles, setArticles] = useState([]);
   const [sites, setSites] = useState([]);
   const [topics, setTopics] = useState([]);
   const [selectedSite, setSelectedSite] = useState(() => readFiltersFromUrl().site);
   const [selectedTopic, setSelectedTopic] = useState(() => readFiltersFromUrl().topic);
-  const [visibleCount, setVisibleCount] = useState(getInitialVisibleCount);
+  const [pageSize, setPageSize] = useState(INITIAL_ARTICLE_COUNT);
+  const [visibleCount, setVisibleCount] = useState(INITIAL_ARTICLE_COUNT);
+  const [everythingViewMode, setEverythingViewMode] = useState(EVERYTHING_VIEW_MODES[0]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -419,7 +497,7 @@ function App() {
       const response = await axios.get(buildArticleUrl(site, topic));
 
       setArticles(response.data);
-      setVisibleCount(getInitialVisibleCount());
+      setVisibleCount(pageSize);
       setError(null);
     } catch (err) {
       setError(import.meta.env.DEV
@@ -429,7 +507,7 @@ function App() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [pageSize]);
 
   // Sites available for the current topic filter (independent of the site
   // filter itself, so picking a topic narrows the source chips to only the
@@ -544,7 +622,12 @@ function App() {
   ].filter(Boolean).join(' · ');
 
   const handleShowMore = () => {
-    setVisibleCount((currentCount) => currentCount + ARTICLES_PER_PAGE);
+    setVisibleCount((currentCount) => currentCount + pageSize);
+  };
+
+  const handlePageSizeChange = (newPageSize) => {
+    setPageSize(newPageSize);
+    setVisibleCount(newPageSize);
   };
 
   if (loading) {
@@ -712,18 +795,40 @@ function App() {
               <div className="tier-heading">
                 <h3 id="everything-else-title">Everything else</h3>
                 <span className="tier-count">{everythingElseAll.length} items</span>
+                {everythingElseAll.length > 0 && (
+                  <div className="tier-controls">
+                    <PageSizeSelect value={pageSize} onChange={handlePageSizeChange} />
+                    <ViewModeToggle value={everythingViewMode} onChange={setEverythingViewMode} />
+                  </div>
+                )}
               </div>
               {everythingElseAll.length > 0 ? (
                 <>
-                  <div className="everything-grid">
-                    {visibleEverythingElse.map((article) => (
-                      <EverythingCard key={article.url} article={article} />
-                    ))}
-                  </div>
+                  {everythingViewMode === 'cards' && (
+                    <div className="everything-grid">
+                      {visibleEverythingElse.map((article) => (
+                        <EverythingCard key={article.url} article={article} />
+                      ))}
+                    </div>
+                  )}
+                  {everythingViewMode === 'list' && (
+                    <div className="brief-list">
+                      {visibleEverythingElse.map((article, index) => (
+                        <BriefRow key={article.url} article={article} index={index} />
+                      ))}
+                    </div>
+                  )}
+                  {everythingViewMode === 'small-list' && (
+                    <ul className="small-list">
+                      {visibleEverythingElse.map((article) => (
+                        <SmallListRow key={article.url} article={article} />
+                      ))}
+                    </ul>
+                  )}
                   {hasMoreArticles && (
                     <div className="show-more-inline">
                       <button type="button" className="show-more-link" onClick={handleShowMore}>
-                        Show {Math.min(ARTICLES_PER_PAGE, everythingElseAll.length - visibleEverythingElse.length)} more &rarr;
+                        Show {Math.min(pageSize, everythingElseAll.length - visibleEverythingElse.length)} more &rarr;
                       </button>
                       <p className="article-count">
                         Showing {visibleEverythingElse.length} of {everythingElseAll.length} items
