@@ -3,73 +3,85 @@ const cors = require('cors');
 require('dotenv').config();
 
 const { fetchArticles, fetchSites, fetchTopics } = require('./lib/articles');
+const { createCorsOptions } = require('./lib/cors');
+const { log, logRequest, sendError } = require('./lib/http');
 const { proxyImage } = require('./lib/imageProxy');
+const { RATE_LIMITS, rateLimitMiddleware } = require('./lib/rateLimit');
+const { securityHeadersMiddleware } = require('./lib/securityHeaders');
 
 const app = express();
 const port = process.env.PORT || 5000;
-const { checkDatabase } = require('./lib/db');
 
 // Middleware
-app.use(cors());
+app.use(securityHeadersMiddleware);
+app.use(logRequest);
+app.use(cors(createCorsOptions()));
 app.use(express.json());
 
 // API Routes
-app.get('/api/health', async (req, res) => {
-  try {
-    await checkDatabase();
-    res.json({ ok: true, node: process.version, database: 'ok' });
-  } catch (err) {
-    console.error('Health check failed:', err);
-    res.status(500).json({ ok: false, node: process.version, database: 'error' });
-  }
+app.get('/api/health', rateLimitMiddleware(RATE_LIMITS.health), (req, res) => {
+  res.setHeader('Cache-Control', 'no-store');
+  res.json({ ok: true });
 });
 
-app.get('/api/articles', async (req, res) => {
+app.get('/api/articles', rateLimitMiddleware(RATE_LIMITS.articles), async (req, res) => {
   try {
     res.json(await fetchArticles({ topic: req.query.topic, limit: req.query.limit, offset: req.query.offset }));
   } catch (err) {
-    console.error('Error fetching articles:', err);
-    res.status(500).json({ error: 'Failed to fetch articles' });
+    sendError(res, 'Failed to fetch articles', err, req);
   }
 });
 
-app.get('/api/articles/:site', async (req, res) => {
+app.get('/api/articles/:site', rateLimitMiddleware(RATE_LIMITS.articles), async (req, res) => {
   try {
     const { site } = req.params;
     res.json(await fetchArticles({ site, topic: req.query.topic, limit: req.query.limit, offset: req.query.offset }));
   } catch (err) {
-    console.error('Error fetching articles:', err);
-    res.status(500).json({ error: 'Failed to fetch articles' });
+    sendError(res, 'Failed to fetch articles', err, req);
   }
 });
 
-app.get('/api/sites', async (req, res) => {
+app.get('/api/sites', rateLimitMiddleware(RATE_LIMITS.articles), async (req, res) => {
   try {
     res.json(await fetchSites());
   } catch (err) {
-    console.error('Error fetching sites:', err);
-    res.status(500).json({ error: 'Failed to fetch sites' });
+    sendError(res, 'Failed to fetch sites', err, req);
   }
 });
 
-app.get('/api/topics', async (req, res) => {
+app.get('/api/topics', rateLimitMiddleware(RATE_LIMITS.articles), async (req, res) => {
   try {
     res.json(await fetchTopics());
   } catch (err) {
-    console.error('Error fetching topics:', err);
-    res.status(500).json({ error: 'Failed to fetch topics' });
+    sendError(res, 'Failed to fetch topics', err, req);
   }
 });
 
-app.get('/api/image-proxy', async (req, res) => {
+app.get('/api/image-proxy', rateLimitMiddleware(RATE_LIMITS.imageProxy), async (req, res) => {
   try {
     return await proxyImage(req, res);
   } catch (err) {
-    console.error('Error proxying image:', err);
-    return res.status(500).json({ error: 'Failed to proxy image' });
+    return sendError(res, 'Failed to proxy image', err, req);
   }
 });
 
+app.use((err, req, res, next) => {
+  if (res.headersSent) {
+    return next(err);
+  }
+
+  if (err.message === 'CORS origin is not allowed') {
+    log('warn', 'cors_rejected', {
+      requestId: req.requestId,
+      origin: req.headers.origin,
+      path: req.path,
+    });
+    return res.status(403).json({ error: 'CORS origin is not allowed', requestId: req.requestId });
+  }
+
+  return sendError(res, 'Internal server error', err, req);
+});
+
 app.listen(port, () => {
-  console.log(`Server running at http://localhost:${port}`);
+  log('info', 'server_started', { port, node: process.version });
 });

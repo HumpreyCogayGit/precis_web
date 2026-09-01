@@ -11,6 +11,19 @@ const proxiedImageUrl = (imageUrl) => (
   imageUrl ? `${API_BASE_URL}/api/image-proxy?url=${encodeURIComponent(imageUrl)}` : ''
 );
 
+const safeHttpUrl = (url) => {
+  if (!url) {
+    return '';
+  }
+
+  try {
+    const parsed = new URL(url);
+    return ['http:', 'https:'].includes(parsed.protocol) ? parsed.href : '';
+  } catch (err) {
+    return '';
+  }
+};
+
 const parseDateTimestamp = (dateValue) => {
   if (!dateValue) {
     return 0;
@@ -83,32 +96,76 @@ const formatDisplayDate = (dateValue, options = {}) => {
 };
 
 const getExcerpt = (article) => {
-  const excerpt = article.body_text?.replace(/\s+/g, ' ').trim();
-  return excerpt ? `${excerpt.substring(0, 220)}${excerpt.length > 220 ? '…' : ''}` : 'No article text was captured yet.';
+  const excerpt = article.excerpt?.replace(/\s+/g, ' ').trim();
+  return excerpt || 'No article text was captured yet.';
 };
 
-const ArticleCard = ({ article, variant = 'standard' }) => (
-  <article className={`article-card article-card--${variant}`}>
-    {article.image_url && (
-      <a href={article.url} target="_blank" rel="noopener noreferrer" className="image-link" aria-label={`Open ${article.title}`}>
-        <img src={proxiedImageUrl(article.image_url)} alt="" className="article-image" />
-      </a>
-    )}
-    <div className="article-body">
-      <div className="article-meta">
-        <span className="site">{formatSiteName(article.site)}</span>
-        {article.topic && <span className="topic">{article.topic}</span>}
-        {article.published_at && <span className="date">{formatDisplayDate(article.published_at)}</span>}
+const SafeArticleTitle = ({ article }) => {
+  const articleUrl = safeHttpUrl(article.url);
+
+  if (!articleUrl) {
+    return <span>{article.title}</span>;
+  }
+
+  return <a href={articleUrl} target="_blank" rel="noopener noreferrer">{article.title}</a>;
+};
+
+const ArticleCard = ({ article, variant = 'standard' }) => {
+  const articleUrl = safeHttpUrl(article.url);
+  const image = article.image_url ? <img src={proxiedImageUrl(article.image_url)} alt="" className="article-image" /> : null;
+
+  return (
+    <article className={`article-card article-card--${variant}`}>
+      {image && (articleUrl ? (
+        <a href={articleUrl} target="_blank" rel="noopener noreferrer" className="image-link" aria-label={`Open ${article.title}`}>
+          {image}
+        </a>
+      ) : (
+        <div className="image-link" aria-hidden="true">
+          {image}
+        </div>
+      ))}
+      <div className="article-body">
+        <div className="article-meta">
+          <span className="site">{formatSiteName(article.site)}</span>
+          {article.topic && <span className="topic">{article.topic}</span>}
+          {article.published_at && <span className="date">{formatDisplayDate(article.published_at)}</span>}
+        </div>
+        <h2><SafeArticleTitle article={article} /></h2>
+        <p className="article-excerpt">{getExcerpt(article)}</p>
       </div>
-      <h2><a href={article.url} target="_blank" rel="noopener noreferrer">{article.title}</a></h2>
-      <p className="article-excerpt">{getExcerpt(article)}</p>
-    </div>
-    <div className="article-footer">
-      {article.author && <span className="author">{article.author}</span>}
-      <small>Captured {formatDisplayDate(article.fetched_at, { hour: '2-digit', minute: '2-digit' })}</small>
-    </div>
-  </article>
-);
+      <div className="article-footer">
+        {article.author && <span className="author">{article.author}</span>}
+        <small>Captured {formatDisplayDate(article.fetched_at, { hour: '2-digit', minute: '2-digit' })}</small>
+      </div>
+    </article>
+  );
+};
+
+const StoryRow = ({ article, index }) => {
+  const articleUrl = safeHttpUrl(article.url);
+  const content = (
+    <>
+      <span className="story-rank">{String(index + 1).padStart(2, '0')}</span>
+      <span className={`story-thumbnail${article.image_url ? '' : ' story-thumbnail--empty'}`} aria-hidden="true">
+        {article.image_url && <img src={proxiedImageUrl(article.image_url)} alt="" />}
+      </span>
+      <span className="story-topic">{article.topic || formatSiteName(article.site)}</span>
+      <strong>{article.title}</strong>
+      <small>{article.published_at ? formatDisplayDate(article.published_at) : 'Date not captured'}</small>
+    </>
+  );
+
+  if (!articleUrl) {
+    return <div className="story-row">{content}</div>;
+  }
+
+  return (
+    <a href={articleUrl} target="_blank" rel="noopener noreferrer" className="story-row">
+      {content}
+    </a>
+  );
+};
 
 function App() {
   const [articles, setArticles] = useState([]);
@@ -194,6 +251,7 @@ function App() {
     : sortedArticles;
   const hasMoreArticles = visibleCount < sortedArticles.length;
   const featuredArticle = sortedArticles[0];
+  const featuredArticleUrl = safeHttpUrl(featuredArticle?.url);
   const feedArticles = featuredArticle ? visibleArticles.slice(1) : visibleArticles;
   const topStories = sortedArticles.slice(1, 5);
 
@@ -275,9 +333,15 @@ function App() {
             <aside className="hero-feature" aria-label="Featured article">
               <span className="content-label">Featured</span>
               {featuredArticle.image_url && (
-                <a href={featuredArticle.url} target="_blank" rel="noopener noreferrer" className="feature-image-link" aria-label={`Open ${featuredArticle.title}`}>
-                  <img src={proxiedImageUrl(featuredArticle.image_url)} alt="" />
-                </a>
+                featuredArticleUrl ? (
+                  <a href={featuredArticleUrl} target="_blank" rel="noopener noreferrer" className="feature-image-link" aria-label={`Open ${featuredArticle.title}`}>
+                    <img src={proxiedImageUrl(featuredArticle.image_url)} alt="" />
+                  </a>
+                ) : (
+                  <div className="feature-image-link" aria-hidden="true">
+                    <img src={proxiedImageUrl(featuredArticle.image_url)} alt="" />
+                  </div>
+                )
               )}
               <div className="feature-copy">
                 <div className="article-meta">
@@ -285,7 +349,7 @@ function App() {
                   {featuredArticle.topic && <span className="topic">{featuredArticle.topic}</span>}
                   {featuredArticle.published_at && <span className="date">{formatDisplayDate(featuredArticle.published_at)}</span>}
                 </div>
-                <h2><a href={featuredArticle.url} target="_blank" rel="noopener noreferrer">{featuredArticle.title}</a></h2>
+                <h2><SafeArticleTitle article={featuredArticle} /></h2>
                 <p>{getExcerpt(featuredArticle)}</p>
               </div>
             </aside>
@@ -355,15 +419,7 @@ function App() {
               </div>
               <div className="story-list">
                 {topStories.map((article, index) => (
-                  <a key={article.url} href={article.url} target="_blank" rel="noopener noreferrer" className="story-row">
-                    <span className="story-rank">{String(index + 1).padStart(2, '0')}</span>
-                    <span className={`story-thumbnail${article.image_url ? '' : ' story-thumbnail--empty'}`} aria-hidden="true">
-                      {article.image_url && <img src={proxiedImageUrl(article.image_url)} alt="" />}
-                    </span>
-                    <span className="story-topic">{article.topic || formatSiteName(article.site)}</span>
-                    <strong>{article.title}</strong>
-                    <small>{article.published_at ? formatDisplayDate(article.published_at) : 'Date not captured'}</small>
-                  </a>
+                  <StoryRow key={`${article.url}-${index}`} article={article} index={index} />
                 ))}
               </div>
             </section>

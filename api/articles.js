@@ -1,8 +1,13 @@
 const { fetchArticles } = require('../lib/articles');
-const { allowMethods, sendServerError } = require('../lib/http');
+const { allowMethods, sendError } = require('../lib/http');
+const { RATE_LIMITS, checkRateLimit } = require('../lib/rateLimit');
 
 module.exports = async function handler(req, res) {
   if (!allowMethods(req, res)) {
+    return;
+  }
+
+  if (!checkRateLimit(req, res, RATE_LIMITS.articles)) {
     return;
   }
 
@@ -14,6 +19,6 @@ module.exports = async function handler(req, res) {
       offset: req.query.offset,
     }));
   } catch (err) {
-    sendServerError(res, 'Failed to fetch articles', err);
+    sendError(res, 'Failed to fetch articles', err, req);
   }
 };

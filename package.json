@@ -5,6 +5,7 @@
   "main": "server.js",
   "scripts": {
     "build": "cd react-app && npm ci && npm run build && cd .. && rm -rf public && cp -R react-app/dist public",
+    "test:backend": "node --test tests/*.test.js",
     "test": "cd react-app && npm test -- --run",
     "start": "node server.js",
     "dev": "nodemon server.js",

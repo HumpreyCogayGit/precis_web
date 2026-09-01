@@ -73,6 +73,12 @@ coverage/**
 *.db-journal
 data/
 
+# Local planning / audit notes
+SECURITY_AUDIT_PLAN.md
+
+# Local security operations scripts that can contain deployment-specific role names
+sql/create-readonly-web-role.sql
+
 # OS / editor files
 .DS_Store
 Thumbs.db
