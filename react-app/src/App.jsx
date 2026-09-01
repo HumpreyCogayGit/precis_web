@@ -11,6 +11,20 @@ const proxiedImageUrl = (imageUrl) => (
   imageUrl ? `${API_BASE_URL}/api/image-proxy?url=${encodeURIComponent(imageUrl)}` : ''
 );
 
+const SOURCE_DISPLAY_NAMES = {
+  alibaba: 'Alibaba Cloud',
+  anthropic_news: 'Anthropic',
+  google_innovation_ai: 'Google AI',
+  krebs_on_security: 'KrebsOnSecurity',
+  microsoft_ai_blog: 'Microsoft AI',
+  nvidia: 'NVIDIA',
+  open_ai: 'OpenAI',
+  open_ai_releases: 'OpenAI',
+  perplexity_blog: 'Perplexity',
+  together_ai_blog: 'Together AI',
+  x_ai_news: 'xAI',
+};
+
 const safeHttpUrl = (url) => {
   if (!url) {
     return '';
@@ -59,11 +73,31 @@ const getInitialVisibleCount = (site = '', topic = '') => (
   site || topic ? INITIAL_ARTICLE_COUNT : Number.POSITIVE_INFINITY
 );
 
-const formatSiteName = (site = '') => (
-  site
+const formatSiteName = (site = '') => {
+  const normalizedSite = String(site).trim().toLowerCase();
+
+  if (SOURCE_DISPLAY_NAMES[normalizedSite]) {
+    return SOURCE_DISPLAY_NAMES[normalizedSite];
+  }
+
+  return String(site)
     .replace(/[_-]+/g, ' ')
     .replace(/\b\w/g, (letter) => letter.toUpperCase())
-);
+    .replace(/\bAi\b/g, 'AI');
+};
+
+const FallbackNewsImage = ({ site, className = '' }) => {
+  const sourceName = formatSiteName(site) || 'Precis';
+
+  return (
+    <span className={`fallback-news-image${className ? ` ${className}` : ''}`} aria-hidden="true">
+      <span className="fallback-news-image__grid" />
+      <span className="fallback-news-image__ticker">News Brief</span>
+      <span className="fallback-news-image__source">{sourceName}</span>
+      <span className="fallback-news-image__subtitle">Latest updates</span>
+    </span>
+  );
+};
 
 const buildArticleUrl = (site = '', topic = '') => {
   const path = site ? `/api/articles/${encodeURIComponent(site)}` : '/api/articles';
@@ -112,11 +146,13 @@ const SafeArticleTitle = ({ article }) => {
 
 const ArticleCard = ({ article, variant = 'standard' }) => {
   const articleUrl = safeHttpUrl(article.url);
-  const image = article.image_url ? <img src={proxiedImageUrl(article.image_url)} alt="" className="article-image" /> : null;
+  const image = article.image_url
+    ? <img src={proxiedImageUrl(article.image_url)} alt="" className="article-image" />
+    : <FallbackNewsImage site={article.site} className="article-image" />;
 
   return (
     <article className={`article-card article-card--${variant}`}>
-      {image && (articleUrl ? (
+      {articleUrl ? (
         <a href={articleUrl} target="_blank" rel="noopener noreferrer" className="image-link" aria-label={`Open ${article.title}`}>
           {image}
         </a>
@@ -124,7 +160,7 @@ const ArticleCard = ({ article, variant = 'standard' }) => {
         <div className="image-link" aria-hidden="true">
           {image}
         </div>
-      ))}
+      )}
       <div className="article-body">
         <div className="article-meta">
           <span className="site">{formatSiteName(article.site)}</span>
@@ -147,8 +183,8 @@ const StoryRow = ({ article, index }) => {
   const content = (
     <>
       <span className="story-rank">{String(index + 1).padStart(2, '0')}</span>
-      <span className={`story-thumbnail${article.image_url ? '' : ' story-thumbnail--empty'}`} aria-hidden="true">
-        {article.image_url && <img src={proxiedImageUrl(article.image_url)} alt="" />}
+      <span className="story-thumbnail" aria-hidden="true">
+        {article.image_url ? <img src={proxiedImageUrl(article.image_url)} alt="" /> : <FallbackNewsImage site={article.site} />}
       </span>
       <span className="story-topic">{article.topic || formatSiteName(article.site)}</span>
       <strong>{article.title}</strong>
@@ -332,16 +368,18 @@ function App() {
 
             <aside className="hero-feature" aria-label="Featured article">
               <span className="content-label">Featured</span>
-              {featuredArticle.image_url && (
-                featuredArticleUrl ? (
-                  <a href={featuredArticleUrl} target="_blank" rel="noopener noreferrer" className="feature-image-link" aria-label={`Open ${featuredArticle.title}`}>
-                    <img src={proxiedImageUrl(featuredArticle.image_url)} alt="" />
-                  </a>
-                ) : (
-                  <div className="feature-image-link" aria-hidden="true">
-                    <img src={proxiedImageUrl(featuredArticle.image_url)} alt="" />
-                  </div>
-                )
+              {featuredArticleUrl ? (
+                <a href={featuredArticleUrl} target="_blank" rel="noopener noreferrer" className="feature-image-link" aria-label={`Open ${featuredArticle.title}`}>
+                  {featuredArticle.image_url
+                    ? <img src={proxiedImageUrl(featuredArticle.image_url)} alt="" />
+                    : <FallbackNewsImage site={featuredArticle.site} />}
+                </a>
+              ) : (
+                <div className="feature-image-link" aria-hidden="true">
+                  {featuredArticle.image_url
+                    ? <img src={proxiedImageUrl(featuredArticle.image_url)} alt="" />
+                    : <FallbackNewsImage site={featuredArticle.site} />}
+                </div>
               )}
               <div className="feature-copy">
                 <div className="article-meta">

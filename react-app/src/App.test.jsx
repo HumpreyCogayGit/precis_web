@@ -116,4 +116,12 @@ describe('App', () => {
     expect(await screen.findByText('A concise article summary for the deployment smoke test.')).toBeInTheDocument();
     expect(screen.getByText('This story has an unsafe URL and should not be clickable.')).toBeInTheDocument();
   });
+
+  test('renders source-labeled fallback news images when articles have no captured image', async () => {
+    render(<App />);
+
+    expect(await screen.findByText('Daily Tech Brief')).toBeInTheDocument();
+    expect(screen.getAllByText('NVIDIA').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('News Brief').length).toBeGreaterThan(0);
+  });
 });
