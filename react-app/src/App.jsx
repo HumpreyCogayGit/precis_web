@@ -7,6 +7,7 @@ const INITIAL_ARTICLE_COUNT = 12;
 const ARTICLES_PER_PAGE = 12;
 const API_ARTICLE_LIMIT = 100;
 const BRIEF_COUNT = 5;
+const DEFAULT_TOPIC = 'AI';
 
 const proxiedImageUrl = (imageUrl) => (
   imageUrl ? `${API_BASE_URL}/api/image-proxy?url=${encodeURIComponent(imageUrl)}` : ''
@@ -222,13 +223,13 @@ const getCardSummaryText = (article) => {
 
 const readFiltersFromUrl = () => {
   if (typeof window === 'undefined') {
-    return { site: '', topic: '' };
+    return { site: '', topic: DEFAULT_TOPIC };
   }
 
   const params = new URLSearchParams(window.location.search);
   return {
     site: params.get('source') || '',
-    topic: params.get('topic') || '',
+    topic: params.has('topic') ? params.get('topic') : DEFAULT_TOPIC,
   };
 };
 
