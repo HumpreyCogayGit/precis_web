@@ -27,8 +27,11 @@ SELECT
     WHEN length(regexp_replace(body_text, '\s+', ' ', 'g')) > 360
       THEN left(regexp_replace(body_text, '\s+', ' ', 'g'), 360) || '…'
     ELSE regexp_replace(body_text, '\s+', ' ', 'g')
-  END AS excerpt,
-  fetched_at
+  END AS excerpt,                   -- unchanged for now; remove after the UI migrates
+  fetched_at,
+  summary                           -- new: one sentence, written at scrape time. Appended
+                                     -- last: CREATE OR REPLACE VIEW can only add columns at
+                                     -- the end without dropping the view (and its grants).
 FROM public.articles
 WHERE COALESCE(needs_review, FALSE) = FALSE;
 

@@ -1,0 +1,677 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="design_doc_mode" content="canvas">
+<link rel="stylesheet" href="_ds/industry-ea3f297d-961b-41bd-b99e-2f69edc66703/styles.css">
+<script src="_ds/industry-ea3f297d-961b-41bd-b99e-2f69edc66703/_ds_bundle.js"></script>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@500;600;700&display=swap">
+<style>
+  body { margin: 0; background: var(--color-bg); font-family: var(--font-body); color: var(--color-text); }
+  a { color: var(--color-accent-700); text-decoration: none; }
+  a:hover { color: var(--color-accent-900); }
+</style>
+</helmet>
+
+<section style="display:flex;flex-direction:column;gap:96px;padding:72px 80px 140px;font-family:var(--font-body)">
+
+  <div id="1a" style="display:flex;flex-direction:column;gap:64px;max-width:1440px">
+
+    <div style="display:flex;align-items:flex-start;gap:24px">
+      <span class="tag tag-outline" style="font-family:var(--font-heading);letter-spacing:.12em">1A</span>
+      <div style="display:flex;flex-direction:column;gap:14px;max-width:820px">
+        <span style="font-family:var(--font-heading);font-size:13px;letter-spacing:.18em;text-transform:uppercase;color:var(--color-accent-700)">Precis · precisnews.vercel.app · reviewed from HumpreyCogayGit/precis_web</span>
+        <h1 style="margin:0;font-family:var(--font-heading);font-size:76px;line-height:.94;letter-spacing:-.01em">Seven things to fix,<br>and the flow they add up to.</h1>
+        <p style="margin:0;font-size:18px;line-height:1.5;max-width:680px;color:var(--color-neutral-800);text-wrap:pretty">The site already scrapes eleven good sources and renders them safely. What it does not yet do is tell you which four of today's forty-two items matter. Everything below is grounded in the current <code style="font-size:15px">App.jsx</code>, <code style="font-size:15px">lib/articles.js</code> and the <code style="font-size:15px">public_articles</code> view.</p>
+      </div>
+    </div>
+
+    <sc-if value="{{ showCritique }}" hint-placeholder-val="{{ true }}">
+    <div style="display:flex;flex-direction:column;gap:0;border-top:1px solid var(--color-text)">
+
+      <div style="display:grid;grid-template-columns:64px 1fr 1fr;gap:40px;padding:28px 0;border-bottom:1px solid var(--color-divider)">
+        <span style="font-family:var(--font-heading);font-size:34px;line-height:1;color:var(--color-accent)">01</span>
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <h3 style="margin:0;font-size:28px;line-height:1.1">The excerpt is not a summary</h3>
+          <p style="margin:0;font-size:15px;line-height:1.55;color:var(--color-neutral-700)">The view takes <code>left(body_text, 360) || '…'</code>. So every card shows the article's first 360 characters — which is usually the headline repeated, then a boilerplate intro, cut mid-word. Three cards in the current grid open with the same words as their own titles.</p>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <span style="font-family:var(--font-heading);font-size:12px;letter-spacing:.16em;text-transform:uppercase;color:var(--color-accent-700)">Fix</span>
+          <p style="margin:0;font-size:15px;line-height:1.55">Summarise once, at scrape time, into a <code>summary</code> column: one sentence, 25 words, stating what happened. This is the single highest-leverage change on the list — every other improvement below is arranging summaries on a page.</p>
+        </div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:64px 1fr 1fr;gap:40px;padding:28px 0;border-bottom:1px solid var(--color-divider)">
+        <span style="font-family:var(--font-heading);font-size:34px;line-height:1;color:var(--color-accent)">02</span>
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <h3 style="margin:0;font-size:28px;line-height:1.1">Every item weighs the same</h3>
+          <p style="margin:0;font-size:15px;line-height:1.55;color:var(--color-neutral-700)">Featured, Editors Picks and Browse All are three sections of near-identical cards: image, 24px condensed headline, 120-word body. A reader scanning for signal gets forty-two equal claims on their attention and no path through them.</p>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <span style="font-family:var(--font-heading);font-size:12px;letter-spacing:.16em;text-transform:uppercase;color:var(--color-accent-700)">Fix</span>
+          <p style="margin:0;font-size:15px;line-height:1.55">Three tiers, sharply different: one lead with an image, five numbered briefs with a summary line, then a dense headline-only list. Sixty seconds gets you the lead plus the five.</p>
+        </div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:64px 1fr 1fr;gap:40px;padding:28px 0;border-bottom:1px solid var(--color-divider)">
+        <span style="font-family:var(--font-heading);font-size:34px;line-height:1;color:var(--color-accent)">03</span>
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <h3 style="margin:0;font-size:28px;line-height:1.1">"Editors Picks" is <code>slice(1, 5)</code></h3>
+          <p style="margin:0;font-size:15px;line-height:1.55;color:var(--color-neutral-700)">Both that heading and the "Popular on Precis" kicker sit above items two through five by publish date. There are no editors and no popularity data. A reader who notices stops trusting the rest of the labels.</p>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <span style="font-family:var(--font-heading);font-size:12px;letter-spacing:.16em;text-transform:uppercase;color:var(--color-accent-700)">Fix</span>
+          <p style="margin:0;font-size:15px;line-height:1.55">Either earn the label — rank by how many sources covered the story, which you can compute from the data you already hold — or call the section what it is: "Also today". Ranking by coverage also answers "what's trending" honestly.</p>
+        </div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:64px 1fr 1fr;gap:40px;padding:28px 0;border-bottom:1px solid var(--color-divider)">
+        <span style="font-family:var(--font-heading);font-size:34px;line-height:1;color:var(--color-accent)">04</span>
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <h3 style="margin:0;font-size:28px;line-height:1.1">Two filter systems for one job</h3>
+          <p style="margin:0;font-size:15px;line-height:1.55;color:var(--color-neutral-700)">Source and Topic appear as selects in the hero and again as chip strips 900px further down, wired to the same state. The chip strip needs its own horizontal scrollbar. Choosing a source in one place silently changes the other, and the result appears off-screen.</p>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <span style="font-family:var(--font-heading);font-size:12px;letter-spacing:.16em;text-transform:uppercase;color:var(--color-accent-700)">Fix</span>
+          <p style="margin:0;font-size:15px;line-height:1.55">One sticky bar under the masthead. Eleven sources and two topics fit on a line at this width — no scroller. The active filter shows in the masthead itself, and the list re-renders in place.</p>
+        </div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:64px 1fr 1fr;gap:40px;padding:28px 0;border-bottom:1px solid var(--color-divider)">
+        <span style="font-family:var(--font-heading);font-size:34px;line-height:1;color:var(--color-accent)">05</span>
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <h3 style="margin:0;font-size:28px;line-height:1.1">Scraper telemetry is on the page</h3>
+          <p style="margin:0;font-size:15px;line-height:1.55;color:var(--color-neutral-700)">Each card carries "Captured Sep 1, 2026, 12:09 PM" alongside the publish date. <code>fetched_at</code> is your pipeline's business, not the reader's, and showing both dates makes neither legible. Nothing on the page says what day this edition is.</p>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <span style="font-family:var(--font-heading);font-size:12px;letter-spacing:.16em;text-transform:uppercase;color:var(--color-accent-700)">Fix</span>
+          <p style="margin:0;font-size:15px;line-height:1.55">A dated masthead — "Tuesday, September 1" — with one honest freshness line under it. Items show relative publish time. Keep <code>fetched_at</code> for sorting; stop printing it.</p>
+        </div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:64px 1fr 1fr;gap:40px;padding:28px 0;border-bottom:1px solid var(--color-divider)">
+        <span style="font-family:var(--font-heading);font-size:34px;line-height:1;color:var(--color-accent)">06</span>
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <h3 style="margin:0;font-size:28px;line-height:1.1">The same story lands as separate cards</h3>
+          <p style="margin:0;font-size:15px;line-height:1.55;color:var(--color-neutral-700)">There is no clustering, so a launch covered by OpenAI's blog, NVIDIA and Perplexity is three cards a reader has to reconcile. <code>open_ai</code> and <code>open_ai_releases</code> also both render as "OpenAI", which reads as a duplicate in the source list.</p>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <span style="font-family:var(--font-heading);font-size:12px;letter-spacing:.16em;text-transform:uppercase;color:var(--color-accent-700)">Fix</span>
+          <p style="margin:0;font-size:15px;line-height:1.55">Group by story and show "3 sources" on the row; the cluster page holds the per-source takes in a timeline. Merge the two OpenAI keys behind one display source with a channel label.</p>
+        </div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:64px 1fr 1fr;gap:40px;padding:28px 0;border-bottom:1px solid var(--color-text)">
+        <span style="font-family:var(--font-heading);font-size:34px;line-height:1;color:var(--color-accent)">07</span>
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <h3 style="margin:0;font-size:28px;line-height:1.1">Nothing brings anyone back tomorrow</h3>
+          <p style="margin:0;font-size:15px;line-height:1.55;color:var(--color-neutral-700)">No search, no saving, no read state, no email, no permalink for a story. <code>visibleCount</code> resets to twelve on every filter change, so browsing deep and then switching topic loses your place. On a phone the three-column grid stacks into forty-two long cards.</p>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <span style="font-family:var(--font-heading);font-size:12px;letter-spacing:.16em;text-transform:uppercase;color:var(--color-accent-700)">Fix</span>
+          <p style="margin:0;font-size:15px;line-height:1.55">Search, save-for-later and a morning email, in that order of effort. The archive of dated editions is free once the edition exists — yesterday's brief is a permanent, linkable page.</p>
+        </div>
+      </div>
+
+    </div>
+    </sc-if>
+
+    <div style="display:flex;flex-direction:column;gap:14px;max-width:820px;padding-top:8px">
+      <span style="font-family:var(--font-heading);font-size:13px;letter-spacing:.18em;text-transform:uppercase;color:var(--color-accent-700)">The flow</span>
+      <h2 style="margin:0;font-family:var(--font-heading);font-size:48px;line-height:1">Six screens</h2>
+      <p style="margin:0;font-size:16px;line-height:1.55;color:var(--color-neutral-800)">Headlines and excerpts are real items from your current feed. The one-line summaries are written from those excerpts to show the shape — in production they come from the summarise step in fix 01. Images are placeholders.</p>
+    </div>
+
+    <!-- SCREEN 01 -->
+    <div style="display:flex;flex-direction:column;gap:18px">
+      <div style="display:flex;align-items:baseline;gap:16px">
+        <span style="font-family:var(--font-heading);font-size:12px;letter-spacing:.18em;text-transform:uppercase;color:var(--color-accent-700)">Screen 01</span>
+        <h3 style="margin:0;font-family:var(--font-heading);font-size:30px">Today's edition</h3>
+        <span style="font-size:14px;color:var(--color-neutral-600)">One lead, five briefs, then the rest. 1280px.</span>
+      </div>
+
+      <div class="blueprint" style="position:relative;width:1280px;background:#fff">
+        <i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+
+        <div style="display:flex;align-items:center;gap:28px;padding:16px 32px;border-bottom:1px solid var(--color-divider)">
+          <span style="font-family:var(--font-heading);font-weight:700;font-size:22px;letter-spacing:.06em">PRECIS<span style="color:var(--color-accent)">.</span></span>
+          <div style="display:flex;gap:22px;font-size:14px;color:var(--color-neutral-700)">
+            <span style="color:var(--color-text);border-bottom:2px solid var(--color-accent);padding-bottom:2px">Today</span>
+            <span>Archive</span>
+            <span>Sources</span>
+            <span>Saved</span>
+          </div>
+          <div style="margin-left:auto;display:flex;align-items:center;gap:12px">
+            <div style="display:flex;align-items:center;gap:8px;width:230px;height:34px;padding:0 10px;border:1px solid var(--color-divider);border-radius:var(--radius-md);font-size:13px;color:var(--color-neutral-500)">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="11" cy="11" r="8"></circle><path d="m21 21-4.3-4.3"></path></svg>
+              Search 4,180 briefs
+            </div>
+            <span class="btn btn-primary blueprint" style="position:relative;height:34px;font-size:13px">
+              <i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+              Get the 7am email
+            </span>
+          </div>
+        </div>
+
+        <div style="display:flex;align-items:flex-end;justify-content:space-between;padding:34px 32px 22px">
+          <div style="display:flex;flex-direction:column;gap:6px">
+            <span style="font-family:var(--font-heading);font-size:12px;letter-spacing:.2em;text-transform:uppercase;color:var(--color-accent-700)">Daily tech brief</span>
+            <h1 style="margin:0;font-family:var(--font-heading);font-size:56px;line-height:.95;letter-spacing:-.01em">Tuesday, September 1</h1>
+            <span style="font-size:14px;color:var(--color-neutral-600)">42 items from 11 sources · last scrape 12:10 PM · 6 new since 8am</span>
+          </div>
+          <div class="seg" style="align-self:flex-end">
+            <span class="seg-opt" style="background:var(--color-accent);color:var(--color-bg)">Today</span>
+            <span class="seg-opt">This week</span>
+            <span class="seg-opt">Everything</span>
+          </div>
+        </div>
+
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:12px 32px;border-top:1px solid var(--color-divider);border-bottom:1px solid var(--color-text);background:var(--color-neutral-100)">
+          <span style="font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--color-neutral-600);margin-right:6px">Topic</span>
+          <span class="tag" style="background:var(--color-accent);color:var(--color-bg)">All</span>
+          <span class="tag tag-neutral">AI</span>
+          <span class="tag tag-neutral">Cyber security</span>
+          <span style="width:1px;height:18px;background:var(--color-divider);margin:0 10px"></span>
+          <span style="font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--color-neutral-600);margin-right:6px">Source</span>
+          <span class="tag" style="background:var(--color-accent);color:var(--color-bg)">All 11</span>
+          <span class="tag tag-neutral">OpenAI</span>
+          <span class="tag tag-neutral">Anthropic</span>
+          <span class="tag tag-neutral">Google AI</span>
+          <span class="tag tag-neutral">NVIDIA</span>
+          <span class="tag tag-neutral">Alibaba Cloud</span>
+          <span class="tag tag-neutral">Microsoft AI</span>
+          <span class="tag tag-neutral">Perplexity</span>
+          <span class="tag tag-neutral">Together AI</span>
+          <span class="tag tag-neutral">xAI</span>
+          <span class="tag tag-neutral">Krebs</span>
+        </div>
+
+        <div style="display:grid;grid-template-columns:1fr 320px">
+          <div style="padding:32px;border-right:1px solid var(--color-divider)">
+
+            <div style="display:grid;grid-template-columns:400px 1fr;gap:28px;padding-bottom:32px;border-bottom:1px solid var(--color-text)">
+              <sc-if value="{{ showImages }}" hint-placeholder-val="{{ true }}">
+              <div class="blueprint duotone" style="position:relative;height:236px;background:var(--color-accent-200);display:flex;align-items:flex-end;padding:10px">
+                <i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+                <span style="font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--color-accent-800)">Lead image</span>
+              </div>
+              </sc-if>
+              <div style="display:flex;flex-direction:column;gap:12px">
+                <div style="display:flex;align-items:center;gap:10px">
+                  <span class="tag tag-outline">Lead</span>
+                  <span style="font-size:13px;color:var(--color-neutral-600)">Alibaba Cloud · 3h ago</span>
+                </div>
+                <h2 style="margin:0;font-size:38px;line-height:1.02;letter-spacing:-.005em;text-wrap:pretty">Flutter RUM in Practice: Reconstructing the Full Story Behind an AI App's Wait</h2>
+                <p style="margin:0;font-size:17px;line-height:1.45;color:var(--color-neutral-800);text-wrap:pretty">When a Flutter app hangs, engineers reach for API latency and crash stacks first — Alibaba Cloud argues production stalls rarely have a single cause, and shows how real-user monitoring reconstructs the whole wait.</p>
+                <div style="display:flex;align-items:center;gap:16px;margin-top:4px">
+                  <span class="btn btn-secondary" style="height:32px;font-size:13px">Read at Alibaba Cloud</span>
+                  <span style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--color-accent-700)">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path></svg>
+                    Save
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <div style="display:flex;align-items:baseline;gap:14px;padding:26px 0 14px">
+              <h3 style="margin:0;font-family:var(--font-heading);font-size:24px">Also today</h3>
+              <span style="font-size:13px;color:var(--color-neutral-600)">ranked by how many sources covered it</span>
+            </div>
+
+            <div style="display:flex;flex-direction:column">
+
+              <div style="display:grid;grid-template-columns:34px 1fr auto;gap:18px;align-items:start;padding:16px 0;border-top:1px solid var(--color-divider)">
+                <span style="font-family:var(--font-heading);font-size:20px;color:var(--color-accent)">01</span>
+                <div style="display:flex;flex-direction:column;gap:5px">
+                  <h4 style="margin:0;font-size:21px;line-height:1.15">Introducing ChatGPT for Teens: Built for learning, backed by protections</h4>
+                  <p style="margin:0;font-size:15px;line-height:1.45;color:var(--color-neutral-700)">OpenAI is launching a teen-specific experience with age estimation and additional parental controls.</p>
+                  <div style="display:flex;align-items:center;gap:10px;font-size:12.5px;color:var(--color-neutral-600)">
+                    <span>OpenAI</span><span>·</span><span>5h ago</span><span>·</span>
+                    <span style="color:var(--color-accent-700)">3 sources</span>
+                  </div>
+                </div>
+                <span style="color:var(--color-neutral-500)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path></svg></span>
+              </div>
+
+              <div style="display:grid;grid-template-columns:34px 1fr auto;gap:18px;align-items:start;padding:16px 0;border-top:1px solid var(--color-divider)">
+                <span style="font-family:var(--font-heading);font-size:20px;color:var(--color-accent)">02</span>
+                <div style="display:flex;flex-direction:column;gap:5px">
+                  <h4 style="margin:0;font-size:21px;line-height:1.15">Asana cleared 5 years of engineering work in 2 weeks with Codex</h4>
+                  <p style="margin:0;font-size:15px;line-height:1.45;color:var(--color-neutral-700)">Asana replaced an outdated testing system in two calendar weeks for about $12K, against a five-year, ~$6M internal estimate.</p>
+                  <div style="display:flex;align-items:center;gap:10px;font-size:12.5px;color:var(--color-neutral-600)">
+                    <span>OpenAI</span><span>·</span><span>6h ago</span><span>·</span>
+                    <span style="color:var(--color-accent-700)">2 sources</span>
+                  </div>
+                </div>
+                <span style="color:var(--color-neutral-500)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path></svg></span>
+              </div>
+
+              <div style="display:grid;grid-template-columns:34px 1fr auto;gap:18px;align-items:start;padding:16px 0;border-top:1px solid var(--color-divider)">
+                <span style="font-family:var(--font-heading);font-size:20px;color:var(--color-accent)">03</span>
+                <div style="display:flex;flex-direction:column;gap:5px">
+                  <h4 style="margin:0;font-size:21px;line-height:1.15">Pacing model development in an era of cyber-critical capabilities</h4>
+                  <p style="margin:0;font-size:15px;line-height:1.45;color:var(--color-neutral-700)">Two recent incidents, including the OpenAI–Hugging Face one, underscore the risks tied to increasingly capable systems.</p>
+                  <div style="display:flex;align-items:center;gap:10px;font-size:12.5px;color:var(--color-neutral-600)">
+                    <span>OpenAI</span><span>·</span><span>9h ago</span><span>·</span>
+                    <span style="color:var(--color-accent-700)">2 sources</span>
+                  </div>
+                </div>
+                <span style="color:var(--color-neutral-500)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path></svg></span>
+              </div>
+
+              <div style="display:grid;grid-template-columns:34px 1fr auto;gap:18px;align-items:start;padding:16px 0;border-top:1px solid var(--color-divider)">
+                <span style="font-family:var(--font-heading);font-size:20px;color:var(--color-accent)">04</span>
+                <div style="display:flex;flex-direction:column;gap:5px">
+                  <h4 style="margin:0;font-size:21px;line-height:1.15">From Models to Agents: How Alibaba Cloud Qwen Is Reshaping Workplace Collaboration</h4>
+                  <p style="margin:0;font-size:15px;line-height:1.45;color:var(--color-neutral-700)">Qwen's agent tooling moves from model access to task execution inside workplace software.</p>
+                  <div style="display:flex;align-items:center;gap:10px;font-size:12.5px;color:var(--color-neutral-600)">
+                    <span>Alibaba Cloud</span><span>·</span><span>Yesterday</span>
+                  </div>
+                </div>
+                <span style="color:var(--color-neutral-500)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path></svg></span>
+              </div>
+
+              <div style="display:grid;grid-template-columns:34px 1fr auto;gap:18px;align-items:start;padding:16px 0;border-top:1px solid var(--color-divider);border-bottom:1px solid var(--color-text)">
+                <span style="font-family:var(--font-heading);font-size:20px;color:var(--color-accent)">05</span>
+                <div style="display:flex;flex-direction:column;gap:5px">
+                  <h4 style="margin:0;font-size:21px;line-height:1.15">Polimill builds Japan's next-generation public AI infrastructure</h4>
+                  <p style="margin:0;font-size:15px;line-height:1.45;color:var(--color-neutral-700)">A public-sector deployment aimed at citizen services, built on domestic infrastructure.</p>
+                  <div style="display:flex;align-items:center;gap:10px;font-size:12.5px;color:var(--color-neutral-600)">
+                    <span>NVIDIA</span><span>·</span><span>Yesterday</span>
+                  </div>
+                </div>
+                <span style="color:var(--color-neutral-500)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path></svg></span>
+              </div>
+
+            </div>
+
+            <div style="display:flex;align-items:baseline;gap:14px;padding:30px 0 10px">
+              <h3 style="margin:0;font-family:var(--font-heading);font-size:24px">Everything else</h3>
+              <span style="font-size:13px;color:var(--color-neutral-600)">36 items · headline only</span>
+            </div>
+
+            <div style="display:flex;flex-direction:column;font-size:15.5px">
+              <div style="display:grid;grid-template-columns:1fr 130px 62px;gap:16px;align-items:baseline;padding:11px 0;border-top:1px solid var(--color-divider)">
+                <span>The Ultimate Guide to WonderClip: Transforming Storyboard Scripts into Cinematic Video Stories</span>
+                <span style="font-size:12.5px;color:var(--color-neutral-600)">Alibaba Cloud</span>
+                <span style="font-size:12.5px;color:var(--color-neutral-600);text-align:right">Aug 31</span>
+              </div>
+              <div style="display:grid;grid-template-columns:1fr 130px 62px;gap:16px;align-items:baseline;padding:11px 0;border-top:1px solid var(--color-divider)">
+                <span>Partnering with CodeAI to prepare the first AI generation</span>
+                <span style="font-size:12.5px;color:var(--color-neutral-600)">OpenAI</span>
+                <span style="font-size:12.5px;color:var(--color-neutral-600);text-align:right">Aug 31</span>
+              </div>
+              <div style="display:grid;grid-template-columns:1fr 130px 62px;gap:16px;align-items:baseline;padding:11px 0;border-top:1px solid var(--color-divider)">
+                <span>Strengthening democratic oversight in national security</span>
+                <span style="font-size:12.5px;color:var(--color-neutral-600)">OpenAI</span>
+                <span style="font-size:12.5px;color:var(--color-neutral-600);text-align:right">Aug 31</span>
+              </div>
+              <div style="display:grid;grid-template-columns:1fr 130px 62px;gap:16px;align-items:baseline;padding:11px 0;border-top:1px solid var(--color-divider)">
+                <span style="color:var(--color-neutral-500)">Building trustworthy agent evaluations at scale</span>
+                <span style="font-size:12.5px;color:var(--color-neutral-500)">Anthropic</span>
+                <span style="font-size:12.5px;color:var(--color-neutral-500);text-align:right">Aug 30</span>
+              </div>
+              <div style="display:grid;grid-template-columns:1fr 130px 62px;gap:16px;align-items:baseline;padding:11px 0;border-top:1px solid var(--color-divider);border-bottom:1px solid var(--color-divider)">
+                <span style="color:var(--color-neutral-500)">Inside the latest wave of credential-stuffing attacks</span>
+                <span style="font-size:12.5px;color:var(--color-neutral-500)">KrebsOnSecurity</span>
+                <span style="font-size:12.5px;color:var(--color-neutral-500);text-align:right">Aug 30</span>
+              </div>
+              <div style="padding:16px 0;font-size:13px;color:var(--color-neutral-600)">Greyed rows are ones you have already opened. <span style="color:var(--color-accent-700)">Show 31 more →</span></div>
+            </div>
+
+          </div>
+
+          <div style="padding:32px 24px;display:flex;flex-direction:column;gap:30px;background:var(--color-neutral-100)">
+            <div style="display:flex;flex-direction:column;gap:10px">
+              <span style="font-family:var(--font-heading);font-size:12px;letter-spacing:.16em;text-transform:uppercase;color:var(--color-neutral-600)">Today by source</span>
+              <div style="display:flex;justify-content:space-between;font-size:14px;padding:6px 0;border-bottom:1px solid var(--color-divider)"><span>OpenAI</span><span style="color:var(--color-neutral-600)">11</span></div>
+              <div style="display:flex;justify-content:space-between;font-size:14px;padding:6px 0;border-bottom:1px solid var(--color-divider)"><span>Alibaba Cloud</span><span style="color:var(--color-neutral-600)">8</span></div>
+              <div style="display:flex;justify-content:space-between;font-size:14px;padding:6px 0;border-bottom:1px solid var(--color-divider)"><span>NVIDIA</span><span style="color:var(--color-neutral-600)">6</span></div>
+              <div style="display:flex;justify-content:space-between;font-size:14px;padding:6px 0;border-bottom:1px solid var(--color-divider)"><span>Anthropic</span><span style="color:var(--color-neutral-600)">5</span></div>
+              <div style="display:flex;justify-content:space-between;font-size:14px;padding:6px 0;border-bottom:1px solid var(--color-divider)"><span>Google AI</span><span style="color:var(--color-neutral-600)">4</span></div>
+              <div style="display:flex;justify-content:space-between;font-size:14px;padding:6px 0"><span style="color:var(--color-accent-700)">6 more sources</span><span style="color:var(--color-neutral-600)">8</span></div>
+            </div>
+
+            <div class="blueprint" style="position:relative;padding:18px;background:#fff">
+              <i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+              <div style="display:flex;flex-direction:column;gap:10px">
+                <span style="font-family:var(--font-heading);font-size:20px;line-height:1.1">The brief, in your inbox at 7am</span>
+                <p style="margin:0;font-size:13.5px;line-height:1.45;color:var(--color-neutral-700)">The lead and the five. Nothing else.</p>
+                <div class="input" style="display:flex;align-items:center;font-size:13px;color:var(--color-neutral-500);background:#fff">you@company.com</div>
+                <span class="btn btn-primary btn-block" style="height:34px;font-size:13px">Subscribe</span>
+              </div>
+            </div>
+
+            <div style="display:flex;flex-direction:column;gap:10px">
+              <span style="font-family:var(--font-heading);font-size:12px;letter-spacing:.16em;text-transform:uppercase;color:var(--color-neutral-600)">Recent editions</span>
+              <span style="font-size:14px;color:var(--color-accent-700)">Mon, August 31 — 38 items</span>
+              <span style="font-size:14px;color:var(--color-accent-700)">Sun, August 30 — 12 items</span>
+              <span style="font-size:14px;color:var(--color-accent-700)">Sat, August 29 — 9 items</span>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- SCREEN 02 -->
+    <div style="display:flex;flex-direction:column;gap:18px">
+      <div style="display:flex;align-items:baseline;gap:16px">
+        <span style="font-family:var(--font-heading);font-size:12px;letter-spacing:.18em;text-transform:uppercase;color:var(--color-accent-700)">Screen 02</span>
+        <h3 style="margin:0;font-family:var(--font-heading);font-size:30px">Story cluster</h3>
+        <span style="font-size:14px;color:var(--color-neutral-600)">One story, every source that carried it. This is the page "3 sources" opens.</span>
+      </div>
+
+      <div class="blueprint" style="position:relative;width:1280px;background:#fff">
+        <i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+
+        <div style="display:flex;align-items:center;gap:28px;padding:16px 32px;border-bottom:1px solid var(--color-divider)">
+          <span style="font-family:var(--font-heading);font-weight:700;font-size:22px;letter-spacing:.06em">PRECIS<span style="color:var(--color-accent)">.</span></span>
+          <span style="font-size:13.5px;color:var(--color-neutral-600)">Tuesday, September 1 <span style="margin:0 8px">/</span> Story</span>
+          <div style="margin-left:auto;display:flex;gap:10px">
+            <span class="btn btn-secondary" style="height:32px;font-size:13px">Save</span>
+            <span class="btn btn-secondary" style="height:32px;font-size:13px">Copy link</span>
+          </div>
+        </div>
+
+        <div style="display:grid;grid-template-columns:1fr 380px">
+          <div style="padding:40px 44px;border-right:1px solid var(--color-divider)">
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
+              <span class="tag tag-accent">AI</span>
+              <span style="font-size:13px;color:var(--color-neutral-600)">First reported 5h ago · 3 sources · still developing</span>
+            </div>
+            <h1 style="margin:0 0 18px;font-size:46px;line-height:1;letter-spacing:-.01em;max-width:16ch;text-wrap:pretty">ChatGPT for Teens</h1>
+            <p style="margin:0 0 30px;font-size:19px;line-height:1.5;max-width:60ch;color:var(--color-neutral-800);text-wrap:pretty">OpenAI announced a teen-specific ChatGPT experience with built-in safety protections, age estimation, and additional controls for parents. Two other sources have picked it up so far.</p>
+
+            <div style="display:flex;flex-direction:column;gap:0;border-top:1px solid var(--color-text)">
+              <span style="font-family:var(--font-heading);font-size:12px;letter-spacing:.16em;text-transform:uppercase;color:var(--color-neutral-600);padding:16px 0 4px">Coverage</span>
+
+              <div style="display:grid;grid-template-columns:96px 1fr;gap:20px;padding:18px 0;border-top:1px solid var(--color-divider)">
+                <div style="display:flex;flex-direction:column;gap:2px">
+                  <span style="font-size:13px;font-weight:600">OpenAI</span>
+                  <span style="font-size:12px;color:var(--color-neutral-600)">5h ago</span>
+                  <span class="tag tag-outline" style="align-self:flex-start;margin-top:4px">Primary</span>
+                </div>
+                <div style="display:flex;flex-direction:column;gap:6px">
+                  <h4 style="margin:0;font-size:19px;line-height:1.2">Introducing ChatGPT for Teens: Built for learning, backed by protections</h4>
+                  <p style="margin:0;font-size:15px;line-height:1.5;color:var(--color-neutral-700);max-width:62ch">An experience designed to help teens learn, think critically and use AI with confidence, with stronger built-in protections and additional controls for parents.</p>
+                  <span style="font-size:13px;color:var(--color-accent-700)">openai.com →</span>
+                </div>
+              </div>
+
+              <div style="display:grid;grid-template-columns:96px 1fr;gap:20px;padding:18px 0;border-top:1px solid var(--color-divider)">
+                <div style="display:flex;flex-direction:column;gap:2px">
+                  <span style="font-size:13px;font-weight:600">Microsoft AI</span>
+                  <span style="font-size:12px;color:var(--color-neutral-600)">3h ago</span>
+                </div>
+                <div style="display:flex;flex-direction:column;gap:6px">
+                  <h4 style="margin:0;font-size:19px;line-height:1.2">What age-appropriate AI means for schools</h4>
+                  <p style="margin:0;font-size:15px;line-height:1.5;color:var(--color-neutral-700);max-width:62ch">Frames the launch against classroom deployment questions districts are already asking.</p>
+                  <span style="font-size:13px;color:var(--color-accent-700)">microsoft.com →</span>
+                </div>
+              </div>
+
+              <div style="display:grid;grid-template-columns:96px 1fr;gap:20px;padding:18px 0;border-top:1px solid var(--color-divider);border-bottom:1px solid var(--color-text)">
+                <div style="display:flex;flex-direction:column;gap:2px">
+                  <span style="font-size:13px;font-weight:600">KrebsOnSecurity</span>
+                  <span style="font-size:12px;color:var(--color-neutral-600)">1h ago</span>
+                </div>
+                <div style="display:flex;flex-direction:column;gap:6px">
+                  <h4 style="margin:0;font-size:19px;line-height:1.2">Age estimation is a data-collection question</h4>
+                  <p style="margin:0;font-size:15px;line-height:1.5;color:var(--color-neutral-700);max-width:62ch">Looks at what signals an age-estimation system has to retain, and who ends up holding them.</p>
+                  <span style="font-size:13px;color:var(--color-accent-700)">krebsonsecurity.com →</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div style="padding:40px 28px;display:flex;flex-direction:column;gap:28px;background:var(--color-neutral-100)">
+            <sc-if value="{{ showImages }}" hint-placeholder-val="{{ true }}">
+            <div class="blueprint duotone" style="position:relative;height:180px;background:var(--color-accent-200);display:flex;align-items:flex-end;padding:10px">
+              <i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+              <span style="font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--color-accent-800)">Primary source image</span>
+            </div>
+            </sc-if>
+            <div style="display:flex;flex-direction:column;gap:12px">
+              <span style="font-family:var(--font-heading);font-size:12px;letter-spacing:.16em;text-transform:uppercase;color:var(--color-neutral-600)">Related</span>
+              <span style="font-size:15px;line-height:1.3">Partnering with CodeAI to prepare the first AI generation<span style="display:block;font-size:12.5px;color:var(--color-neutral-600);margin-top:3px">OpenAI · Aug 31</span></span>
+              <span style="font-size:15px;line-height:1.3">Strengthening democratic oversight in national security<span style="display:block;font-size:12.5px;color:var(--color-neutral-600);margin-top:3px">OpenAI · Aug 31</span></span>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:8px;padding-top:20px;border-top:1px solid var(--color-divider)">
+              <span style="font-family:var(--font-heading);font-size:12px;letter-spacing:.16em;text-transform:uppercase;color:var(--color-neutral-600)">Follow</span>
+              <div style="display:flex;gap:8px;flex-wrap:wrap">
+                <span class="tag tag-outline">+ AI</span>
+                <span class="tag tag-outline">+ OpenAI</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SCREEN 03 + 04 -->
+    <div style="display:flex;gap:48px;flex-wrap:wrap">
+
+      <div style="display:flex;flex-direction:column;gap:18px">
+        <div style="display:flex;align-items:baseline;gap:16px">
+          <span style="font-family:var(--font-heading);font-size:12px;letter-spacing:.18em;text-transform:uppercase;color:var(--color-accent-700)">Screen 03</span>
+          <h3 style="margin:0;font-family:var(--font-heading);font-size:30px">Search</h3>
+        </div>
+        <div class="blueprint" style="position:relative;width:616px;background:#fff;padding:26px 28px">
+          <i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+          <div style="display:flex;align-items:center;gap:10px;height:42px;padding:0 12px;border:1px solid var(--color-accent);border-radius:var(--radius-md);margin-bottom:16px">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="color:var(--color-accent)"><circle cx="11" cy="11" r="8"></circle><path d="m21 21-4.3-4.3"></path></svg>
+            <span style="font-size:15px">codex</span>
+            <span style="width:1px;height:16px;background:var(--color-accent);animation:none"></span>
+          </div>
+          <div style="display:flex;gap:8px;margin-bottom:18px;flex-wrap:wrap">
+            <span class="tag" style="background:var(--color-accent);color:var(--color-bg)">All time</span>
+            <span class="tag tag-neutral">Last 7 days</span>
+            <span class="tag tag-neutral">OpenAI</span>
+            <span class="tag tag-neutral">Saved only</span>
+          </div>
+          <div style="font-size:13px;color:var(--color-neutral-600);padding-bottom:10px;border-bottom:1px solid var(--color-text)">14 briefs mention "codex"</div>
+          <div style="display:flex;flex-direction:column">
+            <div style="padding:14px 0;border-bottom:1px solid var(--color-divider);display:flex;flex-direction:column;gap:4px">
+              <h4 style="margin:0;font-size:18px;line-height:1.2">Asana cleared 5 years of engineering work in 2 weeks with <mark style="background:var(--color-accent-200);color:inherit">Codex</mark></h4>
+              <span style="font-size:12.5px;color:var(--color-neutral-600)">OpenAI · Aug 18</span>
+            </div>
+            <div style="padding:14px 0;border-bottom:1px solid var(--color-divider);display:flex;flex-direction:column;gap:4px">
+              <h4 style="margin:0;font-size:18px;line-height:1.2">Shipping faster with <mark style="background:var(--color-accent-200);color:inherit">Codex</mark> in the terminal</h4>
+              <span style="font-size:12.5px;color:var(--color-neutral-600)">OpenAI · Aug 12</span>
+            </div>
+            <div style="padding:14px 0;border-bottom:1px solid var(--color-divider);display:flex;flex-direction:column;gap:4px">
+              <h4 style="margin:0;font-size:18px;line-height:1.2">Benchmarking agentic coding tools across large repos</h4>
+              <span style="font-size:12.5px;color:var(--color-neutral-600)">Together AI · Aug 4</span>
+            </div>
+          </div>
+          <p style="margin:16px 0 0;font-size:13px;line-height:1.5;color:var(--color-neutral-600)">Postgres full-text search over title and summary. One index on the view you already have.</p>
+        </div>
+      </div>
+
+      <div style="display:flex;flex-direction:column;gap:18px">
+        <div style="display:flex;align-items:baseline;gap:16px">
+          <span style="font-family:var(--font-heading);font-size:12px;letter-spacing:.18em;text-transform:uppercase;color:var(--color-accent-700)">Screen 04</span>
+          <h3 style="margin:0;font-family:var(--font-heading);font-size:30px">Saved</h3>
+        </div>
+        <div class="blueprint" style="position:relative;width:616px;background:#fff;padding:26px 28px">
+          <i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+          <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:18px">
+            <h2 style="margin:0;font-size:34px;line-height:1">Saved</h2>
+            <span style="font-size:13px;color:var(--color-neutral-600)">9 briefs · stored on this device</span>
+          </div>
+          <div style="display:flex;flex-direction:column;border-top:1px solid var(--color-text)">
+            <div style="display:grid;grid-template-columns:1fr auto;gap:14px;padding:14px 0;border-bottom:1px solid var(--color-divider)">
+              <div style="display:flex;flex-direction:column;gap:4px">
+                <h4 style="margin:0;font-size:18px;line-height:1.2">Introducing ChatGPT for Teens: Built for learning, backed by protections</h4>
+                <span style="font-size:12.5px;color:var(--color-neutral-600)">OpenAI · saved today</span>
+              </div>
+              <span style="font-size:12.5px;color:var(--color-accent-700);white-space:nowrap">Remove</span>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr auto;gap:14px;padding:14px 0;border-bottom:1px solid var(--color-divider)">
+              <div style="display:flex;flex-direction:column;gap:4px">
+                <h4 style="margin:0;font-size:18px;line-height:1.2">Pacing model development in an era of cyber-critical capabilities</h4>
+                <span style="font-size:12.5px;color:var(--color-neutral-600)">OpenAI · saved today</span>
+              </div>
+              <span style="font-size:12.5px;color:var(--color-accent-700);white-space:nowrap">Remove</span>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr auto;gap:14px;padding:14px 0;border-bottom:1px solid var(--color-divider)">
+              <div style="display:flex;flex-direction:column;gap:4px">
+                <h4 style="margin:0;font-size:18px;line-height:1.2">Inside the latest wave of credential-stuffing attacks</h4>
+                <span style="font-size:12.5px;color:var(--color-neutral-600)">KrebsOnSecurity · saved Aug 30</span>
+              </div>
+              <span style="font-size:12.5px;color:var(--color-accent-700);white-space:nowrap">Remove</span>
+            </div>
+          </div>
+          <p style="margin:16px 0 0;font-size:13px;line-height:1.5;color:var(--color-neutral-600)">localStorage first — no accounts, no auth work. Read state lives in the same store, which is what greys out rows in "Everything else".</p>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- SCREEN 05 + 06 -->
+    <div style="display:flex;gap:64px;flex-wrap:wrap;align-items:flex-start">
+
+      <div style="display:flex;flex-direction:column;gap:18px">
+        <div style="display:flex;align-items:baseline;gap:16px">
+          <span style="font-family:var(--font-heading);font-size:12px;letter-spacing:.18em;text-transform:uppercase;color:var(--color-accent-700)">Screen 05</span>
+          <h3 style="margin:0;font-family:var(--font-heading);font-size:30px">Phone</h3>
+          <span style="font-size:14px;color:var(--color-neutral-600)">390px</span>
+        </div>
+        <div class="blueprint" style="position:relative;width:390px;background:#fff">
+          <i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+          <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid var(--color-divider)">
+            <span style="font-family:var(--font-heading);font-weight:700;font-size:18px;letter-spacing:.06em">PRECIS<span style="color:var(--color-accent)">.</span></span>
+            <div style="display:flex;gap:14px;color:var(--color-neutral-700)">
+              <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="11" cy="11" r="8"></circle><path d="m21 21-4.3-4.3"></path></svg>
+              <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path></svg>
+            </div>
+          </div>
+          <div style="padding:20px 18px 14px">
+            <span style="font-family:var(--font-heading);font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:var(--color-accent-700)">Daily tech brief</span>
+            <h1 style="margin:4px 0 4px;font-size:34px;line-height:.98">Tuesday,<br>September 1</h1>
+            <span style="font-size:13px;color:var(--color-neutral-600)">42 items · 6 new since 8am</span>
+          </div>
+          <div style="display:flex;gap:6px;padding:0 18px 16px;overflow:hidden">
+            <span class="tag" style="background:var(--color-accent);color:var(--color-bg)">All</span>
+            <span class="tag tag-neutral">AI</span>
+            <span class="tag tag-neutral">Cyber security</span>
+          </div>
+          <div style="padding:0 18px 18px;border-top:1px solid var(--color-text)">
+            <div style="padding-top:18px;display:flex;flex-direction:column;gap:10px">
+              <span class="tag tag-outline" style="align-self:flex-start">Lead</span>
+              <h2 style="margin:0;font-size:27px;line-height:1.05">Flutter RUM in Practice: Reconstructing the Full Story Behind an AI App's Wait</h2>
+              <p style="margin:0;font-size:15.5px;line-height:1.45;color:var(--color-neutral-800)">Alibaba Cloud argues production stalls rarely have a single cause, and shows how real-user monitoring reconstructs the whole wait.</p>
+              <span style="font-size:12.5px;color:var(--color-neutral-600)">Alibaba Cloud · 3h ago</span>
+            </div>
+          </div>
+          <div style="padding:0 18px 24px">
+            <h3 style="margin:0 0 4px;font-family:var(--font-heading);font-size:20px;padding-top:14px;border-top:1px solid var(--color-text)">Also today</h3>
+            <div style="display:grid;grid-template-columns:28px 1fr;gap:14px;padding:14px 0;border-bottom:1px solid var(--color-divider)">
+              <span style="font-family:var(--font-heading);font-size:17px;color:var(--color-accent)">01</span>
+              <div style="display:flex;flex-direction:column;gap:4px">
+                <h4 style="margin:0;font-size:18px;line-height:1.18">Introducing ChatGPT for Teens: Built for learning, backed by protections</h4>
+                <p style="margin:0;font-size:14px;line-height:1.4;color:var(--color-neutral-700)">A teen-specific experience with age estimation and parental controls.</p>
+                <span style="font-size:12px;color:var(--color-neutral-600)">OpenAI · 5h · <span style="color:var(--color-accent-700)">3 sources</span></span>
+              </div>
+            </div>
+            <div style="display:grid;grid-template-columns:28px 1fr;gap:14px;padding:14px 0;border-bottom:1px solid var(--color-divider)">
+              <span style="font-family:var(--font-heading);font-size:17px;color:var(--color-accent)">02</span>
+              <div style="display:flex;flex-direction:column;gap:4px">
+                <h4 style="margin:0;font-size:18px;line-height:1.18">Asana cleared 5 years of engineering work in 2 weeks with Codex</h4>
+                <p style="margin:0;font-size:14px;line-height:1.4;color:var(--color-neutral-700)">Two weeks and about $12K against a five-year, ~$6M estimate.</p>
+                <span style="font-size:12px;color:var(--color-neutral-600)">OpenAI · 6h</span>
+              </div>
+            </div>
+            <div style="display:grid;grid-template-columns:28px 1fr;gap:14px;padding:14px 0">
+              <span style="font-family:var(--font-heading);font-size:17px;color:var(--color-accent)">03</span>
+              <div style="display:flex;flex-direction:column;gap:4px">
+                <h4 style="margin:0;font-size:18px;line-height:1.18">Pacing model development in an era of cyber-critical capabilities</h4>
+                <p style="margin:0;font-size:14px;line-height:1.4;color:var(--color-neutral-700)">Two recent incidents underscore the risks of increasingly capable systems.</p>
+                <span style="font-size:12px;color:var(--color-neutral-600)">OpenAI · 9h</span>
+              </div>
+            </div>
+          </div>
+          <div style="display:flex;border-top:1px solid var(--color-text)">
+            <span style="flex:1;text-align:center;padding:14px 0;font-size:12px;color:var(--color-accent);border-right:1px solid var(--color-divider)">Today</span>
+            <span style="flex:1;text-align:center;padding:14px 0;font-size:12px;color:var(--color-neutral-600);border-right:1px solid var(--color-divider)">Archive</span>
+            <span style="flex:1;text-align:center;padding:14px 0;font-size:12px;color:var(--color-neutral-600)">Saved</span>
+          </div>
+        </div>
+      </div>
+
+      <div style="display:flex;flex-direction:column;gap:18px">
+        <div style="display:flex;align-items:baseline;gap:16px">
+          <span style="font-family:var(--font-heading);font-size:12px;letter-spacing:.18em;text-transform:uppercase;color:var(--color-accent-700)">Screen 06</span>
+          <h3 style="margin:0;font-family:var(--font-heading);font-size:30px">The 7am email</h3>
+          <span style="font-size:14px;color:var(--color-neutral-600)">600px</span>
+        </div>
+        <div class="blueprint" style="position:relative;width:600px;background:#fff;padding:30px 34px">
+          <i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+          <div style="display:flex;align-items:baseline;justify-content:space-between;padding-bottom:14px;border-bottom:1px solid var(--color-text)">
+            <span style="font-family:var(--font-heading);font-weight:700;font-size:20px;letter-spacing:.06em">PRECIS<span style="color:var(--color-accent)">.</span></span>
+            <span style="font-size:12.5px;color:var(--color-neutral-600)">Tuesday, September 1</span>
+          </div>
+          <div style="padding:22px 0 20px;border-bottom:1px solid var(--color-divider)">
+            <span style="font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--color-accent-700)">Lead · Alibaba Cloud</span>
+            <h2 style="margin:6px 0 8px;font-size:26px;line-height:1.08">Flutter RUM in Practice: Reconstructing the Full Story Behind an AI App's Wait</h2>
+            <p style="margin:0;font-size:15px;line-height:1.5;color:var(--color-neutral-800)">Production stalls rarely have a single cause. Real-user monitoring reconstructs the whole wait, not just the API call.</p>
+          </div>
+          <div style="display:grid;grid-template-columns:26px 1fr;gap:12px;padding:14px 0;border-bottom:1px solid var(--color-divider)">
+            <span style="font-family:var(--font-heading);font-size:16px;color:var(--color-accent)">01</span>
+            <div><h4 style="margin:0 0 3px;font-size:17px;line-height:1.2">Introducing ChatGPT for Teens</h4><span style="font-size:14px;line-height:1.4;color:var(--color-neutral-700)">Age estimation and parental controls. OpenAI · 3 sources</span></div>
+          </div>
+          <div style="display:grid;grid-template-columns:26px 1fr;gap:12px;padding:14px 0;border-bottom:1px solid var(--color-divider)">
+            <span style="font-family:var(--font-heading);font-size:16px;color:var(--color-accent)">02</span>
+            <div><h4 style="margin:0 0 3px;font-size:17px;line-height:1.2">Asana cleared 5 years of work in 2 weeks with Codex</h4><span style="font-size:14px;line-height:1.4;color:var(--color-neutral-700)">$12K against a ~$6M estimate. OpenAI</span></div>
+          </div>
+          <div style="display:grid;grid-template-columns:26px 1fr;gap:12px;padding:14px 0;border-bottom:1px solid var(--color-divider)">
+            <span style="font-family:var(--font-heading);font-size:16px;color:var(--color-accent)">03</span>
+            <div><h4 style="margin:0 0 3px;font-size:17px;line-height:1.2">Pacing model development in an era of cyber-critical capabilities</h4><span style="font-size:14px;line-height:1.4;color:var(--color-neutral-700)">Two incidents raise the stakes. OpenAI</span></div>
+          </div>
+          <div style="display:grid;grid-template-columns:26px 1fr;gap:12px;padding:14px 0;border-bottom:1px solid var(--color-text)">
+            <span style="font-family:var(--font-heading);font-size:16px;color:var(--color-accent)">04</span>
+            <div><h4 style="margin:0 0 3px;font-size:17px;line-height:1.2">Qwen moves from models to workplace agents</h4><span style="font-size:14px;line-height:1.4;color:var(--color-neutral-700)">Agent tooling inside workplace software. Alibaba Cloud</span></div>
+          </div>
+          <div style="padding-top:20px;display:flex;align-items:center;justify-content:space-between">
+            <span class="btn btn-primary" style="height:34px;font-size:13px">Read the full edition</span>
+            <span style="font-size:12px;color:var(--color-neutral-600)">38 more items on the site</span>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- BUILD ORDER -->
+    <div style="display:flex;flex-direction:column;gap:20px;max-width:1000px">
+      <h2 style="margin:0;font-family:var(--font-heading);font-size:40px">Order I'd build it in</h2>
+      <table class="table">
+        <thead>
+          <tr><th style="width:44px">#</th><th>Change</th><th style="width:280px">Where</th><th style="width:110px">Size</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>1</td><td>Add a <code>summary</code> column, written at scrape time; expose it on the view</td><td><code>sql/create-public-articles-view.sql</code>, scraper</td><td>Half a day</td></tr>
+          <tr><td>2</td><td>Dated masthead, three tiers, drop <code>fetched_at</code> from the card</td><td><code>App.jsx</code>, <code>App.css</code></td><td>A day</td></tr>
+          <tr><td>3</td><td>One sticky filter bar; delete the hero selects and the chip scroller</td><td><code>App.jsx</code></td><td>Half a day</td></tr>
+          <tr><td>4</td><td>Rename Editors Picks, or rank by source count</td><td><code>App.jsx</code>, <code>lib/articles.js</code></td><td>Half a day</td></tr>
+          <tr><td>5</td><td>Saved + read state in localStorage</td><td><code>App.jsx</code></td><td>A day</td></tr>
+          <tr><td>6</td><td>Search endpoint over title and summary</td><td>new <code>api/search.js</code></td><td>A day</td></tr>
+          <tr><td>7</td><td>Story clustering and the cluster page</td><td>scraper + new route</td><td>A week</td></tr>
+          <tr><td>8</td><td>The 7am email</td><td>cron + template</td><td>Two days</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+  </div>
+</section>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;showCritique&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Board&quot;},&quot;showImages&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Board&quot;}}"></script>
+</body>
+</html>

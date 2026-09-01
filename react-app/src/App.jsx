@@ -6,6 +6,7 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || (import.meta.env.DEV ?
 const INITIAL_ARTICLE_COUNT = 12;
 const ARTICLES_PER_PAGE = 12;
 const API_ARTICLE_LIMIT = 100;
+const BRIEF_COUNT = 5;
 
 const proxiedImageUrl = (imageUrl) => (
   imageUrl ? `${API_BASE_URL}/api/image-proxy?url=${encodeURIComponent(imageUrl)}` : ''
@@ -69,9 +70,9 @@ const sortArticlesNewestFirst = (articles) => (
   })
 );
 
-const getInitialVisibleCount = (site = '', topic = '') => (
-  site || topic ? INITIAL_ARTICLE_COUNT : Number.POSITIVE_INFINITY
-);
+// Everything-else is now a card grid with images, so start capped even when
+// unfiltered — 94 image cards loading at once would be needlessly heavy.
+const getInitialVisibleCount = () => INITIAL_ARTICLE_COUNT;
 
 const formatSiteName = (site = '') => {
   const normalizedSite = String(site).trim().toLowerCase();
@@ -86,17 +87,156 @@ const formatSiteName = (site = '') => {
     .replace(/\bAi\b/g, 'AI');
 };
 
-const FallbackNewsImage = ({ site, className = '' }) => {
-  const sourceName = formatSiteName(site) || 'Precis';
+const formatShortDate = (dateValue) => {
+  const timestamp = typeof dateValue === 'number' ? dateValue : parseDateTimestamp(dateValue);
 
-  return (
-    <span className={`fallback-news-image${className ? ` ${className}` : ''}`} aria-hidden="true">
-      <span className="fallback-news-image__grid" />
-      <span className="fallback-news-image__ticker">News Brief</span>
-      <span className="fallback-news-image__source">{sourceName}</span>
-      <span className="fallback-news-image__subtitle">Latest updates</span>
-    </span>
-  );
+  if (!timestamp) {
+    return 'Date not captured';
+  }
+
+  return new Intl.DateTimeFormat('en', { month: 'short', day: 'numeric' }).format(new Date(timestamp));
+};
+
+const formatRelativeTime = (dateValue) => {
+  const timestamp = parseDateTimestamp(dateValue);
+
+  if (!timestamp) {
+    return 'Date not captured';
+  }
+
+  const diffHours = (Date.now() - timestamp) / 3_600_000;
+
+  if (diffHours < 1) {
+    return 'Just now';
+  }
+
+  if (diffHours < 24) {
+    return `${Math.max(1, Math.round(diffHours))}h ago`;
+  }
+
+  if (diffHours < 48) {
+    return 'Yesterday';
+  }
+
+  return formatShortDate(timestamp);
+};
+
+const getSummaryText = (article) => {
+  const summary = article.summary?.replace(/\s+/g, ' ').trim();
+  return summary || null;
+};
+
+const SENTENCE_END_RE = /^.+?[.!?](?=\s|$)/;
+const MAX_FALLBACK_WORDS = 25;
+
+const stripLeadingTitle = (text, title) => {
+  const normalizedTitle = title?.trim();
+  let result = text;
+
+  if (normalizedTitle && result.toLowerCase().startsWith(normalizedTitle.toLowerCase())) {
+    result = result.slice(normalizedTitle.length);
+  }
+
+  return result.replace(/^[\s\-–—:.,]+/, '');
+};
+
+// Extractive fallback for when the scrape-time summary hasn't been generated yet
+// (e.g. articles captured before the summarizer existed). Mirrors the same
+// one-sentence, word-capped heuristic used server-side, applied to the excerpt
+// so the lead story is never left with a blank gap under the headline.
+const getLeadSummaryText = (article) => {
+  const summary = getSummaryText(article);
+  if (summary) {
+    return summary;
+  }
+
+  const excerpt = article.excerpt?.replace(/\s+/g, ' ').trim();
+  if (!excerpt) {
+    return null;
+  }
+
+  const text = stripLeadingTitle(excerpt, article.title);
+  if (!text) {
+    return null;
+  }
+
+  const match = text.match(SENTENCE_END_RE);
+  let sentence = match ? match[0].trim() : text;
+
+  const words = sentence.split(' ');
+  if (words.length > MAX_FALLBACK_WORDS) {
+    sentence = `${words.slice(0, MAX_FALLBACK_WORDS).join(' ').replace(/[.,;:-]+$/, '')}…`;
+  }
+
+  return sentence || null;
+};
+
+const MAX_CARD_EXCERPT_CHARS = 220;
+
+// Same intent as getLeadSummaryText's fallback, sized for a card blurb instead
+// of a one-line brief: truncates at the last full word within the limit, never
+// mid-word, so it never reproduces the "left(body_text, 360)" cut this
+// redesign replaced.
+const getCardSummaryText = (article) => {
+  const summary = getSummaryText(article);
+  if (summary) {
+    return summary;
+  }
+
+  const excerpt = article.excerpt?.replace(/\s+/g, ' ').trim();
+  if (!excerpt) {
+    return null;
+  }
+
+  const text = stripLeadingTitle(excerpt, article.title);
+  if (!text) {
+    return null;
+  }
+
+  if (text.length <= MAX_CARD_EXCERPT_CHARS) {
+    return text;
+  }
+
+  const truncated = text.slice(0, MAX_CARD_EXCERPT_CHARS);
+  const lastSpace = truncated.lastIndexOf(' ');
+  const safe = (lastSpace > 0 ? truncated.slice(0, lastSpace) : truncated).replace(/[.,;:-]+$/, '');
+  return `${safe}…`;
+};
+
+const readFiltersFromUrl = () => {
+  if (typeof window === 'undefined') {
+    return { site: '', topic: '' };
+  }
+
+  const params = new URLSearchParams(window.location.search);
+  return {
+    site: params.get('source') || '',
+    topic: params.get('topic') || '',
+  };
+};
+
+const writeFiltersToUrl = (site, topic) => {
+  if (typeof window === 'undefined') {
+    return;
+  }
+
+  const params = new URLSearchParams(window.location.search);
+
+  if (site) {
+    params.set('source', site);
+  } else {
+    params.delete('source');
+  }
+
+  if (topic) {
+    params.set('topic', topic);
+  } else {
+    params.delete('topic');
+  }
+
+  const query = params.toString();
+  const nextUrl = `${window.location.pathname}${query ? `?${query}` : ''}`;
+  window.history.replaceState(null, '', nextUrl);
 };
 
 const buildArticleUrl = (site = '', topic = '') => {
@@ -114,24 +254,30 @@ const buildArticleUrl = (site = '', topic = '') => {
   return `${API_BASE_URL}${path}${query ? `?${query}` : ''}`;
 };
 
-const formatDisplayDate = (dateValue, options = {}) => {
-  const timestamp = typeof dateValue === 'number' ? dateValue : parseDateTimestamp(dateValue);
+const SearchIcon = () => (
+  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true">
+    <circle cx="11" cy="11" r="8" />
+    <path d="m21 21-4.3-4.3" />
+  </svg>
+);
 
-  if (!timestamp) {
-    return 'Date not captured';
-  }
+const BookmarkIcon = () => (
+  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true">
+    <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
+  </svg>
+);
 
-  return new Intl.DateTimeFormat('en', {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-    ...options,
-  }).format(new Date(timestamp));
-};
+const FallbackNewsImage = ({ site, className = '' }) => {
+  const sourceName = formatSiteName(site) || 'Precis';
 
-const getExcerpt = (article) => {
-  const excerpt = article.excerpt?.replace(/\s+/g, ' ').trim();
-  return excerpt || 'No article text was captured yet.';
+  return (
+    <span className={`fallback-news-image${className ? ` ${className}` : ''}`} aria-hidden="true">
+      <span className="fallback-news-image__grid" />
+      <span className="fallback-news-image__ticker">News Brief</span>
+      <span className="fallback-news-image__source">{sourceName}</span>
+      <span className="fallback-news-image__subtitle">Latest updates</span>
+    </span>
+  );
 };
 
 const SafeArticleTitle = ({ article }) => {
@@ -144,62 +290,71 @@ const SafeArticleTitle = ({ article }) => {
   return <a href={articleUrl} target="_blank" rel="noopener noreferrer">{article.title}</a>;
 };
 
-const ArticleCard = ({ article, variant = 'standard' }) => {
-  const articleUrl = safeHttpUrl(article.url);
-  const image = article.image_url
-    ? <img src={proxiedImageUrl(article.image_url)} alt="" className="article-image" />
-    : <FallbackNewsImage site={article.site} className="article-image" />;
+const SaveAffordance = ({ iconOnly = false }) => (
+  <button
+    type="button"
+    className={`save-affordance${iconOnly ? ' save-affordance--icon' : ''}`}
+    disabled
+    aria-label="Save for later (coming soon)"
+  >
+    <BookmarkIcon />
+    {!iconOnly && <span>Save</span>}
+  </button>
+);
+
+const BriefRow = ({ article, index }) => {
+  const summaryText = getSummaryText(article);
 
   return (
-    <article className={`article-card article-card--${variant}`}>
-      {articleUrl ? (
-        <a href={articleUrl} target="_blank" rel="noopener noreferrer" className="image-link" aria-label={`Open ${article.title}`}>
-          {image}
-        </a>
-      ) : (
-        <div className="image-link" aria-hidden="true">
-          {image}
+    <div className="brief-row">
+      <span className="brief-rank">{String(index + 1).padStart(2, '0')}</span>
+      <span className="brief-thumb" aria-hidden="true">
+        {article.image_url ? (
+          <img src={proxiedImageUrl(article.image_url)} alt="" />
+        ) : (
+          <FallbackNewsImage site={article.site} />
+        )}
+      </span>
+      <div className="brief-copy">
+        <h4><SafeArticleTitle article={article} /></h4>
+        {summaryText && <p>{summaryText}</p>}
+        <div className="brief-meta">
+          <span>{formatSiteName(article.site)}</span>
+          <span aria-hidden="true">&middot;</span>
+          <span>{formatRelativeTime(article.published_at)}</span>
         </div>
-      )}
-      <div className="article-body">
-        <div className="article-meta">
-          <span className="site">{formatSiteName(article.site)}</span>
-          {article.topic && <span className="topic">{article.topic}</span>}
-          {article.published_at && <span className="date">{formatDisplayDate(article.published_at)}</span>}
-        </div>
-        <h2><SafeArticleTitle article={article} /></h2>
-        <p className="article-excerpt">{getExcerpt(article)}</p>
       </div>
-      <div className="article-footer">
-        {article.author && <span className="author">{article.author}</span>}
-        <small>Captured {formatDisplayDate(article.fetched_at, { hour: '2-digit', minute: '2-digit' })}</small>
-      </div>
-    </article>
+      <SaveAffordance iconOnly />
+    </div>
   );
 };
 
-const StoryRow = ({ article, index }) => {
+const EverythingCard = ({ article }) => {
   const articleUrl = safeHttpUrl(article.url);
-  const content = (
-    <>
-      <span className="story-rank">{String(index + 1).padStart(2, '0')}</span>
-      <span className="story-thumbnail" aria-hidden="true">
-        {article.image_url ? <img src={proxiedImageUrl(article.image_url)} alt="" /> : <FallbackNewsImage site={article.site} />}
-      </span>
-      <span className="story-topic">{article.topic || formatSiteName(article.site)}</span>
-      <strong>{article.title}</strong>
-      <small>{article.published_at ? formatDisplayDate(article.published_at) : 'Date not captured'}</small>
-    </>
-  );
-
-  if (!articleUrl) {
-    return <div className="story-row">{content}</div>;
-  }
+  const summaryText = getCardSummaryText(article);
+  const image = article.image_url
+    ? <img src={proxiedImageUrl(article.image_url)} alt="" className="everything-card-image" />
+    : <FallbackNewsImage site={article.site} className="everything-card-image" />;
 
   return (
-    <a href={articleUrl} target="_blank" rel="noopener noreferrer" className="story-row">
-      {content}
-    </a>
+    <article className="everything-card">
+      {articleUrl ? (
+        <a href={articleUrl} target="_blank" rel="noopener noreferrer" className="everything-card-image-link" aria-label={`Open ${article.title}`}>
+          {image}
+        </a>
+      ) : (
+        <div className="everything-card-image-link" aria-hidden="true">{image}</div>
+      )}
+      <div className="everything-card-body">
+        <div className="everything-card-meta">
+          <span className="everything-card-site">{formatSiteName(article.site)}</span>
+          {article.topic && <span className="everything-card-topic">{article.topic}</span>}
+          <span className="everything-card-date">{formatShortDate(article.published_at)}</span>
+        </div>
+        <h4><SafeArticleTitle article={article} /></h4>
+        {summaryText && <p>{summaryText}</p>}
+      </div>
+    </article>
   );
 };
 
@@ -207,9 +362,9 @@ function App() {
   const [articles, setArticles] = useState([]);
   const [sites, setSites] = useState([]);
   const [topics, setTopics] = useState([]);
-  const [selectedSite, setSelectedSite] = useState('');
-  const [selectedTopic, setSelectedTopic] = useState('');
-  const [visibleCount, setVisibleCount] = useState(INITIAL_ARTICLE_COUNT);
+  const [selectedSite, setSelectedSite] = useState(() => readFiltersFromUrl().site);
+  const [selectedTopic, setSelectedTopic] = useState(() => readFiltersFromUrl().topic);
+  const [visibleCount, setVisibleCount] = useState(getInitialVisibleCount);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -219,7 +374,7 @@ function App() {
       const response = await axios.get(buildArticleUrl(site, topic));
 
       setArticles(response.data);
-      setVisibleCount(getInitialVisibleCount(site, topic));
+      setVisibleCount(getInitialVisibleCount());
       setError(null);
     } catch (err) {
       setError(import.meta.env.DEV
@@ -250,30 +405,21 @@ function App() {
   }, []);
 
   useEffect(() => {
+    const initialFilters = readFiltersFromUrl();
     fetchSites();
     fetchTopics();
-    fetchArticles();
+    fetchArticles(initialFilters.site, initialFilters.topic);
   }, [fetchArticles, fetchSites, fetchTopics]);
 
-  const handleSiteChange = (e) => {
-    const site = e.target.value;
+  const handleSourceFilterClick = (site) => {
     setSelectedSite(site);
+    writeFiltersToUrl(site, selectedTopic);
     fetchArticles(site, selectedTopic);
   };
 
-  const handleTopicChange = (e) => {
-    const topic = e.target.value;
+  const handleTopicFilterClick = (topic) => {
     setSelectedTopic(topic);
-    fetchArticles(selectedSite, topic);
-  };
-
-  const handleSourceClick = (site = '') => {
-    setSelectedSite(site);
-    fetchArticles(site, selectedTopic);
-  };
-
-  const handleTopicClick = (topic = '') => {
-    setSelectedTopic(topic);
+    writeFiltersToUrl(selectedSite, topic);
     fetchArticles(selectedSite, topic);
   };
 
@@ -282,14 +428,46 @@ function App() {
     [articles]
   );
 
-  const visibleArticles = Number.isFinite(visibleCount)
-    ? sortedArticles.slice(0, visibleCount)
-    : sortedArticles;
-  const hasMoreArticles = visibleCount < sortedArticles.length;
-  const featuredArticle = sortedArticles[0];
-  const featuredArticleUrl = safeHttpUrl(featuredArticle?.url);
-  const feedArticles = featuredArticle ? visibleArticles.slice(1) : visibleArticles;
-  const topStories = sortedArticles.slice(1, 5);
+  const leadArticle = sortedArticles[0];
+  const leadArticleUrl = safeHttpUrl(leadArticle?.url);
+  const leadImage = leadArticle?.image_url
+    ? <img src={proxiedImageUrl(leadArticle.image_url)} alt="" />
+    : <FallbackNewsImage site={leadArticle?.site} />;
+
+  const alsoTodayArticles = sortedArticles.slice(1, 1 + BRIEF_COUNT);
+  const everythingElseAll = sortedArticles.slice(1 + BRIEF_COUNT);
+  const visibleEverythingElse = Number.isFinite(visibleCount)
+    ? everythingElseAll.slice(0, visibleCount)
+    : everythingElseAll;
+  const hasMoreArticles = visibleCount < everythingElseAll.length;
+
+  const sourceCounts = useMemo(() => {
+    const counts = new Map();
+    sortedArticles.forEach((article) => {
+      const key = article.site || 'unknown';
+      counts.set(key, (counts.get(key) || 0) + 1);
+    });
+    return [...counts.entries()].sort((a, b) => b[1] - a[1]);
+  }, [sortedArticles]);
+
+  const lastScrapeTimestamp = useMemo(
+    () => sortedArticles.reduce((max, article) => Math.max(max, parseDateTimestamp(article.fetched_at)), 0),
+    [sortedArticles]
+  );
+  const lastScrapeLabel = lastScrapeTimestamp
+    ? new Intl.DateTimeFormat('en', { hour: 'numeric', minute: '2-digit' }).format(new Date(lastScrapeTimestamp))
+    : null;
+
+  const editionDateLabel = useMemo(
+    () => new Intl.DateTimeFormat('en', { weekday: 'long', month: 'long', day: 'numeric' }).format(new Date()),
+    []
+  );
+
+  const sourceCountForMeta = sites.length || sourceCounts.length;
+  const metaLine = [
+    `${sortedArticles.length} item${sortedArticles.length === 1 ? '' : 's'} from ${sourceCountForMeta} source${sourceCountForMeta === 1 ? '' : 's'}`,
+    lastScrapeLabel ? `last scrape ${lastScrapeLabel}` : null,
+  ].filter(Boolean).join(' · ');
 
   const handleShowMore = () => {
     setVisibleCount((currentCount) => currentCount + ARTICLES_PER_PAGE);
@@ -321,170 +499,169 @@ function App() {
 
   return (
     <div className="app">
+      <header className="site-header" id="top">
+        <a className="brand" href="#top" aria-label="Precis home">
+          <span>PRECIS</span>
+        </a>
+        <nav className="site-nav" aria-label="Primary">
+          <a href="#top" className="site-nav-link active">Today</a>
+          <a href="#filters" className="site-nav-link">Sources</a>
+          <span className="site-nav-link site-nav-link--soon" aria-disabled="true">Archive</span>
+          <span className="site-nav-link site-nav-link--soon" aria-disabled="true">Saved</span>
+        </nav>
+        <div className="site-header-actions">
+          <label className="header-search">
+            <SearchIcon />
+            <input
+              type="search"
+              placeholder={`Search ${sortedArticles.length} briefs`}
+              disabled
+              aria-label="Search briefs (coming soon)"
+            />
+          </label>
+        </div>
+      </header>
+
       {sortedArticles.length > 0 ? (
         <>
-          <section className="hero-stage" aria-labelledby="hero-title">
-            <div className="hero-copy">
-              <a className="brand hero-brand" href="/" aria-label="Precis home">
-                <span>PRECIS</span>
-              </a>
-              <h1 id="hero-title">Daily Tech Brief</h1>
-              <p className="hero-deck">
-                Curated news, blog posts, and product updates from leading tech teams, refreshed daily.
-              </p>
-
-              {(sites.length > 0 || topics.length > 0) && (
-                <div className="hero-filters" aria-label="Article filters">
-                  {sites.length > 0 && (
-                    <div className="filter-section">
-                      <label htmlFor="site-filter">Source</label>
-                      <div className="select-wrap">
-                        <select id="site-filter" value={selectedSite} onChange={handleSiteChange}>
-                          <option value="">All sources</option>
-                          {sites.map(site => (
-                            <option key={site} value={site}>{formatSiteName(site)}</option>
-                          ))}
-                        </select>
-                      </div>
-                    </div>
-                  )}
-
-                  {topics.length > 0 && (
-                    <div className="filter-section">
-                      <label htmlFor="topic-filter">Topic</label>
-                      <div className="select-wrap">
-                        <select id="topic-filter" value={selectedTopic} onChange={handleTopicChange}>
-                          <option value="">All topics</option>
-                          {topics.map(topic => (
-                            <option key={topic} value={topic}>{topic}</option>
-                          ))}
-                        </select>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
+          <section className="masthead" aria-labelledby="masthead-title">
+            <div className="masthead-head">
+              <p className="masthead-kicker">Daily tech brief</p>
+              <h1 id="masthead-title" className="masthead-date">{editionDateLabel}</h1>
+              <p className="masthead-meta">{metaLine}</p>
             </div>
+          </section>
 
-            <aside className="hero-feature" aria-label="Featured article">
-              <span className="content-label">Featured</span>
-              {featuredArticleUrl ? (
-                <a href={featuredArticleUrl} target="_blank" rel="noopener noreferrer" className="feature-image-link" aria-label={`Open ${featuredArticle.title}`}>
-                  {featuredArticle.image_url
-                    ? <img src={proxiedImageUrl(featuredArticle.image_url)} alt="" />
-                    : <FallbackNewsImage site={featuredArticle.site} />}
-                </a>
-              ) : (
-                <div className="feature-image-link" aria-hidden="true">
-                  {featuredArticle.image_url
-                    ? <img src={proxiedImageUrl(featuredArticle.image_url)} alt="" />
-                    : <FallbackNewsImage site={featuredArticle.site} />}
+          {(sites.length > 0 || topics.length > 0) && (
+            <nav id="filters" className="filter-bar" aria-label="Article filters">
+              {topics.length > 0 && (
+                <div className="filter-group">
+                  <span className="filter-group-label">Topic</span>
+                  <div className="filter-chip-row">
+                    <button
+                      type="button"
+                      className={`filter-chip${selectedTopic === '' ? ' active' : ''}`}
+                      onClick={() => handleTopicFilterClick('')}
+                    >
+                      All
+                    </button>
+                    {topics.map((topic) => (
+                      <button
+                        key={topic}
+                        type="button"
+                        className={`filter-chip${selectedTopic === topic ? ' active' : ''}`}
+                        onClick={() => handleTopicFilterClick(topic)}
+                      >
+                        {topic}
+                      </button>
+                    ))}
+                  </div>
                 </div>
               )}
-              <div className="feature-copy">
-                <div className="article-meta">
-                  <span className="site">{formatSiteName(featuredArticle.site)}</span>
-                  {featuredArticle.topic && <span className="topic">{featuredArticle.topic}</span>}
-                  {featuredArticle.published_at && <span className="date">{formatDisplayDate(featuredArticle.published_at)}</span>}
+
+              {sites.length > 0 && topics.length > 0 && <span className="filter-divider" aria-hidden="true" />}
+
+              {sites.length > 0 && (
+                <div className="filter-group">
+                  <span className="filter-group-label">Source</span>
+                  <div className="filter-chip-row">
+                    <button
+                      type="button"
+                      className={`filter-chip${selectedSite === '' ? ' active' : ''}`}
+                      onClick={() => handleSourceFilterClick('')}
+                    >
+                      All {sites.length}
+                    </button>
+                    {sites.map((site) => (
+                      <button
+                        key={site}
+                        type="button"
+                        className={`filter-chip${selectedSite === site ? ' active' : ''}`}
+                        onClick={() => handleSourceFilterClick(site)}
+                      >
+                        {formatSiteName(site)}
+                      </button>
+                    ))}
+                  </div>
                 </div>
-                <h2><SafeArticleTitle article={featuredArticle} /></h2>
-                <p>{getExcerpt(featuredArticle)}</p>
-              </div>
-            </aside>
-          </section>
+              )}
+            </nav>
+          )}
 
           <div className="section-divider" aria-hidden="true"></div>
 
-          <section id="discover" className="source-panel source-panel--sources" aria-label="Available sources">
-            <div className="section-heading">
-              <p className="section-kicker">Discover</p>
-              <h2>Explore by source</h2>
-            </div>
-            <div className="source-strip">
-              <button
-                type="button"
-                className={`source-chip${selectedSite === '' ? ' active' : ''}`}
-                onClick={() => handleSourceClick('')}
-              >
-                All sources
-              </button>
-              {sites.map((site) => (
-                <button
-                  key={site}
-                  type="button"
-                  className={`source-chip${selectedSite === site ? ' active' : ''}`}
-                  onClick={() => handleSourceClick(site)}
-                >
-                  {formatSiteName(site)}
-                </button>
-              ))}
+          <div className="edition-main">
+            {leadArticle && (
+              <article className="lead-story">
+                <div className="lead-media">
+                  {leadArticleUrl ? (
+                    <a href={leadArticleUrl} target="_blank" rel="noopener noreferrer" className="lead-image-link" aria-label={`Open ${leadArticle.title}`}>
+                      {leadImage}
+                    </a>
+                  ) : (
+                    <div className="lead-image-link" aria-hidden="true">{leadImage}</div>
+                  )}
+                </div>
+                <div className="lead-copy">
+                  <div className="lead-meta">
+                    <span className="tag-outline">Lead</span>
+                    <span className="lead-byline">{formatSiteName(leadArticle.site)} &middot; {formatRelativeTime(leadArticle.published_at)}</span>
+                  </div>
+                  <h2 className="lead-headline"><SafeArticleTitle article={leadArticle} /></h2>
+                  {getLeadSummaryText(leadArticle) && <p className="lead-summary">{getLeadSummaryText(leadArticle)}</p>}
+                  <div className="lead-actions">
+                    {leadArticleUrl && (
+                      <a className="btn-secondary" href={leadArticleUrl} target="_blank" rel="noopener noreferrer">
+                        Read at {formatSiteName(leadArticle.site)}
+                      </a>
+                    )}
+                    <SaveAffordance />
+                  </div>
+                </div>
+              </article>
+            )}
 
-            </div>
-          </section>
+            {alsoTodayArticles.length > 0 && (
+              <section className="also-today" aria-labelledby="also-today-title">
+                <div className="tier-heading">
+                  <h3 id="also-today-title">Previous stories</h3>
+                </div>
+                <div className="brief-list">
+                  {alsoTodayArticles.map((article, index) => (
+                    <BriefRow key={article.url} article={article} index={index} />
+                  ))}
+                </div>
+              </section>
+            )}
 
-          {topics.length > 0 && (
-            <section className="source-panel topic-panel" aria-label="Available topics">
-              <div className="section-heading">
-                <h2>Explore by topic</h2>
+            <section className="everything-else" aria-labelledby="everything-else-title">
+              <div className="tier-heading">
+                <h3 id="everything-else-title">Everything else</h3>
+                <span className="tier-count">{everythingElseAll.length} items</span>
               </div>
-              <div className="source-strip">
-                <button
-                  type="button"
-                  className={`source-chip${selectedTopic === '' ? ' active' : ''}`}
-                  onClick={() => handleTopicClick('')}
-                >
-                  All topics
-                </button>
-                {topics.map((topic) => (
-                  <button
-                    key={topic}
-                    type="button"
-                    className={`source-chip${selectedTopic === topic ? ' active' : ''}`}
-                    onClick={() => handleTopicClick(topic)}
-                  >
-                    {topic}
-                  </button>
-                ))}
-              </div>
+              {everythingElseAll.length > 0 ? (
+                <>
+                  <div className="everything-grid">
+                    {visibleEverythingElse.map((article) => (
+                      <EverythingCard key={article.url} article={article} />
+                    ))}
+                  </div>
+                  {hasMoreArticles && (
+                    <div className="show-more-inline">
+                      <button type="button" className="show-more-link" onClick={handleShowMore}>
+                        Show {Math.min(ARTICLES_PER_PAGE, everythingElseAll.length - visibleEverythingElse.length)} more &rarr;
+                      </button>
+                      <p className="article-count">
+                        Showing {visibleEverythingElse.length} of {everythingElseAll.length} items
+                      </p>
+                    </div>
+                  )}
+                </>
+              ) : (
+                <p className="tier-empty">Nothing else yet.</p>
+              )}
             </section>
-          )}
-
-          {topStories.length > 0 && (
-            <section id="popular" className="top-stories" aria-labelledby="top-stories-title">
-              <div className="section-heading section-heading--inline">
-                <p className="section-kicker">Popular on Precis</p>
-                <h2 id="top-stories-title">Editors Picks</h2>
-              </div>
-              <div className="story-list">
-                {topStories.map((article, index) => (
-                  <StoryRow key={`${article.url}-${index}`} article={article} index={index} />
-                ))}
-              </div>
-            </section>
-          )}
-
-          <main id="latest" className="latest-section" aria-label="Scraped articles">
-            <div className="section-heading section-heading--inline">
-              <p className="section-kicker">Newest from Precis</p>
-              <h2>Browse All</h2>
-            </div>
-            <div className="articles-container">
-              {feedArticles.map((article, index) => (
-                <ArticleCard key={article.url} article={article} variant={index === 0 ? 'wide' : 'standard'} />
-              ))}
-            </div>
-          </main>
-
-          {hasMoreArticles && (
-            <div className="show-more-section">
-              <button type="button" className="show-more-button" onClick={handleShowMore}>
-                Show 12 more
-              </button>
-              <p className="article-count">
-                Showing {visibleArticles.length} of {sortedArticles.length} articles
-              </p>
-            </div>
-          )}
+          </div>
         </>
       ) : (
         <section className="empty-state">
