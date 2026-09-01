@@ -43,7 +43,7 @@ app.get('/api/articles/:site', rateLimitMiddleware(RATE_LIMITS.articles), async 
 
 app.get('/api/sites', rateLimitMiddleware(RATE_LIMITS.articles), async (req, res) => {
   try {
-    res.json(await fetchSites());
+    res.json(await fetchSites({ topic: req.query.topic }));
   } catch (err) {
     sendError(res, 'Failed to fetch sites', err, req);
   }
@@ -51,7 +51,7 @@ app.get('/api/sites', rateLimitMiddleware(RATE_LIMITS.articles), async (req, res
 
 app.get('/api/topics', rateLimitMiddleware(RATE_LIMITS.articles), async (req, res) => {
   try {
-    res.json(await fetchTopics());
+    res.json(await fetchTopics({ site: req.query.site }));
   } catch (err) {
     sendError(res, 'Failed to fetch topics', err, req);
   }

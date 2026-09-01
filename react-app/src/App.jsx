@@ -267,6 +267,18 @@ const BookmarkIcon = () => (
   </svg>
 );
 
+// Length-tiered so long names (e.g. "KrebsOnSecurity", "Anthropic") shrink to
+// fit on one line instead of wrapping mid-word into the subtitle below.
+const getSourceNameSizeClass = (name) => {
+  if (name.length > 12) {
+    return ' fallback-news-image__source--long';
+  }
+  if (name.length > 7) {
+    return ' fallback-news-image__source--medium';
+  }
+  return '';
+};
+
 const FallbackNewsImage = ({ site, className = '' }) => {
   const sourceName = formatSiteName(site) || 'Precis';
 
@@ -274,9 +286,30 @@ const FallbackNewsImage = ({ site, className = '' }) => {
     <span className={`fallback-news-image${className ? ` ${className}` : ''}`} aria-hidden="true">
       <span className="fallback-news-image__grid" />
       <span className="fallback-news-image__ticker">News Brief</span>
-      <span className="fallback-news-image__source">{sourceName}</span>
+      <span className={`fallback-news-image__source${getSourceNameSizeClass(sourceName)}`}>{sourceName}</span>
       <span className="fallback-news-image__subtitle">Latest updates</span>
     </span>
+  );
+};
+
+// Renders the fallback graphic whenever there's no image_url, and also falls
+// back to it if the real image fails to load (broken link, timed-out fetch
+// through the image proxy, etc.) rather than leaving a blank broken-image icon.
+const ArticleImage = ({ article, className = '' }) => {
+  const [hasError, setHasError] = useState(false);
+  const imageUrl = article?.image_url;
+
+  if (!imageUrl || hasError) {
+    return <FallbackNewsImage site={article?.site} className={className} />;
+  }
+
+  return (
+    <img
+      src={proxiedImageUrl(imageUrl)}
+      alt=""
+      className={className}
+      onError={() => setHasError(true)}
+    />
   );
 };
 
@@ -309,11 +342,7 @@ const BriefRow = ({ article, index }) => {
     <div className="brief-row">
       <span className="brief-rank">{String(index + 1).padStart(2, '0')}</span>
       <span className="brief-thumb" aria-hidden="true">
-        {article.image_url ? (
-          <img src={proxiedImageUrl(article.image_url)} alt="" />
-        ) : (
-          <FallbackNewsImage site={article.site} />
-        )}
+        <ArticleImage article={article} />
       </span>
       <div className="brief-copy">
         <h4><SafeArticleTitle article={article} /></h4>
@@ -332,9 +361,7 @@ const BriefRow = ({ article, index }) => {
 const EverythingCard = ({ article }) => {
   const articleUrl = safeHttpUrl(article.url);
   const summaryText = getCardSummaryText(article);
-  const image = article.image_url
-    ? <img src={proxiedImageUrl(article.image_url)} alt="" className="everything-card-image" />
-    : <FallbackNewsImage site={article.site} className="everything-card-image" />;
+  const image = <ArticleImage article={article} className="everything-card-image" />;
 
   return (
     <article className="everything-card">
@@ -386,41 +413,72 @@ function App() {
     }
   }, []);
 
-  const fetchSites = useCallback(async () => {
+  // Sites available for the current topic filter (independent of the site
+  // filter itself, so picking a topic narrows the source chips to only the
+  // sources that actually cover it).
+  const fetchSitesForTopic = useCallback(async (topic) => {
     try {
-      const response = await axios.get(`${API_BASE_URL}/api/sites`);
+      const params = topic ? `?topic=${encodeURIComponent(topic)}` : '';
+      const response = await axios.get(`${API_BASE_URL}/api/sites${params}`);
       setSites(response.data);
+      return response.data;
     } catch (err) {
       console.error('Error fetching sites:', err);
+      return [];
     }
   }, []);
 
-  const fetchTopics = useCallback(async () => {
+  // Topics available for the current source filter, mirroring the above.
+  const fetchTopicsForSite = useCallback(async (site) => {
     try {
-      const response = await axios.get(`${API_BASE_URL}/api/topics`);
+      const params = site ? `?site=${encodeURIComponent(site)}` : '';
+      const response = await axios.get(`${API_BASE_URL}/api/topics${params}`);
       setTopics(response.data);
+      return response.data;
     } catch (err) {
       console.error('Error fetching topics:', err);
+      return [];
     }
   }, []);
 
+  // Single source of truth for actually fetching the edition: reacts to both
+  // filters, so it also "self-heals" a moment later if the validity effects
+  // below reset an incompatible selection.
   useEffect(() => {
-    const initialFilters = readFiltersFromUrl();
-    fetchSites();
-    fetchTopics();
-    fetchArticles(initialFilters.site, initialFilters.topic);
-  }, [fetchArticles, fetchSites, fetchTopics]);
+    fetchArticles(selectedSite, selectedTopic);
+    writeFiltersToUrl(selectedSite, selectedTopic);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedSite, selectedTopic]);
+
+  useEffect(() => {
+    fetchSitesForTopic(selectedTopic).then((availableSites) => {
+      if (selectedSite && !availableSites.includes(selectedSite)) {
+        setSelectedSite('');
+      }
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedTopic, fetchSitesForTopic]);
+
+  useEffect(() => {
+    fetchTopicsForSite(selectedSite).then((availableTopics) => {
+      if (selectedTopic && !availableTopics.includes(selectedTopic)) {
+        setSelectedTopic('');
+      }
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedSite, fetchTopicsForSite]);
 
   const handleSourceFilterClick = (site) => {
     setSelectedSite(site);
-    writeFiltersToUrl(site, selectedTopic);
-    fetchArticles(site, selectedTopic);
   };
 
   const handleTopicFilterClick = (topic) => {
     setSelectedTopic(topic);
-    writeFiltersToUrl(selectedSite, topic);
-    fetchArticles(selectedSite, topic);
+  };
+
+  const handleClearFilters = () => {
+    setSelectedSite('');
+    setSelectedTopic('');
   };
 
   const sortedArticles = useMemo(
@@ -430,9 +488,7 @@ function App() {
 
   const leadArticle = sortedArticles[0];
   const leadArticleUrl = safeHttpUrl(leadArticle?.url);
-  const leadImage = leadArticle?.image_url
-    ? <img src={proxiedImageUrl(leadArticle.image_url)} alt="" />
-    : <FallbackNewsImage site={leadArticle?.site} />;
+  const leadImage = <ArticleImage key={leadArticle?.url} article={leadArticle} />;
 
   const alsoTodayArticles = sortedArticles.slice(1, 1 + BRIEF_COUNT);
   const everythingElseAll = sortedArticles.slice(1 + BRIEF_COUNT);
@@ -666,8 +722,13 @@ function App() {
       ) : (
         <section className="empty-state">
           <p className="state-kicker">Nothing here yet</p>
-          <h2>No captured articles for this source.</h2>
-          <p>Choose another source, or run the scraper and refresh this page.</p>
+          <h2>No captured articles for this filter.</h2>
+          <p className="empty-state-description">Choose another source or topic, or run the scraper and refresh this page.</p>
+          {(selectedSite || selectedTopic) && (
+            <button type="button" className="empty-state-back" onClick={handleClearFilters}>
+              &larr; Back to all sources
+            </button>
+          )}
         </section>
       )}
     </div>
