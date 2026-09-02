@@ -8,12 +8,14 @@ const {
   buildFetchArticlesQuery,
   WORKING_SET_LIMIT,
   MAX_LIMIT,
+  MAX_MULTI_VALUES,
   MAX_OFFSET,
   MAX_SITE_LENGTH,
   MAX_TOPIC_LENGTH,
   PUBLIC_ARTICLES_RELATION,
   QueryValidationError,
   normalizeFilter,
+  normalizeMultiFilter,
   normalizePagination,
 } = require('../lib/articles');
 const { createCorsOptions, getAllowedCorsOrigins } = require('../lib/cors');
@@ -188,6 +190,19 @@ test('site and topic filters are trimmed and length-limited', () => {
   assertValidationError(() => normalizeFilter(['AI', 'Security'], 'topic', MAX_TOPIC_LENGTH), 'topic');
 });
 
+test('multi-value filters split, trim, and dedupe a comma-separated value', () => {
+  assert.deepEqual(normalizeMultiFilter('nvidia, openai ,nvidia', 'site', MAX_SITE_LENGTH), ['nvidia', 'openai']);
+  assert.equal(normalizeMultiFilter('', 'topic', MAX_TOPIC_LENGTH), undefined);
+  assert.equal(normalizeMultiFilter(',, ,', 'topic', MAX_TOPIC_LENGTH), undefined);
+  assertValidationError(() => normalizeMultiFilter('x'.repeat(MAX_SITE_LENGTH + 1), 'site', MAX_SITE_LENGTH), 'site');
+  assertValidationError(() => normalizeMultiFilter(['a', 'b'], 'topic', MAX_TOPIC_LENGTH), 'topic');
+  assertValidationError(
+    () => normalizeMultiFilter(Array.from({ length: 3 }, (_, i) => `t${i}`).join(','), 'topic', MAX_TOPIC_LENGTH, 2),
+    'topic',
+  );
+  assert.equal(MAX_MULTI_VALUES > 0, true);
+});
+
 test('article list queries use the public view and expose only public fields', () => {
   const built = buildFetchArticlesQuery({ site: 'nvidia', topic: 'AI' });
 
@@ -196,6 +211,14 @@ test('article list queries use the public view and expose only public fields', (
   assert.doesNotMatch(built.text, /body_text|content_hash|matched_strategy|flag_reason|raw_html_path|needs_review/i);
   assert.match(built.text, /\bexcerpt\b/i);
   assert.deepEqual(built.params, ['nvidia', 'AI', WORKING_SET_LIMIT]);
+});
+
+test('multi-value site/topic filters build an ANY() clause with one array param', () => {
+  const built = buildFetchArticlesQuery({ site: 'nvidia,openai', topic: 'AI' });
+
+  assert.match(built.text, /site = ANY\(\$1::text\[\]\)/);
+  assert.match(built.text, /topic = \$2\b/);
+  assert.deepEqual(built.params, [['nvidia', 'openai'], 'AI', WORKING_SET_LIMIT]);
 });
 
 test('public articles view withholds review-held records and truncates body text in SQL', () => {

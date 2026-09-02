@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="styles.css">
+<script src="_ds_bundle.js"></script>
+<style>
+  body { background: var(--color-bg); margin:0; }
+  .pf-row { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:8px 18px; font-size:14px; cursor:pointer; user-select:none; }
+  .pf-row:hover { background: var(--color-accent-100); }
+  .pf-row-m { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:12px 18px; font-size:15px; min-height:44px; cursor:pointer; border-bottom:1px solid var(--color-neutral-300); }
+  .pf-box-on { width:13px; height:13px; flex:none; border:1px solid var(--color-accent); background:var(--color-accent); }
+  .pf-box-off { width:13px; height:13px; flex:none; border:1px solid var(--color-neutral-500); }
+  .pf-grouphead { padding:14px 18px 6px; font-family:var(--font-heading); font-size:12px; letter-spacing:.12em; text-transform:uppercase; color:var(--color-neutral-600); }
+  .pf-more { padding:7px 18px 14px; font-size:13px; color:var(--color-accent-700); cursor:pointer; }
+  .pf-more:hover { color:var(--color-accent-900); }
+  .pf-input { width:100%; box-sizing:border-box; border:1px solid var(--color-neutral-400); background:transparent; padding:7px 10px; font-family:var(--font-body); font-size:14px; color:var(--color-text); }
+  .pf-input:focus-visible { outline:2px solid var(--color-accent); outline-offset:2px; }
+  .pf-btn { display:inline-flex; align-items:center; gap:8px; padding:8px 14px; background:var(--color-accent); color:#fff; font-family:var(--font-heading); font-size:15px; letter-spacing:.04em; border:0; cursor:pointer; }
+  .pf-btn:hover { background:var(--color-accent-600); }
+  .pf-btn:focus-visible { outline:2px solid var(--color-accent); outline-offset:2px; }
+  .pf-ghost { font-size:13px; color:var(--color-accent-700); cursor:pointer; background:none; border:0; font-family:var(--font-body); padding:0; }
+  .pf-ghost:hover { color:var(--color-accent-900); }
+  .pf-chip { display:inline-flex; align-items:center; gap:7px; cursor:pointer; }
+</style>
+</helmet>
+
+<div style="padding:44px; font-family:var(--font-body); color:var(--color-text); display:flex; flex-direction:column; gap:26px;">
+
+  <div style="display:flex; align-items:flex-end; gap:20px; flex-wrap:wrap; max-width:1000px;">
+    <div style="display:flex; flex-direction:column; gap:6px;">
+      <div style="font-family:var(--font-heading); font-size:13px; letter-spacing:.14em; text-transform:uppercase; color:var(--color-accent-700);">Precis — filter prototype</div>
+      <h1 style="font-family:var(--font-heading); font-size:40px; line-height:1.05; margin:0; font-weight:600;">Filters open on demand, close on apply</h1>
+    </div>
+    <div style="display:flex; gap:0; margin-left:auto; border:1px solid var(--color-neutral-400);">
+      <button class="pf-ghost" style="padding:7px 14px; font-family:var(--font-heading); font-size:14px; letter-spacing:.06em; text-transform:uppercase; background:{{ deskTabBg }}; color:{{ deskTabFg }};" onClick="{{ setDesktop }}">Desktop</button>
+      <button class="pf-ghost" style="padding:7px 14px; font-family:var(--font-heading); font-size:14px; letter-spacing:.06em; text-transform:uppercase; background:{{ mobTabBg }}; color:{{ mobTabFg }}; border-left:1px solid var(--color-neutral-400);" onClick="{{ setMobile }}">Mobile</button>
+    </div>
+  </div>
+
+  <p style="font-size:15px; line-height:1.6; color:var(--color-neutral-700); margin:0; max-width:62ch; text-wrap:pretty;">The header holds one fixed-width control. The taxonomy lives in a panel that only exists while it is open, so the header height never changes as you add sources and topics. Click <strong>Filters</strong>, choose, then <strong>Apply</strong>.</p>
+
+  <div class="blueprint" style="position:relative; width:{{ frameWidth }}; border:1px solid var(--color-neutral-400); background:var(--color-bg); overflow:hidden;">
+    <i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+
+    <div style="display:flex; align-items:center; gap:16px; padding:14px 20px; border-bottom:1px solid var(--color-neutral-400);">
+      <span style="font-family:var(--font-heading); font-size:24px; font-weight:600; line-height:1;">Precis</span>
+      <sc-if value="{{ isDesktop }}" hint-placeholder-val="{{ true }}">
+        <span style="font-family:var(--font-heading); font-size:12px; letter-spacing:.12em; text-transform:uppercase; color:var(--color-neutral-600);">Daily Tech Brief</span>
+      </sc-if>
+      <button class="pf-btn" style="margin-left:auto;" onClick="{{ openPanel }}">
+        <span>Filters</span>
+        <sc-if value="{{ hasApplied }}" hint-placeholder-val="{{ true }}">
+          <span style="background:rgba(255,255,255,.28); padding:0 6px;">{{ appliedCount }}</span>
+        </sc-if>
+      </button>
+    </div>
+
+    <sc-if value="{{ hasApplied }}" hint-placeholder-val="{{ true }}">
+      <div style="display:flex; align-items:center; gap:8px; padding:11px 20px; border-bottom:1px solid var(--color-neutral-300); flex-wrap:wrap;">
+        <span style="font-family:var(--font-heading); font-size:11px; letter-spacing:.12em; text-transform:uppercase; color:var(--color-neutral-600);">Filtering by</span>
+        <sc-for list="{{ appliedChips }}" as="c" hint-placeholder-count="2">
+          <span class="tag tag-accent pf-chip" onClick="{{ c.remove }}">{{ c.label }} <span style="opacity:.7;">✕</span></span>
+        </sc-for>
+        <button class="pf-ghost" style="margin-left:4px;" onClick="{{ clearAll }}">Clear all</button>
+      </div>
+    </sc-if>
+
+    <div style="padding:18px 20px 24px; display:flex; flex-direction:column; gap:14px;">
+      <div style="font-family:var(--font-heading); font-size:12px; letter-spacing:.12em; text-transform:uppercase; color:var(--color-neutral-600);">{{ resultLabel }}</div>
+      <sc-for list="{{ visibleArticles }}" as="a" hint-placeholder-count="4">
+        <div style="display:flex; flex-direction:column; gap:5px; padding-bottom:14px; border-bottom:1px solid var(--color-neutral-300);">
+          <div style="display:flex; gap:10px; font-family:var(--font-heading); font-size:11px; letter-spacing:.1em; text-transform:uppercase; color:var(--color-accent-700);">
+            <span>{{ a.source }}</span><span style="color:var(--color-neutral-500);">{{ a.topic }}</span><span style="color:var(--color-neutral-500);">{{ a.time }}</span>
+          </div>
+          <div style="font-family:var(--font-heading); font-size:22px; line-height:1.15; font-weight:600;">{{ a.title }}</div>
+        </div>
+      </sc-for>
+      <sc-if value="{{ isEmpty }}" hint-placeholder-val="{{ false }}">
+        <div style="padding:28px 0; text-align:center; color:var(--color-neutral-600); font-size:14px;">Nothing matches this combination today. <button class="pf-ghost" onClick="{{ clearAll }}">Clear filters</button></div>
+      </sc-if>
+    </div>
+
+    <sc-if value="{{ showDesktopPanel }}" hint-placeholder-val="{{ false }}">
+      <div style="position:absolute; inset:0; background:rgba(29,31,32,.28);" onClick="{{ closePanel }}"></div>
+    </sc-if>
+
+    <sc-if value="{{ showDesktopPanel }}" hint-placeholder-val="{{ false }}">
+      <div class="blueprint" style="position:absolute; top:62px; right:20px; width:360px; max-height:calc(100% - 84px); display:flex; flex-direction:column; border:1px solid var(--color-neutral-500); background:var(--color-bg); box-shadow:var(--shadow-lg);">
+        <i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+        <div style="padding:14px 18px; border-bottom:1px solid var(--color-neutral-400); display:flex; flex-direction:column; gap:10px;">
+          <div style="display:flex; align-items:center; justify-content:space-between;">
+            <span style="font-family:var(--font-heading); font-size:19px; font-weight:600;">Filters</span>
+            <button class="pf-ghost" onClick="{{ clearDraft }}">Reset</button>
+          </div>
+          <input class="pf-input" type="text" placeholder="Find a source or topic" value="{{ query }}" onChange="{{ onQuery }}">
+        </div>
+
+        <div style="flex:1; overflow:auto;">
+          <div class="pf-grouphead">Topics · {{ topicTotal }}</div>
+          <sc-for list="{{ topicRows }}" as="t" hint-placeholder-count="5">
+            <div class="pf-row" onClick="{{ t.toggle }}">
+              <span style="display:flex; gap:10px; align-items:center;">
+                <sc-if value="{{ t.on }}" hint-placeholder-val="{{ false }}"><span class="pf-box-on"></span></sc-if>
+                <sc-if value="{{ t.off }}" hint-placeholder-val="{{ true }}"><span class="pf-box-off"></span></sc-if>
+                {{ t.name }}
+              </span>
+              <sc-if value="{{ showCounts }}" hint-placeholder-val="{{ true }}">
+                <span style="color:var(--color-neutral-600); font-size:12px;">{{ t.count }}</span>
+              </sc-if>
+            </div>
+          </sc-for>
+          <sc-if value="{{ topicMore }}" hint-placeholder-val="{{ true }}">
+            <div class="pf-more" onClick="{{ toggleTopics }}">{{ topicMoreLabel }}</div>
+          </sc-if>
+
+          <div class="pf-grouphead" style="border-top:1px solid var(--color-neutral-300);">Sources · {{ sourceTotal }}</div>
+          <sc-for list="{{ sourceRows }}" as="s" hint-placeholder-count="5">
+            <div class="pf-row" onClick="{{ s.toggle }}">
+              <span style="display:flex; gap:10px; align-items:center;">
+                <sc-if value="{{ s.on }}" hint-placeholder-val="{{ false }}"><span class="pf-box-on"></span></sc-if>
+                <sc-if value="{{ s.off }}" hint-placeholder-val="{{ true }}"><span class="pf-box-off"></span></sc-if>
+                {{ s.name }}
+              </span>
+              <sc-if value="{{ showCounts }}" hint-placeholder-val="{{ true }}">
+                <span style="color:var(--color-neutral-600); font-size:12px;">{{ s.count }}</span>
+              </sc-if>
+            </div>
+          </sc-for>
+          <sc-if value="{{ sourceMore }}" hint-placeholder-val="{{ true }}">
+            <div class="pf-more" onClick="{{ toggleSources }}">{{ sourceMoreLabel }}</div>
+          </sc-if>
+          <sc-if value="{{ noMatches }}" hint-placeholder-val="{{ false }}">
+            <div style="padding:20px 18px; font-size:13px; color:var(--color-neutral-600);">No source or topic matches that.</div>
+          </sc-if>
+        </div>
+
+        <div style="display:flex; gap:10px; padding:14px 18px; border-top:1px solid var(--color-neutral-400);">
+          <button class="pf-btn" style="flex:1; justify-content:center;" onClick="{{ apply }}">{{ applyLabel }}</button>
+          <button class="pf-ghost" style="padding:0 10px;" onClick="{{ closePanel }}">Cancel</button>
+        </div>
+      </div>
+    </sc-if>
+
+    <sc-if value="{{ showMobileSheet }}" hint-placeholder-val="{{ false }}">
+      <div style="position:absolute; inset:0; background:rgba(29,31,32,.35);" onClick="{{ closePanel }}"></div>
+    </sc-if>
+
+    <sc-if value="{{ showMobileSheet }}" hint-placeholder-val="{{ false }}">
+      <div style="position:absolute; left:0; right:0; bottom:0; max-height:88%; display:flex; flex-direction:column; background:var(--color-bg); border-top:1px solid var(--color-neutral-500); box-shadow:var(--shadow-lg);">
+        <div style="display:flex; justify-content:center; padding:8px;"><span style="width:36px; height:3px; background:var(--color-neutral-500);"></span></div>
+        <div style="display:flex; align-items:center; justify-content:space-between; padding:2px 18px 12px;">
+          <span style="font-family:var(--font-heading); font-size:21px; font-weight:600;">Filters</span>
+          <button class="pf-ghost" onClick="{{ clearDraft }}">Reset</button>
+        </div>
+        <div style="padding:0 18px 12px;"><input class="pf-input" type="text" placeholder="Find a source or topic" value="{{ query }}" onChange="{{ onQuery }}"></div>
+        <div style="flex:1; overflow:auto;">
+          <div class="pf-grouphead">Topics</div>
+          <sc-for list="{{ topicRows }}" as="t" hint-placeholder-count="4">
+            <div class="pf-row-m" onClick="{{ t.toggle }}">
+              <span style="display:flex; gap:11px; align-items:center;">
+                <sc-if value="{{ t.on }}" hint-placeholder-val="{{ false }}"><span class="pf-box-on" style="width:15px; height:15px;"></span></sc-if>
+                <sc-if value="{{ t.off }}" hint-placeholder-val="{{ true }}"><span class="pf-box-off" style="width:15px; height:15px;"></span></sc-if>
+                {{ t.name }}
+              </span>
+              <sc-if value="{{ showCounts }}" hint-placeholder-val="{{ true }}">
+                <span style="color:var(--color-neutral-600); font-size:12px;">{{ t.count }}</span>
+              </sc-if>
+            </div>
+          </sc-for>
+          <sc-if value="{{ topicMore }}" hint-placeholder-val="{{ true }}">
+            <div class="pf-more" onClick="{{ toggleTopics }}">{{ topicMoreLabel }}</div>
+          </sc-if>
+          <div class="pf-grouphead" style="border-top:1px solid var(--color-neutral-300);">Sources</div>
+          <sc-for list="{{ sourceRows }}" as="s" hint-placeholder-count="4">
+            <div class="pf-row-m" onClick="{{ s.toggle }}">
+              <span style="display:flex; gap:11px; align-items:center;">
+                <sc-if value="{{ s.on }}" hint-placeholder-val="{{ false }}"><span class="pf-box-on" style="width:15px; height:15px;"></span></sc-if>
+                <sc-if value="{{ s.off }}" hint-placeholder-val="{{ true }}"><span class="pf-box-off" style="width:15px; height:15px;"></span></sc-if>
+                {{ s.name }}
+              </span>
+              <sc-if value="{{ showCounts }}" hint-placeholder-val="{{ true }}">
+                <span style="color:var(--color-neutral-600); font-size:12px;">{{ s.count }}</span>
+              </sc-if>
+            </div>
+          </sc-for>
+          <sc-if value="{{ sourceMore }}" hint-placeholder-val="{{ true }}">
+            <div class="pf-more" onClick="{{ toggleSources }}">{{ sourceMoreLabel }}</div>
+          </sc-if>
+        </div>
+        <div style="padding:14px 18px 18px;">
+          <button class="pf-btn" style="width:100%; justify-content:center; padding:13px;" onClick="{{ apply }}">{{ applyLabel }}</button>
+        </div>
+      </div>
+    </sc-if>
+  </div>
+
+  <div style="display:flex; gap:32px; max-width:1040px; font-size:13px; line-height:1.6; color:var(--color-neutral-700);">
+    <div style="flex:1;"><strong style="font-family:var(--font-heading); letter-spacing:.06em; text-transform:uppercase; font-size:12px;">Behaviour</strong><br>Panel state is separate from applied state: choices are a draft until Apply commits them. Cancel, backdrop click and Escape all discard. Removing a chip applies immediately — no panel needed for undo.</div>
+    <div style="flex:1;"><strong style="font-family:var(--font-heading); letter-spacing:.06em; text-transform:uppercase; font-size:12px;">Scaling</strong><br>Groups show five, sorted by today's count, with Show all beneath. The search field filters both groups at once, so 200 sources costs no more header space than 5.</div>
+    <div style="flex:1;"><strong style="font-family:var(--font-heading); letter-spacing:.06em; text-transform:uppercase; font-size:12px;">Empty states</strong><br>Counts are computed against today's items, so a facet that would return nothing reads 0 before it is clicked. A zero-result combination offers Clear filters rather than a blank page.</div>
+  </div>
+</div>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1080},&quot;showCounts&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Filter panel&quot;},&quot;groupCap&quot;:{&quot;editor&quot;:&quot;int&quot;,&quot;default&quot;:5,&quot;min&quot;:3,&quot;max&quot;:12,&quot;tsType&quot;:&quot;number&quot;,&quot;section&quot;:&quot;Filter panel&quot;}}">
+const ARTICLES = [
+  { title: "Nyx Labs open-sources its 70B model under Apache 2.0", source: "The Verge", topic: "AI models", time: "2h" },
+  { title: "Chip export rules widened to cover inference accelerators", source: "Reuters", topic: "Policy & regulation", time: "4h" },
+  { title: "The unbundling of the enterprise search stack", source: "Stratechery", topic: "Enterprise SaaS", time: "6h" },
+  { title: "TSMC pulls forward its 2nm ramp by a quarter", source: "Bloomberg", topic: "Semiconductors", time: "7h" },
+  { title: "Portmeta raises $60M Series B led by Arrowmark", source: "TechCrunch", topic: "Funding", time: "8h" },
+  { title: "Inside the retrieval benchmark nobody can reproduce", source: "Ars Technica", topic: "AI models", time: "9h" },
+  { title: "Cloud providers quietly raise egress fees again", source: "The Information", topic: "Cloud & infra", time: "11h" },
+  { title: "A supply-chain attack that shipped in a build tool", source: "Wired", topic: "Security", time: "12h" },
+  { title: "Handset makers bet on on-device inference for 2027", source: "Axios", topic: "Consumer devices", time: "14h" },
+  { title: "The maintainer funding gap is getting worse", source: "Platformer", topic: "Open source", time: "16h" },
+  { title: "EU opens consultation on model transparency rules", source: "Reuters", topic: "Policy & regulation", time: "18h" },
+  { title: "Memory pricing is the quiet constraint on training", source: "Bloomberg", topic: "Semiconductors", time: "20h" }
+];
+
+class Component extends DCLogic {
+  state = {
+    mode: "desktop",
+    open: false,
+    applied: { topics: [], sources: [] },
+    draft: { topics: [], sources: [] },
+    q: "",
+    allTopics: false,
+    allSources: false
+  };
+
+  componentDidMount() {
+    this._esc = (e) => { if (e.key === "Escape" && this.state.open) this.setState({ open: false }); };
+    window.addEventListener("keydown", this._esc);
+  }
+  componentWillUnmount() { window.removeEventListener("keydown", this._esc); }
+
+  openPanel = () => this.setState(s => ({ open: true, q: "", draft: { topics: [...s.applied.topics], sources: [...s.applied.sources] } }));
+  closePanel = () => this.setState({ open: false });
+  apply = () => this.setState(s => ({ open: false, applied: { topics: [...s.draft.topics], sources: [...s.draft.sources] } }));
+  clearDraft = () => this.setState({ draft: { topics: [], sources: [] }, q: "" });
+  clearAll = () => this.setState({ applied: { topics: [], sources: [] }, draft: { topics: [], sources: [] } });
+
+  toggle(kind, name) {
+    this.setState(s => {
+      const list = s.draft[kind];
+      const next = list.includes(name) ? list.filter(x => x !== name) : [...list, name];
+      return { draft: { ...s.draft, [kind]: next } };
+    });
+  }
+
+  removeApplied(kind, name) {
+    this.setState(s => ({
+      applied: { ...s.applied, [kind]: s.applied[kind].filter(x => x !== name) },
+      draft: { ...s.draft, [kind]: s.draft[kind].filter(x => x !== name) }
+    }));
+  }
+
+  facets(kind, key) {
+    const counts = {};
+    ARTICLES.forEach(a => { counts[a[key]] = (counts[a[key]] || 0) + 1; });
+    return Object.keys(counts)
+      .sort((a, b) => counts[b] - counts[a] || a.localeCompare(b))
+      .map(name => ({ name, count: counts[name] }));
+  }
+
+  renderVals() {
+    const s = this.state;
+    const cap = this.props.groupCap ?? 5;
+    const isDesktop = s.mode === "desktop";
+    const q = s.q.trim().toLowerCase();
+
+    const build = (kind, key, expanded) => {
+      const all = this.facets(kind, key).filter(f => !q || f.name.toLowerCase().includes(q));
+      const shown = expanded || q ? all : all.slice(0, cap);
+      return {
+        total: this.facets(kind, key).length,
+        hidden: all.length - shown.length,
+        rows: shown.map(f => ({
+          name: f.name,
+          count: f.count,
+          on: s.draft[kind].includes(f.name),
+          off: !s.draft[kind].includes(f.name),
+          toggle: () => this.toggle(kind, f.name)
+        }))
+      };
+    };
+
+    const t = build("topics", "topic", s.allTopics);
+    const src = build("sources", "source", s.allSources);
+
+    const visible = ARTICLES.filter(a =>
+      (s.applied.topics.length === 0 || s.applied.topics.includes(a.topic)) &&
+      (s.applied.sources.length === 0 || s.applied.sources.includes(a.source))
+    );
+
+    const draftCount = s.draft.topics.length + s.draft.sources.length;
+    const appliedCount = s.applied.topics.length + s.applied.sources.length;
+    const draftVisible = ARTICLES.filter(a =>
+      (s.draft.topics.length === 0 || s.draft.topics.includes(a.topic)) &&
+      (s.draft.sources.length === 0 || s.draft.sources.includes(a.source))
+    ).length;
+
+    const chip = (kind, name) => ({ label: name, remove: () => this.removeApplied(kind, name) });
+
+    const on = "var(--color-accent)", offBg = "transparent", onFg = "#fff", offFg = "var(--color-text)";
+
+    return {
+      isDesktop,
+      frameWidth: isDesktop ? "980px" : "390px",
+      deskTabBg: isDesktop ? on : offBg, deskTabFg: isDesktop ? onFg : offFg,
+      mobTabBg: isDesktop ? offBg : on, mobTabFg: isDesktop ? offFg : onFg,
+      setDesktop: () => this.setState({ mode: "desktop", open: false }),
+      setMobile: () => this.setState({ mode: "mobile", open: false }),
+
+      showDesktopPanel: s.open && isDesktop,
+      showMobileSheet: s.open && !isDesktop,
+      openPanel: this.openPanel,
+      closePanel: this.closePanel,
+      apply: this.apply,
+      clearDraft: this.clearDraft,
+      clearAll: this.clearAll,
+      applyLabel: draftCount === 0 ? "Show all " + ARTICLES.length : "Show " + draftVisible + " results",
+
+      query: s.q,
+      onQuery: (e) => this.setState({ q: e.target.value }),
+      showCounts: this.props.showCounts ?? true,
+
+      topicRows: t.rows, sourceRows: src.rows,
+      topicTotal: t.total, sourceTotal: src.total,
+      topicMore: t.hidden > 0 || (s.allTopics && !q),
+      sourceMore: src.hidden > 0 || (s.allSources && !q),
+      topicMoreLabel: s.allTopics ? "Show fewer" : "Show all " + t.total,
+      sourceMoreLabel: s.allSources ? "Show fewer" : "Show all " + src.total,
+      noMatches: q !== "" && t.rows.length === 0 && src.rows.length === 0,
+
+      hasApplied: appliedCount > 0,
+      appliedCount,
+      appliedChips: [
+        ...s.applied.topics.map(n => chip("topics", n)),
+        ...s.applied.sources.map(n => chip("sources", n))
+      ],
+
+      visibleArticles: visible.slice(0, 6),
+      isEmpty: visible.length === 0,
+      resultLabel: appliedCount === 0 ? ARTICLES.length + " items today" : visible.length + " of " + ARTICLES.length + " items"
+    };
+  }
+}
+
+</script>
+</body>
+</html>

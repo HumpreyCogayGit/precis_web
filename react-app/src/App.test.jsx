@@ -70,12 +70,16 @@ const articles = [
 vi.mock('axios', () => ({
   default: {
     get: vi.fn((url) => {
-      if (url.endsWith('/api/sites')) {
-        return Promise.resolve({ data: ['nvidia'] });
+      if (url.includes('/api/sites')) {
+        return Promise.resolve({ data: [{ name: 'nvidia', count: articles.length }] });
       }
 
-      if (url.endsWith('/api/topics')) {
-        return Promise.resolve({ data: ['AI'] });
+      if (url.includes('/api/topics')) {
+        return Promise.resolve({ data: [{ name: 'AI', count: articles.length }] });
+      }
+
+      if (url.includes('/api/article-count')) {
+        return Promise.resolve({ data: { count: articles.length } });
       }
 
       return Promise.resolve({ data: articles });

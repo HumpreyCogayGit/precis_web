@@ -1,0 +1,28 @@
+const { countArticles } = require('../lib/articles');
+const { allowMethods, sendError } = require('../lib/http');
+const { RATE_LIMITS, checkRateLimit } = require('../lib/rateLimit');
+
+// Backs the filter panel's live "Show N results" / "Show all N" label: a
+// cheap COUNT(*) for a candidate (draft) site/topic combination, computed
+// server-side so it reflects the true total rather than one loaded page.
+module.exports = async function handler(req, res) {
+  if (!allowMethods(req, res)) {
+    return;
+  }
+
+  if (!checkRateLimit(req, res, RATE_LIMITS.articles)) {
+    return;
+  }
+
+  try {
+    res.setHeader('Cache-Control', 's-maxage=60, stale-while-revalidate=300');
+    res.status(200).json({
+      count: await countArticles({
+        site: req.query.site,
+        topic: req.query.topic,
+      }),
+    });
+  } catch (err) {
+    sendError(res, 'Failed to count articles', err, req);
+  }
+};

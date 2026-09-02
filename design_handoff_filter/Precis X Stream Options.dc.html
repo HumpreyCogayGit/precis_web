@@ -1,0 +1,444 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="design_doc_mode" content="canvas">
+<link rel="stylesheet" href="styles.css">
+<script src="_ds_bundle.js"></script>
+<style>
+  body { background: var(--color-bg); }
+  .px-post { display:grid; grid-template-columns:28px 1fr; gap:10px; padding:14px 16px; border-bottom:1px solid var(--color-neutral-300); }
+  .px-post:last-child { border-bottom:0; }
+  .px-av { width:28px; height:28px; border:1px solid var(--color-neutral-400); background:var(--color-neutral-200); }
+  .px-h { font-family:var(--font-body); font-size:13px; font-weight:600; color:var(--color-text); }
+  .px-t { font-family:var(--font-body); font-size:12px; color:var(--color-neutral-600); }
+  .px-b { font-family:var(--font-body); font-size:14px; line-height:1.45; color:var(--color-text); margin-top:3px; text-wrap:pretty; }
+  .px-link { display:inline-flex; align-items:center; gap:6px; margin-top:8px; padding:5px 9px; border:1px solid var(--color-neutral-400); font-family:var(--font-body); font-size:12px; color:var(--color-accent-700); max-width:100%; }
+  .px-badge { font-family:var(--font-heading); font-size:11px; letter-spacing:.08em; text-transform:uppercase; padding:2px 6px; border:1px solid var(--color-accent-400); color:var(--color-accent-700); }
+  .px-secthead { font-family:var(--font-heading); font-size:13px; letter-spacing:.12em; text-transform:uppercase; color:var(--color-neutral-600); }
+</style>
+</helmet>
+
+<section style="display:flex; flex-direction:column; gap:40px; padding:48px; font-family:var(--font-body); color:var(--color-text); border-bottom:1px solid var(--color-neutral-400);">
+
+  <div style="display:flex; flex-direction:column; gap:8px; max-width:820px;">
+    <div style="font-family:var(--font-heading); font-size:13px; letter-spacing:.14em; text-transform:uppercase; color:var(--color-accent-700);">Turn 2 — Filters that don't grow</div>
+    <h1 style="font-family:var(--font-heading); font-size:44px; line-height:1.05; margin:0; font-weight:600;">Stop rendering the taxonomy in the header</h1>
+    <p style="font-size:15px; line-height:1.6; color:var(--color-neutral-700); margin:0; max-width:64ch; text-wrap:pretty;">A chip row is a control whose size is your database. It works to about eight items and breaks after that — which is what you're hitting. The fix in all three options is the same move: the header holds a <em>constant-width</em> control, and the taxonomy moves into a surface that can scroll. Active filters then appear as chips, but as output, not as the control.</p>
+  </div>
+
+  <div style="display:flex; flex-wrap:wrap; gap:40px; align-items:flex-start;">
+
+    <!-- ============ 2a ============ -->
+    <div id="2a" style="display:flex; flex:none; flex-direction:column; gap:14px; width:900px;">
+      <div style="display:flex; align-items:baseline; gap:12px; flex-wrap:wrap;">
+        <span style="font-family:var(--font-heading); font-size:20px; padding:2px 10px; background:var(--color-accent); color:#fff;">2a</span>
+        <span style="font-family:var(--font-heading); font-size:22px;">Facet panel — recommended</span>
+        <span style="font-size:13px; color:var(--color-neutral-600);">Header stays one row forever, at any number of sources.</span>
+      </div>
+
+      <div class="blueprint" style="position:relative; border:1px solid var(--color-neutral-400);">
+        <i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+
+        <div style="display:flex; align-items:center; gap:16px; padding:14px 20px; border-bottom:1px solid var(--color-neutral-400);">
+          <span style="font-family:var(--font-heading); font-size:24px; font-weight:600; line-height:1;">Precis</span>
+          <div style="flex:1; display:flex; align-items:center; gap:8px; border:1px solid var(--color-neutral-400); padding:7px 10px; color:var(--color-neutral-600); font-size:14px;">
+            <span style="opacity:.7;">⌕</span><span>Search the brief</span>
+          </div>
+          <div style="display:flex; align-items:center; gap:8px; padding:7px 12px; background:var(--color-accent); color:#fff; font-family:var(--font-heading); font-size:15px; letter-spacing:.04em;">
+            <span>Filters</span><span style="background:rgba(255,255,255,.25); padding:0 6px;">2</span>
+          </div>
+          <span style="font-family:var(--font-heading); font-size:13px; letter-spacing:.1em; text-transform:uppercase; color:var(--color-neutral-600);">2 Sep</span>
+        </div>
+
+        <div style="display:flex; align-items:center; gap:8px; padding:12px 20px; border-bottom:1px solid var(--color-neutral-300); flex-wrap:wrap;">
+          <span style="font-family:var(--font-heading); font-size:12px; letter-spacing:.1em; text-transform:uppercase; color:var(--color-neutral-600);">Active</span>
+          <span class="tag tag-accent">Semiconductors ✕</span>
+          <span class="tag tag-accent">The Information ✕</span>
+          <span style="font-size:13px; color:var(--color-accent-700); margin-left:4px;">Clear all</span>
+        </div>
+
+        <div style="display:flex; align-items:stretch;">
+          <div style="width:340px; flex:none; border-right:1px solid var(--color-neutral-400); display:flex; flex-direction:column;">
+            <div style="padding:14px 18px; border-bottom:1px solid var(--color-neutral-300);">
+              <div style="display:flex; align-items:center; gap:8px; border:1px solid var(--color-neutral-400); padding:6px 9px; color:var(--color-neutral-600); font-size:13px;"><span style="opacity:.7;">⌕</span><span>Find a source or topic</span></div>
+            </div>
+            <div style="padding:14px 18px 6px; font-family:var(--font-heading); font-size:12px; letter-spacing:.12em; text-transform:uppercase; color:var(--color-neutral-600);">Topics · 24</div>
+            <div style="display:flex; flex-direction:column;">
+              <div style="display:flex; align-items:center; justify-content:space-between; padding:7px 18px; font-size:14px;"><span style="display:flex; gap:9px; align-items:center;"><span style="width:13px; height:13px; border:1px solid var(--color-accent); background:var(--color-accent);"></span>Semiconductors</span><span style="color:var(--color-neutral-600); font-size:12px;">14</span></div>
+              <div style="display:flex; align-items:center; justify-content:space-between; padding:7px 18px; font-size:14px;"><span style="display:flex; gap:9px; align-items:center;"><span style="width:13px; height:13px; border:1px solid var(--color-neutral-500);"></span>AI models</span><span style="color:var(--color-neutral-600); font-size:12px;">31</span></div>
+              <div style="display:flex; align-items:center; justify-content:space-between; padding:7px 18px; font-size:14px;"><span style="display:flex; gap:9px; align-items:center;"><span style="width:13px; height:13px; border:1px solid var(--color-neutral-500);"></span>Funding</span><span style="color:var(--color-neutral-600); font-size:12px;">9</span></div>
+              <div style="display:flex; align-items:center; justify-content:space-between; padding:7px 18px; font-size:14px;"><span style="display:flex; gap:9px; align-items:center;"><span style="width:13px; height:13px; border:1px solid var(--color-neutral-500);"></span>Policy &amp; regulation</span><span style="color:var(--color-neutral-600); font-size:12px;">7</span></div>
+              <div style="padding:6px 18px 14px; font-size:13px; color:var(--color-accent-700);">Show all 24</div>
+            </div>
+            <div style="padding:12px 18px 6px; border-top:1px solid var(--color-neutral-300); font-family:var(--font-heading); font-size:12px; letter-spacing:.12em; text-transform:uppercase; color:var(--color-neutral-600);">Sources · 61</div>
+            <div style="display:flex; flex-direction:column; padding-bottom:14px;">
+              <div style="display:flex; align-items:center; justify-content:space-between; padding:7px 18px; font-size:14px;"><span style="display:flex; gap:9px; align-items:center;"><span style="width:13px; height:13px; border:1px solid var(--color-accent); background:var(--color-accent);"></span>The Information</span><span style="color:var(--color-neutral-600); font-size:12px;">6</span></div>
+              <div style="display:flex; align-items:center; justify-content:space-between; padding:7px 18px; font-size:14px;"><span style="display:flex; gap:9px; align-items:center;"><span style="width:13px; height:13px; border:1px solid var(--color-neutral-500);"></span>Reuters</span><span style="color:var(--color-neutral-600); font-size:12px;">12</span></div>
+              <div style="display:flex; align-items:center; justify-content:space-between; padding:7px 18px; font-size:14px;"><span style="display:flex; gap:9px; align-items:center;"><span style="width:13px; height:13px; border:1px solid var(--color-neutral-500);"></span>X / posts</span><span style="color:var(--color-neutral-600); font-size:12px;">41</span></div>
+              <div style="padding:6px 18px 0; font-size:13px; color:var(--color-accent-700);">Show all 61</div>
+            </div>
+          </div>
+
+          <div style="flex:1; padding:18px 22px; display:flex; flex-direction:column; gap:16px; min-width:0;">
+            <div style="font-family:var(--font-heading); font-size:12px; letter-spacing:.12em; text-transform:uppercase; color:var(--color-neutral-600);">18 results</div>
+            <sc-for list="{{ articles }}" as="a" hint-placeholder-count="3">
+              <div style="display:flex; flex-direction:column; gap:5px; padding-bottom:14px; border-bottom:1px solid var(--color-neutral-300);">
+                <div style="display:flex; gap:10px; font-family:var(--font-heading); font-size:11px; letter-spacing:.1em; text-transform:uppercase; color:var(--color-accent-700);"><span>{{ a.source }}</span><span style="color:var(--color-neutral-500);">{{ a.time }}</span></div>
+                <div style="font-family:var(--font-heading); font-size:22px; line-height:1.15; font-weight:600;">{{ a.title }}</div>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+      </div>
+
+      <div style="display:flex; gap:24px; font-size:13px; line-height:1.55; color:var(--color-neutral-700);">
+        <div style="flex:1;"><strong style="font-family:var(--font-heading); letter-spacing:.06em; text-transform:uppercase; font-size:12px;">Why</strong><br>Constant header height at 20 sources or 200. Counts next to each facet stop people filtering into an empty page. The panel is a drawer on desktop, a bottom sheet on mobile — same component.</div>
+        <div style="flex:1;"><strong style="font-family:var(--font-heading); letter-spacing:.06em; text-transform:uppercase; font-size:12px;">Rules</strong><br>Cap each group at 5 visible + "Show all". Sort by count, not alphabetically. Keep "Active" chips outside the panel so state is legible with the panel closed.</div>
+      </div>
+    </div>
+
+    <!-- ============ 2b ============ -->
+    <div id="2b" style="display:flex; flex:none; flex-direction:column; gap:14px; width:620px;">
+      <div style="display:flex; align-items:baseline; gap:12px; flex-wrap:wrap;">
+        <span style="font-family:var(--font-heading); font-size:20px; padding:2px 10px; background:var(--color-accent); color:#fff;">2b</span>
+        <span style="font-family:var(--font-heading); font-size:22px;">Curated six + overflow</span>
+      </div>
+
+      <div class="blueprint" style="position:relative; border:1px solid var(--color-neutral-400);">
+        <i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+        <div style="display:flex; align-items:center; gap:14px; padding:14px 20px; border-bottom:1px solid var(--color-neutral-400);">
+          <span style="font-family:var(--font-heading); font-size:24px; font-weight:600; line-height:1;">Precis</span>
+          <span style="margin-left:auto; font-family:var(--font-heading); font-size:13px; letter-spacing:.1em; text-transform:uppercase; color:var(--color-neutral-600);">2 Sep</span>
+        </div>
+        <div style="display:flex; gap:8px; padding:12px 20px; border-bottom:1px solid var(--color-neutral-300); overflow:hidden; white-space:nowrap;">
+          <span class="tag tag-accent" style="flex:none;">All</span>
+          <span class="tag tag-outline" style="flex:none;">AI models</span>
+          <span class="tag tag-outline" style="flex:none;">Chips</span>
+          <span class="tag tag-outline" style="flex:none;">Funding</span>
+          <span class="tag tag-outline" style="flex:none;">Policy</span>
+          <span class="tag tag-outline" style="flex:none;">Wire</span>
+          <span class="tag tag-neutral" style="flex:none; border:1px dashed var(--color-neutral-500);">+18 more ▾</span>
+        </div>
+        <div style="display:flex; gap:8px; padding:10px 20px; border-bottom:1px solid var(--color-neutral-300); background:var(--color-neutral-200); align-items:center;">
+          <span style="font-family:var(--font-heading); font-size:11px; letter-spacing:.1em; text-transform:uppercase; color:var(--color-neutral-600);">Sources</span>
+          <span class="tag tag-outline">Reuters</span>
+          <span class="tag tag-outline">Verge</span>
+          <span class="tag tag-outline">X</span>
+          <span style="font-size:13px; color:var(--color-accent-700);">+58</span>
+        </div>
+        <div style="padding:16px 20px; font-size:13px; color:var(--color-neutral-600);">Second row only appears once a topic is chosen, so the default header is one row.</div>
+      </div>
+
+      <div style="font-size:13px; line-height:1.55; color:var(--color-neutral-700); text-wrap:pretty;"><strong style="font-family:var(--font-heading); letter-spacing:.06em; text-transform:uppercase; font-size:12px;">Verdict</strong><br>Least disruptive to what you have, and browsable at a glance. But you now have to decide which six are curated, and re-decide every time you add sources. Good stopgap, poor endpoint.</div>
+    </div>
+
+    <!-- ============ 2c ============ -->
+    <div id="2c" style="display:flex; flex:none; flex-direction:column; gap:14px; width:620px;">
+      <div style="display:flex; align-items:baseline; gap:12px; flex-wrap:wrap;">
+        <span style="font-family:var(--font-heading); font-size:20px; padding:2px 10px; background:var(--color-accent); color:#fff;">2c</span>
+        <span style="font-family:var(--font-heading); font-size:22px;">Search-first with tokens</span>
+      </div>
+
+      <div class="blueprint" style="position:relative; border:1px solid var(--color-neutral-400);">
+        <i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+        <div style="display:flex; align-items:center; gap:14px; padding:14px 20px; border-bottom:1px solid var(--color-neutral-400);">
+          <span style="font-family:var(--font-heading); font-size:24px; font-weight:600; line-height:1;">Precis</span>
+          <div style="flex:1; display:flex; align-items:center; gap:6px; border:1px solid var(--color-accent); padding:6px 10px; flex-wrap:wrap;">
+            <span style="opacity:.7;">⌕</span>
+            <span class="tag tag-accent">topic: Chips ✕</span>
+            <span class="tag tag-accent">source: X ✕</span>
+            <span style="font-size:14px; color:var(--color-neutral-600);">tsmc|</span>
+          </div>
+        </div>
+        <div style="border-bottom:1px solid var(--color-neutral-400);">
+          <div style="padding:9px 20px; font-family:var(--font-heading); font-size:11px; letter-spacing:.12em; text-transform:uppercase; color:var(--color-neutral-600); background:var(--color-neutral-200);">Sources</div>
+          <div style="padding:8px 20px; font-size:14px; background:var(--color-accent-100);">TSMC Newsroom <span style="color:var(--color-neutral-600); font-size:12px;">· 4 today</span></div>
+          <div style="padding:8px 20px; font-size:14px;">@tsmc_official <span style="color:var(--color-neutral-600); font-size:12px;">· 2 today</span></div>
+          <div style="padding:9px 20px; font-family:var(--font-heading); font-size:11px; letter-spacing:.12em; text-transform:uppercase; color:var(--color-neutral-600); background:var(--color-neutral-200);">Matching text</div>
+          <div style="padding:8px 20px; font-size:14px;">“TSMC” in 11 items today</div>
+        </div>
+        <div style="padding:16px 20px; font-size:13px; color:var(--color-neutral-600);">One control, fixed width, scales to any taxonomy.</div>
+      </div>
+
+      <div style="font-size:13px; line-height:1.55; color:var(--color-neutral-700); text-wrap:pretty;"><strong style="font-family:var(--font-heading); letter-spacing:.06em; text-transform:uppercase; font-size:12px;">Verdict</strong><br>Scales infinitely and feels fast for power users, but it's discovery-hostile: a first-time reader can't see what topics exist. Best as a companion to <a href="#2a" style="color:var(--color-accent-700);">2a</a>, not a replacement — the panel teaches the taxonomy, the search bar is the shortcut.</div>
+    </div>
+
+    <!-- ============ 2d ============ -->
+    <div id="2d" style="display:flex; flex:none; flex-direction:column; gap:14px; width:440px;">
+      <div style="display:flex; align-items:baseline; gap:12px; flex-wrap:wrap;">
+        <span style="font-family:var(--font-heading); font-size:20px; padding:2px 10px; background:var(--color-accent); color:#fff;">2d</span>
+        <span style="font-family:var(--font-heading); font-size:22px;">Mobile — bottom sheet</span>
+      </div>
+      <div class="blueprint" style="position:relative; width:390px; border:1px solid var(--color-neutral-400);">
+        <i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+        <div style="display:flex; align-items:center; gap:10px; padding:14px 18px; border-bottom:1px solid var(--color-neutral-400);">
+          <span style="font-family:var(--font-heading); font-size:22px; font-weight:600; line-height:1;">Precis</span>
+          <div style="margin-left:auto; display:flex; align-items:center; gap:6px; padding:7px 12px; background:var(--color-accent); color:#fff; font-family:var(--font-heading); font-size:14px;">Filters <span style="background:rgba(255,255,255,.25); padding:0 5px;">2</span></div>
+        </div>
+        <div style="padding:26px 18px; opacity:.35; font-size:14px; line-height:1.6;">Nyx Labs open-sources its 70B model under Apache 2.0. Chip export rules widened to cover inference accelerators.</div>
+        <div style="border-top:1px solid var(--color-neutral-400); background:var(--color-bg);">
+          <div style="display:flex; justify-content:center; padding:8px;"><span style="width:36px; height:3px; background:var(--color-neutral-500);"></span></div>
+          <div style="display:flex; align-items:center; justify-content:space-between; padding:4px 18px 12px;">
+            <span style="font-family:var(--font-heading); font-size:20px; font-weight:600;">Filters</span>
+            <span style="font-size:13px; color:var(--color-accent-700);">Clear all</span>
+          </div>
+          <div style="padding:0 18px 12px;"><div style="display:flex; align-items:center; gap:8px; border:1px solid var(--color-neutral-400); padding:7px 10px; color:var(--color-neutral-600); font-size:14px;"><span style="opacity:.7;">⌕</span><span>Find a source or topic</span></div></div>
+          <div style="padding:0 18px 6px; font-family:var(--font-heading); font-size:11px; letter-spacing:.12em; text-transform:uppercase; color:var(--color-neutral-600);">Topics</div>
+          <div style="display:flex; flex-direction:column;">
+            <div style="display:flex; align-items:center; justify-content:space-between; padding:11px 18px; font-size:15px; border-bottom:1px solid var(--color-neutral-300);"><span style="display:flex; gap:10px; align-items:center;"><span style="width:14px; height:14px; border:1px solid var(--color-accent); background:var(--color-accent);"></span>Semiconductors</span><span style="color:var(--color-neutral-600); font-size:12px;">14</span></div>
+            <div style="display:flex; align-items:center; justify-content:space-between; padding:11px 18px; font-size:15px; border-bottom:1px solid var(--color-neutral-300);"><span style="display:flex; gap:10px; align-items:center;"><span style="width:14px; height:14px; border:1px solid var(--color-neutral-500);"></span>AI models</span><span style="color:var(--color-neutral-600); font-size:12px;">31</span></div>
+            <div style="display:flex; align-items:center; justify-content:space-between; padding:11px 18px; font-size:15px; border-bottom:1px solid var(--color-neutral-300);"><span style="display:flex; gap:10px; align-items:center;"><span style="width:14px; height:14px; border:1px solid var(--color-neutral-500);"></span>Funding</span><span style="color:var(--color-neutral-600); font-size:12px;">9</span></div>
+          </div>
+          <div style="padding:14px 18px 18px;"><div style="text-align:center; padding:12px; background:var(--color-accent); color:#fff; font-family:var(--font-heading); font-size:16px; letter-spacing:.04em;">Show 18 results</div></div>
+        </div>
+      </div>
+      <div style="font-size:13px; line-height:1.55; color:var(--color-neutral-700); text-wrap:pretty;"><strong style="font-family:var(--font-heading); letter-spacing:.06em; text-transform:uppercase; font-size:12px;">Note</strong><br>Rows, not chips — 44px targets, no wrapping, no stretching. This is also the answer to the distortion you're seeing: the header stops reflowing because it no longer contains variable-length content.</div>
+    </div>
+
+  </div>
+</section>
+
+<section style="display:flex; flex-direction:column; gap:40px; padding:48px; font-family:var(--font-body); color:var(--color-text);">
+
+  <div style="display:flex; flex-direction:column; gap:8px; max-width:820px;">
+    <div style="font-family:var(--font-heading); font-size:13px; letter-spacing:.14em; text-transform:uppercase; color:var(--color-accent-700);">Turn 1 — Precis X/Twitter stream</div>
+    <h1 style="font-family:var(--font-heading); font-size:44px; line-height:1.05; margin:0; font-weight:600;">Four ways to put posts on the page</h1>
+    <p style="font-size:15px; line-height:1.6; color:var(--color-neutral-700); margin:0; max-width:64ch; text-wrap:pretty;">At 20–100 posts a day, shown raw, carrying breaking claims and primary-source announcements, posts are a <em>wire</em> — not a second article feed. Every option below treats them as quotes with attribution, never as headlines. Reference these by id in chat.</p>
+  </div>
+
+  <div style="display:flex; flex-wrap:wrap; gap:40px; align-items:flex-start;">
+
+    <!-- ============ 1a ============ -->
+    <div id="1a" style="display:flex; flex:none; flex-direction:column; gap:14px; width:1040px;">
+      <div style="display:flex; align-items:baseline; gap:12px;">
+        <span style="font-family:var(--font-heading); font-size:20px; padding:2px 10px; background:var(--color-accent); color:#fff;">1a</span>
+        <span style="font-family:var(--font-heading); font-size:22px; letter-spacing:.02em;">Signal rail — recommended</span>
+        <span style="font-size:13px; color:var(--color-neutral-600);">Wire lives beside the brief, always visible, never competing for the headline slot.</span>
+      </div>
+
+      <div class="blueprint" style="position:relative; padding:28px; background:transparent; border:1px solid var(--color-neutral-400);">
+        <i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+
+        <div style="display:flex; gap:32px; align-items:flex-start; flex-direction:{{ railDir }};">
+
+          <div style="flex:1; display:flex; flex-direction:column; gap:20px; min-width:0;">
+            <div class="px-secthead">Today's brief</div>
+            <sc-for list="{{ articles }}" as="a" hint-placeholder-count="3">
+              <div style="display:flex; flex-direction:column; gap:7px; padding-bottom:20px; border-bottom:1px solid var(--color-neutral-300);">
+                <div style="display:flex; gap:10px; font-family:var(--font-heading); font-size:12px; letter-spacing:.1em; text-transform:uppercase; color:var(--color-accent-700);">
+                  <span>{{ a.source }}</span><span style="color:var(--color-neutral-500);">{{ a.time }}</span>
+                </div>
+                <div style="font-family:var(--font-heading); font-size:26px; line-height:1.15; font-weight:600;">{{ a.title }}</div>
+                <div style="font-size:14px; line-height:1.55; color:var(--color-neutral-700); text-wrap:pretty;">{{ a.dek }}</div>
+              </div>
+            </sc-for>
+          </div>
+
+          <div style="width:328px; flex:none; display:flex; flex-direction:column; gap:12px;">
+            <div style="display:flex; align-items:center; justify-content:space-between;">
+              <span class="px-secthead">The wire</span>
+              <span style="font-size:12px; color:var(--color-neutral-600);">live · 41 today</span>
+            </div>
+            <div class="blueprint" style="position:relative; border:1px solid var(--color-neutral-400);">
+              <i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+              <sc-for list="{{ posts }}" as="p" hint-placeholder-count="5">
+                <div class="px-post">
+                  <div class="px-av"></div>
+                  <div style="min-width:0;">
+                    <div style="display:flex; align-items:baseline; gap:6px; flex-wrap:wrap;">
+                      <span class="px-h">{{ p.handle }}</span>
+                      <span class="px-t">· {{ p.time }}</span>
+                    </div>
+                    <sc-if value="{{ showBadges }}" hint-placeholder-val="{{ true }}">
+                      <div style="margin-top:4px;"><span class="px-badge">{{ p.badge }}</span></div>
+                    </sc-if>
+                    <div class="px-b">{{ p.body }}</div>
+                    <sc-if value="{{ p.link }}" hint-placeholder-val="{{ true }}">
+                      <div><span class="px-link">↗ {{ p.link }}</span></div>
+                    </sc-if>
+                  </div>
+                </div>
+              </sc-for>
+            </div>
+            <div style="font-size:12px; line-height:1.5; color:var(--color-neutral-600); text-wrap:pretty;">Rail scrolls independently. Nothing in it can outrank an article — that's the whole point.</div>
+          </div>
+        </div>
+      </div>
+
+      <div style="display:flex; gap:24px; font-size:13px; line-height:1.55; color:var(--color-neutral-700);">
+        <div style="flex:1;"><strong style="font-family:var(--font-heading); letter-spacing:.06em; text-transform:uppercase; font-size:12px;">Why</strong><br>Breaking claims stay visible without being promoted to editorial. Reader learns the rail is where "unverified but early" lives.</div>
+        <div style="flex:1;"><strong style="font-family:var(--font-heading); letter-spacing:.06em; text-transform:uppercase; font-size:12px;">Cost</strong><br>Needs a real mobile answer — the rail has to become a collapsed section, not a squeezed column.</div>
+      </div>
+    </div>
+
+    <!-- ============ 1b ============ -->
+    <div id="1b" style="display:flex; flex:none; flex-direction:column; gap:14px; width:660px;">
+      <div style="display:flex; align-items:baseline; gap:12px; flex-wrap:wrap;">
+        <span style="font-family:var(--font-heading); font-size:20px; padding:2px 10px; background:var(--color-accent); color:#fff;">1b</span>
+        <span style="font-family:var(--font-heading); font-size:22px;">Evidence under the story</span>
+      </div>
+
+      <div class="blueprint" style="position:relative; padding:24px; border:1px solid var(--color-neutral-400);">
+        <i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+        <div style="display:flex; flex-direction:column; gap:8px;">
+          <div style="display:flex; gap:10px; font-family:var(--font-heading); font-size:12px; letter-spacing:.1em; text-transform:uppercase; color:var(--color-accent-700);">
+            <span>The Verge</span><span style="color:var(--color-neutral-500);">2h ago</span>
+          </div>
+          <div style="font-family:var(--font-heading); font-size:28px; line-height:1.15; font-weight:600;">Nyx Labs open-sources its 70B model under Apache 2.0</div>
+          <div style="font-size:14px; line-height:1.55; color:var(--color-neutral-700); text-wrap:pretty;">The release covers both 8B and 70B checkpoints, with evaluation code published alongside the weights.</div>
+        </div>
+
+        <div style="margin-top:20px; border-top:1px solid var(--color-neutral-400); padding-top:14px;">
+          <div style="display:flex; align-items:center; justify-content:space-between;">
+            <span class="px-secthead">3 posts on this</span>
+            <span style="font-size:12px; color:var(--color-accent-700);">collapse ▲</span>
+          </div>
+          <div style="margin-top:10px; border-left:2px solid var(--color-accent-400); padding-left:2px;">
+            <sc-for list="{{ evidence }}" as="p" hint-placeholder-count="3">
+              <div class="px-post" style="padding-left:14px;">
+                <div class="px-av"></div>
+                <div style="min-width:0;">
+                  <div style="display:flex; align-items:baseline; gap:6px;">
+                    <span class="px-h">{{ p.handle }}</span><span class="px-t">· {{ p.time }}</span>
+                  </div>
+                  <div class="px-b">{{ p.body }}</div>
+                </div>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+      </div>
+
+      <div style="font-size:13px; line-height:1.55; color:var(--color-neutral-700); text-wrap:pretty;"><strong style="font-family:var(--font-heading); letter-spacing:.06em; text-transform:uppercase; font-size:12px;">Verdict</strong><br>Best reading experience, worst build: needs entity/topic matching, and roughly half your posts won't match any story. Pair it with <a href="#1a" style="color:var(--color-accent-700);">1a</a> as the home for the leftovers rather than shipping it alone.</div>
+    </div>
+
+    <!-- ============ 1c ============ -->
+    <div id="1c" style="display:flex; flex:none; flex-direction:column; gap:14px; width:660px;">
+      <div style="display:flex; align-items:baseline; gap:12px; flex-wrap:wrap;">
+        <span style="font-family:var(--font-heading); font-size:20px; padding:2px 10px; background:var(--color-accent); color:#fff;">1c</span>
+        <span style="font-family:var(--font-heading); font-size:22px;">Dedicated wire page</span>
+      </div>
+
+      <div class="blueprint" style="position:relative; border:1px solid var(--color-neutral-400);">
+        <i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+        <div style="padding:22px 22px 16px; border-bottom:1px solid var(--color-neutral-400);">
+          <div style="font-family:var(--font-heading); font-size:32px; font-weight:600; line-height:1;">The Wire</div>
+          <div style="font-size:13px; color:var(--color-neutral-600); margin-top:4px;">Primary sources and early claims, unedited, newest first.</div>
+          <div style="display:flex; gap:8px; margin-top:16px; flex-wrap:wrap;">
+            <span class="tag tag-accent">All</span>
+            <span class="tag tag-outline">Primary source</span>
+            <span class="tag tag-outline">Unconfirmed</span>
+            <span class="tag tag-outline">Not yet covered</span>
+          </div>
+        </div>
+        <div style="padding:10px 22px; font-family:var(--font-heading); font-size:12px; letter-spacing:.12em; text-transform:uppercase; color:var(--color-neutral-600); background:var(--color-neutral-200);">Today</div>
+        <sc-for list="{{ posts }}" as="p" hint-placeholder-count="5">
+          <div class="px-post" style="padding-left:22px; padding-right:22px;">
+            <div class="px-av"></div>
+            <div style="min-width:0;">
+              <div style="display:flex; align-items:baseline; gap:8px; flex-wrap:wrap;">
+                <span class="px-h">{{ p.handle }}</span>
+                <span class="px-t">· {{ p.time }}</span>
+                <sc-if value="{{ showBadges }}" hint-placeholder-val="{{ true }}">
+                  <span class="px-badge">{{ p.badge }}</span>
+                </sc-if>
+              </div>
+              <div class="px-b">{{ p.body }}</div>
+              <sc-if value="{{ p.link }}" hint-placeholder-val="{{ true }}">
+                <div><span class="px-link">↗ {{ p.link }}</span></div>
+              </sc-if>
+            </div>
+          </div>
+        </sc-for>
+      </div>
+
+      <div style="font-size:13px; line-height:1.55; color:var(--color-neutral-700); text-wrap:pretty;"><strong style="font-family:var(--font-heading); letter-spacing:.06em; text-transform:uppercase; font-size:12px;">Verdict</strong><br>Cheapest to ship and the right archive surface, but a tab on its own gets ~2% of sessions. Build it as the "see all" destination behind the rail, not as the only home.</div>
+    </div>
+
+    <!-- ============ 1d ============ -->
+    <div id="1d" style="display:flex; flex:none; flex-direction:column; gap:14px; width:440px;">
+      <div style="display:flex; align-items:baseline; gap:12px; flex-wrap:wrap;">
+        <span style="font-family:var(--font-heading); font-size:20px; padding:2px 10px; background:var(--color-accent); color:#fff;">1d</span>
+        <span style="font-family:var(--font-heading); font-size:22px;">Mobile + the filter fix</span>
+      </div>
+
+      <div class="blueprint" style="position:relative; width:390px; border:1px solid var(--color-neutral-400);">
+        <i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+        <div style="padding:18px 18px 0;">
+          <div style="font-family:var(--font-heading); font-size:26px; font-weight:600; line-height:1;">Precis</div>
+        </div>
+        <div style="margin-top:14px; overflow:hidden; border-top:1px solid var(--color-neutral-300); border-bottom:1px solid var(--color-neutral-300);">
+          <div style="display:flex; gap:8px; padding:10px 18px; overflow-x:auto; white-space:nowrap;">
+            <span class="tag tag-accent" style="flex:none;">All</span>
+            <span class="tag tag-outline" style="flex:none;">Brief</span>
+            <span class="tag tag-outline" style="flex:none;">Wire</span>
+            <span class="tag tag-outline" style="flex:none;">AI</span>
+            <span class="tag tag-outline" style="flex:none;">Chips</span>
+            <span class="tag tag-outline" style="flex:none;">Funding</span>
+          </div>
+        </div>
+        <div style="padding:16px 18px; border-bottom:1px solid var(--color-neutral-300);">
+          <div style="display:flex; gap:8px; font-family:var(--font-heading); font-size:11px; letter-spacing:.1em; text-transform:uppercase; color:var(--color-accent-700);"><span>The Verge</span><span style="color:var(--color-neutral-500);">2h</span></div>
+          <div style="font-family:var(--font-heading); font-size:22px; line-height:1.15; font-weight:600; margin-top:5px;">Nyx Labs open-sources its 70B model</div>
+        </div>
+        <div style="padding:12px 18px 6px; display:flex; align-items:center; justify-content:space-between;">
+          <span class="px-secthead">The wire</span>
+          <span style="font-size:12px; color:var(--color-accent-700);">see all →</span>
+        </div>
+        <sc-for list="{{ mobilePosts }}" as="p" hint-placeholder-count="3">
+          <div class="px-post" style="padding-left:18px; padding-right:18px;">
+            <div class="px-av"></div>
+            <div style="min-width:0;">
+              <div style="display:flex; align-items:baseline; gap:6px;"><span class="px-h">{{ p.handle }}</span><span class="px-t">· {{ p.time }}</span></div>
+              <div class="px-b">{{ p.body }}</div>
+            </div>
+          </div>
+        </sc-for>
+      </div>
+
+      <div style="font-size:13px; line-height:1.55; color:var(--color-neutral-700); text-wrap:pretty;"><strong style="font-family:var(--font-heading); letter-spacing:.06em; text-transform:uppercase; font-size:12px;">On your filter bug</strong><br>The distortion is almost certainly filter chips wrapping and stretching to fill the row. Fix: one row, <code>overflow-x:auto</code>, <code>white-space:nowrap</code>, <code>flex:none</code> on every chip, and 16–18px horizontal page padding that the scroll area bleeds past. Chips keep their intrinsic width and the row scrolls instead of reflowing.</div>
+    </div>
+
+  </div>
+</section>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;showBadges&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Wire&quot;},&quot;railSide&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;right&quot;,&quot;left&quot;],&quot;default&quot;:&quot;right&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Wire&quot;}}">
+class Component extends DCLogic {
+  renderVals() {
+    const posts = [
+      { handle: "@nyxlabs", time: "12m", badge: "Primary source", body: "Nyx-2 weights are up. 8B and 70B, Apache 2.0. Eval harness in the repo.", link: "github.com/nyxlabs/nyx-2" },
+      { handle: "@m_okonkwo", time: "41m", badge: "Unconfirmed", body: "Hearing from two people that the Halcyon deal closes Thursday. Nothing official yet.", link: "" },
+      { handle: "@deepframe", time: "1h", badge: "Primary source", body: "We're deprecating the v1 inference API on Nov 30. Migration guide is live.", link: "deepframe.dev/migrate" },
+      { handle: "@s_ravel", time: "2h", badge: "Not yet covered", body: "Good writeup on why retrieval evals keep failing in production.", link: "ravel.blog/eval-drift" },
+      { handle: "@portmeta", time: "3h", badge: "Primary source", body: "Series B closed: $60M led by Arrowmark. Hiring across inference and infra.", link: "" }
+    ];
+    return {
+      posts,
+      mobilePosts: posts.slice(0, 3),
+      evidence: [
+        { handle: "@nyxlabs", time: "2h", body: "Nyx-2 weights are up. 8B and 70B, Apache 2.0." },
+        { handle: "@karpathy_reads", time: "1h", body: "70B at this license is the first genuinely usable open checkpoint this quarter." },
+        { handle: "@infra_dana", time: "48m", body: "Ran the 8B on a single A100. 41 tok/s unquantized." }
+      ],
+      articles: [
+        { source: "The Verge", time: "2h ago", title: "Nyx Labs open-sources its 70B model under Apache 2.0", dek: "Both 8B and 70B checkpoints ship with evaluation code, an unusual move for a lab still raising." },
+        { source: "Reuters", time: "4h ago", title: "Chip export rules widened to cover inference accelerators", dek: "The revision closes a classification gap that three vendors had been shipping through since spring." },
+        { source: "Stratechery", time: "6h ago", title: "The unbundling of the enterprise search stack", dek: "Why retrieval is becoming a layer buyers procure separately from the model." }
+      ],
+      showBadges: this.props.showBadges ?? true,
+      railDir: (this.props.railSide ?? "right") === "left" ? "row-reverse" : "row"
+    };
+  }
+}
+
+</script>
+</body>
+</html>

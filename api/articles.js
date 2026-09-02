@@ -14,6 +14,7 @@ module.exports = async function handler(req, res) {
   try {
     res.setHeader('Cache-Control', 's-maxage=60, stale-while-revalidate=300');
     res.status(200).json(await fetchArticles({
+      site: req.query.site,
       topic: req.query.topic,
       limit: req.query.limit,
       offset: req.query.offset,

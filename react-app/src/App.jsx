@@ -1,5 +1,5 @@
 import './App.css';
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import axios from 'axios';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || (import.meta.env.DEV ? 'http://localhost:5000' : '');
@@ -218,33 +218,39 @@ const getCardSummaryText = (article) => {
   return `${safe}…`;
 };
 
+const EMPTY_FILTERS = { topics: [], sources: [] };
+
+const parseCommaList = (value) => (
+  value ? [...new Set(value.split(',').map((entry) => entry.trim()).filter(Boolean))] : []
+);
+
 const readFiltersFromUrl = () => {
   if (typeof window === 'undefined') {
-    return { site: '', topic: DEFAULT_TOPIC };
+    return { topics: [DEFAULT_TOPIC], sources: [] };
   }
 
   const params = new URLSearchParams(window.location.search);
   return {
-    site: params.get('source') || '',
-    topic: params.has('topic') ? params.get('topic') : DEFAULT_TOPIC,
+    topics: params.has('topic') ? parseCommaList(params.get('topic')) : [DEFAULT_TOPIC],
+    sources: parseCommaList(params.get('source')),
   };
 };
 
-const writeFiltersToUrl = (site, topic) => {
+const writeFiltersToUrl = ({ topics, sources }) => {
   if (typeof window === 'undefined') {
     return;
   }
 
   const params = new URLSearchParams(window.location.search);
 
-  if (site) {
-    params.set('source', site);
+  if (sources.length > 0) {
+    params.set('source', sources.join(','));
   } else {
     params.delete('source');
   }
 
-  if (topic) {
-    params.set('topic', topic);
+  if (topics.length > 0) {
+    params.set('topic', topics.join(','));
   } else {
     params.delete('topic');
   }
@@ -254,25 +260,54 @@ const writeFiltersToUrl = (site, topic) => {
   window.history.replaceState(null, '', nextUrl);
 };
 
-const buildArticleUrl = (site = '', topic = '') => {
-  const path = site ? `/api/articles/${encodeURIComponent(site)}` : '/api/articles';
+const buildFilterParams = ({ topics, sources }) => {
   const params = new URLSearchParams();
 
-  if (topic) {
-    params.set('topic', topic);
+  if (sources.length > 0) {
+    params.set('site', sources.join(','));
   }
 
+  if (topics.length > 0) {
+    params.set('topic', topics.join(','));
+  }
+
+  return params;
+};
+
+const buildArticleUrl = (filters) => {
+  const params = buildFilterParams(filters);
   params.set('limit', String(API_ARTICLE_LIMIT));
   params.set('offset', '0');
 
-  const query = params.toString();
-  return `${API_BASE_URL}${path}${query ? `?${query}` : ''}`;
+  return `${API_BASE_URL}/api/articles?${params.toString()}`;
 };
+
+const buildArticleCountUrl = (filters) => (
+  `${API_BASE_URL}/api/article-count?${buildFilterParams(filters).toString()}`
+);
 
 const SearchIcon = () => (
   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true">
     <circle cx="11" cy="11" r="8" />
     <path d="m21 21-4.3-4.3" />
+  </svg>
+);
+
+const SlidersIcon = () => (
+  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true">
+    <line x1="4" y1="6" x2="20" y2="6" />
+    <line x1="4" y1="12" x2="20" y2="12" />
+    <line x1="4" y1="18" x2="20" y2="18" />
+    <circle cx="9" cy="6" r="2" fill="currentColor" stroke="none" />
+    <circle cx="16" cy="12" r="2" fill="currentColor" stroke="none" />
+    <circle cx="10" cy="18" r="2" fill="currentColor" stroke="none" />
+  </svg>
+);
+
+const CloseIcon = () => (
+  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true">
+    <path d="M18 6 6 18" />
+    <path d="M6 6l12 12" />
   </svg>
 );
 
@@ -479,22 +514,192 @@ const SmallListRow = ({ article }) => (
   </li>
 );
 
+const FACET_ROW_CAP = 5;
+
+const filterFacetsByQuery = (facets, q) => {
+  if (!q) {
+    return facets;
+  }
+
+  const lowerQuery = q.toLowerCase();
+  return facets.filter((facet) => facet.name.toLowerCase().includes(lowerQuery));
+};
+
+const formatFacetLabel = (group, name) => (group === 'sources' ? formatSiteName(name) : name);
+
+const FilterChip = ({ label, onRemove, removeLabel }) => (
+  <button type="button" className="filter-active-chip" onClick={onRemove} aria-label={removeLabel}>
+    <span>{label}</span>
+    <span className="filter-active-chip-remove" aria-hidden="true"><CloseIcon /></span>
+  </button>
+);
+
+const FacetGroupRows = ({ group, title, facets, query, expanded, onToggleExpanded, selected, onToggleFacet, topBorder }) => {
+  if (facets.length === 0) {
+    return null;
+  }
+
+  const visible = filterFacetsByQuery(facets, query);
+  const isSearching = query.trim().length > 0;
+  const rows = isSearching || expanded ? visible : visible.slice(0, FACET_ROW_CAP);
+  const hasCap = !isSearching && visible.length > FACET_ROW_CAP;
+
+  return (
+    <div className={`filter-panel-group${topBorder ? ' filter-panel-group--rule' : ''}`}>
+      <div className="filter-panel-group-head">{title} &middot; {facets.length}</div>
+      {rows.map((facet) => {
+        const checked = selected.includes(facet.name);
+        return (
+          <label key={facet.name} className="filter-panel-row">
+            <span className="filter-panel-row-main">
+              <input
+                type="checkbox"
+                className="sr-only"
+                checked={checked}
+                onChange={() => onToggleFacet(group, facet.name)}
+              />
+              <span className={`filter-panel-checkbox${checked ? ' checked' : ''}`} aria-hidden="true" />
+              <span>{formatFacetLabel(group, facet.name)}</span>
+            </span>
+            <span className="filter-panel-count">{facet.count}</span>
+          </label>
+        );
+      })}
+      {hasCap && (
+        <button type="button" className="filter-panel-show-all" onClick={onToggleExpanded}>
+          {expanded ? 'Show fewer' : `Show all ${visible.length}`}
+        </button>
+      )}
+    </div>
+  );
+};
+
+const FilterPanel = ({
+  panelRef,
+  searchInputRef,
+  titleId,
+  draft,
+  topicFacets,
+  sourceFacets,
+  query,
+  onQueryChange,
+  topicsExpanded,
+  sourcesExpanded,
+  onToggleTopicsExpanded,
+  onToggleSourcesExpanded,
+  onToggleFacet,
+  onReset,
+  onApply,
+  onCancel,
+  applyLabel,
+}) => {
+  const isSearching = query.trim().length > 0;
+  const visibleTopics = filterFacetsByQuery(topicFacets, query);
+  const visibleSources = filterFacetsByQuery(sourceFacets, query);
+  const noMatches = isSearching && visibleTopics.length === 0 && visibleSources.length === 0
+    && (topicFacets.length > 0 || sourceFacets.length > 0);
+
+  return (
+    <div
+      ref={panelRef}
+      id="filters-panel"
+      className="filter-panel"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Filters"
+      aria-labelledby={titleId}
+    >
+      <span className="filter-panel-mark filter-panel-mark--tl" aria-hidden="true" />
+      <span className="filter-panel-mark filter-panel-mark--tr" aria-hidden="true" />
+      <span className="filter-panel-mark filter-panel-mark--bl" aria-hidden="true" />
+      <span className="filter-panel-mark filter-panel-mark--br" aria-hidden="true" />
+      <span className="filter-panel-grab" aria-hidden="true" />
+      <div className="filter-panel-head">
+        <div className="filter-panel-head-row">
+          <h2 id={titleId} className="filter-panel-title">Filters</h2>
+          <button type="button" className="filter-panel-reset" onClick={onReset}>Reset</button>
+        </div>
+        <label className="filter-panel-search">
+          <SearchIcon />
+          <input
+            ref={searchInputRef}
+            type="search"
+            value={query}
+            onChange={(event) => onQueryChange(event.target.value)}
+            placeholder="Find a source or topic"
+            aria-label="Find a source or topic"
+          />
+        </label>
+      </div>
+
+      <div className="filter-panel-body">
+        {noMatches ? (
+          <p className="filter-panel-no-matches">No source or topic matches that.</p>
+        ) : (
+          <>
+            <FacetGroupRows
+              group="topics"
+              title="Topics"
+              facets={topicFacets}
+              query={query}
+              expanded={topicsExpanded}
+              onToggleExpanded={onToggleTopicsExpanded}
+              selected={draft.topics}
+              onToggleFacet={onToggleFacet}
+            />
+            <FacetGroupRows
+              group="sources"
+              title="Sources"
+              facets={sourceFacets}
+              query={query}
+              expanded={sourcesExpanded}
+              onToggleExpanded={onToggleSourcesExpanded}
+              selected={draft.sources}
+              onToggleFacet={onToggleFacet}
+              topBorder
+            />
+          </>
+        )}
+      </div>
+
+      <div className="filter-panel-footer">
+        <button type="button" className="filter-panel-apply" onClick={onApply}>{applyLabel}</button>
+        <button type="button" className="filter-panel-cancel" onClick={onCancel}>Cancel</button>
+      </div>
+    </div>
+  );
+};
+
 function App() {
   const [articles, setArticles] = useState([]);
-  const [sites, setSites] = useState([]);
-  const [topics, setTopics] = useState([]);
-  const [selectedSite, setSelectedSite] = useState(() => readFiltersFromUrl().site);
-  const [selectedTopic, setSelectedTopic] = useState(() => readFiltersFromUrl().topic);
+  const [topicFacets, setTopicFacets] = useState([]);
+  const [sourceFacets, setSourceFacets] = useState([]);
+  const [applied, setApplied] = useState(() => readFiltersFromUrl());
+  const [draft, setDraft] = useState(applied);
+  const [panelOpen, setPanelOpen] = useState(false);
+  const [panelQuery, setPanelQuery] = useState('');
+  const [topicsExpanded, setTopicsExpanded] = useState(false);
+  const [sourcesExpanded, setSourcesExpanded] = useState(false);
+  const [draftResultCount, setDraftResultCount] = useState(null);
   const [pageSize, setPageSize] = useState(INITIAL_ARTICLE_COUNT);
   const [visibleCount, setVisibleCount] = useState(INITIAL_ARTICLE_COUNT);
   const [everythingViewMode, setEverythingViewMode] = useState(EVERYTHING_VIEW_MODES[0]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  const fetchArticles = useCallback(async (site = '', topic = '') => {
+  const filtersButtonRef = useRef(null);
+  const panelRef = useRef(null);
+  const searchInputRef = useRef(null);
+
+  const appliedTopicsKey = applied.topics.join(',');
+  const appliedSourcesKey = applied.sources.join(',');
+  const draftTopicsKey = draft.topics.join(',');
+  const draftSourcesKey = draft.sources.join(',');
+
+  const fetchArticles = useCallback(async (filters) => {
     try {
       setLoading(true);
-      const response = await axios.get(buildArticleUrl(site, topic));
+      const response = await axios.get(buildArticleUrl(filters));
 
       setArticles(response.data);
       setVisibleCount(pageSize);
@@ -509,14 +714,15 @@ function App() {
     }
   }, [pageSize]);
 
-  // Sites available for the current topic filter (independent of the site
-  // filter itself, so picking a topic narrows the source chips to only the
-  // sources that actually cover it).
-  const fetchSitesForTopic = useCallback(async (topic) => {
+  // Sources available for the applied topic filter (independent of the source
+  // filter itself, so picking topics narrows the source list to only the
+  // sources that actually cover them). Counts come from the server so they
+  // reflect the full table, not just the currently loaded page of articles.
+  const fetchSourceFacets = useCallback(async (topics) => {
     try {
-      const params = topic ? `?topic=${encodeURIComponent(topic)}` : '';
+      const params = topics.length ? `?topic=${encodeURIComponent(topics.join(','))}` : '';
       const response = await axios.get(`${API_BASE_URL}/api/sites${params}`);
-      setSites(response.data);
+      setSourceFacets(response.data);
       return response.data;
     } catch (err) {
       console.error('Error fetching sites:', err);
@@ -524,12 +730,12 @@ function App() {
     }
   }, []);
 
-  // Topics available for the current source filter, mirroring the above.
-  const fetchTopicsForSite = useCallback(async (site) => {
+  // Topics available for the applied source filter, mirroring the above.
+  const fetchTopicFacets = useCallback(async (sources) => {
     try {
-      const params = site ? `?site=${encodeURIComponent(site)}` : '';
+      const params = sources.length ? `?site=${encodeURIComponent(sources.join(','))}` : '';
       const response = await axios.get(`${API_BASE_URL}/api/topics${params}`);
-      setTopics(response.data);
+      setTopicFacets(response.data);
       return response.data;
     } catch (err) {
       console.error('Error fetching topics:', err);
@@ -537,45 +743,161 @@ function App() {
     }
   }, []);
 
-  // Single source of truth for actually fetching the edition: reacts to both
-  // filters, so it also "self-heals" a moment later if the validity effects
-  // below reset an incompatible selection.
+  // Single source of truth for actually fetching the edition: reacts to the
+  // applied filters, so it also "self-heals" a moment later if the validity
+  // effects below prune an incompatible selection.
   useEffect(() => {
-    fetchArticles(selectedSite, selectedTopic);
-    writeFiltersToUrl(selectedSite, selectedTopic);
+    fetchArticles(applied);
+    writeFiltersToUrl(applied);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedSite, selectedTopic]);
+  }, [appliedTopicsKey, appliedSourcesKey]);
 
   useEffect(() => {
-    fetchSitesForTopic(selectedTopic).then((availableSites) => {
-      if (selectedSite && !availableSites.includes(selectedSite)) {
-        setSelectedSite('');
-      }
+    fetchSourceFacets(applied.topics).then((availableSources) => {
+      const availableNames = new Set(availableSources.map((facet) => facet.name));
+      setApplied((current) => {
+        const pruned = current.sources.filter((source) => availableNames.has(source));
+        return pruned.length === current.sources.length ? current : { ...current, sources: pruned };
+      });
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedTopic, fetchSitesForTopic]);
+  }, [appliedTopicsKey, fetchSourceFacets]);
 
   useEffect(() => {
-    fetchTopicsForSite(selectedSite).then((availableTopics) => {
-      if (selectedTopic && !availableTopics.includes(selectedTopic)) {
-        setSelectedTopic('');
-      }
+    fetchTopicFacets(applied.sources).then((availableTopics) => {
+      const availableNames = new Set(availableTopics.map((facet) => facet.name));
+      setApplied((current) => {
+        const pruned = current.topics.filter((topic) => availableNames.has(topic));
+        return pruned.length === current.topics.length ? current : { ...current, topics: pruned };
+      });
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedSite, fetchTopicsForSite]);
+  }, [appliedSourcesKey, fetchTopicFacets]);
 
-  const handleSourceFilterClick = (site) => {
-    setSelectedSite(site);
+  // Live "Show N results" / "Show all N" label on the panel's Apply button —
+  // debounced so rapid checkbox clicks don't fire a request per click.
+  useEffect(() => {
+    if (!panelOpen) {
+      return undefined;
+    }
+
+    setDraftResultCount(null);
+    let cancelled = false;
+    const timer = setTimeout(async () => {
+      try {
+        const response = await axios.get(buildArticleCountUrl(draft));
+        if (!cancelled) {
+          setDraftResultCount(response.data.count);
+        }
+      } catch (err) {
+        console.error('Error counting articles:', err);
+      }
+    }, 250);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [panelOpen, draftTopicsKey, draftSourcesKey]);
+
+  const openPanel = useCallback(() => {
+    setDraft(applied);
+    setPanelQuery('');
+    setTopicsExpanded(false);
+    setSourcesExpanded(false);
+    setPanelOpen(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [appliedTopicsKey, appliedSourcesKey]);
+
+  const closePanel = useCallback(() => {
+    setPanelOpen(false);
+    filtersButtonRef.current?.focus();
+  }, []);
+
+  const applyPanel = () => {
+    setApplied(draft);
+    setPanelOpen(false);
+    filtersButtonRef.current?.focus();
   };
 
-  const handleTopicFilterClick = (topic) => {
-    setSelectedTopic(topic);
+  const toggleDraftFacet = (group, name) => {
+    setDraft((current) => {
+      const list = current[group];
+      const next = list.includes(name) ? list.filter((entry) => entry !== name) : [...list, name];
+      return { ...current, [group]: next };
+    });
+  };
+
+  const resetDraft = () => {
+    setDraft({ ...EMPTY_FILTERS });
+    setPanelQuery('');
+  };
+
+  const removeAppliedFacet = (group, name) => {
+    setApplied((current) => ({ ...current, [group]: current[group].filter((entry) => entry !== name) }));
+    setDraft((current) => ({ ...current, [group]: current[group].filter((entry) => entry !== name) }));
   };
 
   const handleClearFilters = () => {
-    setSelectedSite('');
-    setSelectedTopic('');
+    setApplied({ ...EMPTY_FILTERS });
+    setDraft({ ...EMPTY_FILTERS });
   };
+
+  // Escape closes the panel; focus is trapped inside while it's open and
+  // returned to the Filters button on close (handled by closePanel).
+  useEffect(() => {
+    if (!panelOpen) {
+      return undefined;
+    }
+
+    const previouslyFocused = document.activeElement;
+    searchInputRef.current?.focus();
+
+    const handleKeyDown = (event) => {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        closePanel();
+        return;
+      }
+
+      if (event.key !== 'Tab' || !panelRef.current) {
+        return;
+      }
+
+      const focusable = panelRef.current.querySelectorAll(
+        'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+      );
+      if (focusable.length === 0) {
+        return;
+      }
+
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+      if (previouslyFocused instanceof HTMLElement && previouslyFocused !== document.body) {
+        previouslyFocused.focus();
+      }
+    };
+  }, [panelOpen, closePanel]);
+
+  const appliedCount = applied.topics.length + applied.sources.length;
+  const isDraftEmpty = draft.topics.length === 0 && draft.sources.length === 0;
+  const applyLabel = draftResultCount === null
+    ? 'Show results'
+    : (isDraftEmpty ? `Show all ${draftResultCount}` : `Show ${draftResultCount} results`);
 
   const sortedArticles = useMemo(
     () => sortArticlesNewestFirst(articles),
@@ -615,7 +937,7 @@ function App() {
     []
   );
 
-  const sourceCountForMeta = sites.length || sourceCounts.length;
+  const sourceCountForMeta = sourceFacets.length || sourceCounts.length;
   const metaLine = [
     `${sortedArticles.length} item${sortedArticles.length === 1 ? '' : 's'} from ${sourceCountForMeta} source${sourceCountForMeta === 1 ? '' : 's'}`,
     lastScrapeLabel ? `last scrape ${lastScrapeLabel}` : null,
@@ -662,7 +984,13 @@ function App() {
         </a>
         <nav className="site-nav" aria-label="Primary">
           <a href="#top" className="site-nav-link active">Today</a>
-          <a href="#filters" className="site-nav-link">Sources</a>
+          <a
+            href="#filters"
+            className="site-nav-link"
+            onClick={(event) => { event.preventDefault(); openPanel(); }}
+          >
+            Sources
+          </a>
           <span className="site-nav-link site-nav-link--soon" aria-disabled="true">Archive</span>
           <span className="site-nav-link site-nav-link--soon" aria-disabled="true">Saved</span>
         </nav>
@@ -676,8 +1004,71 @@ function App() {
               aria-label="Search briefs (coming soon)"
             />
           </label>
+          <div className="filters-anchor">
+            <button
+              ref={filtersButtonRef}
+              type="button"
+              id="filters"
+              className="filters-button"
+              aria-expanded={panelOpen}
+              aria-controls="filters-panel"
+              onClick={openPanel}
+            >
+              <SlidersIcon />
+              <span>Filters</span>
+              {appliedCount > 0 && <span className="filters-button-count">{appliedCount}</span>}
+            </button>
+
+            {panelOpen && (
+              <>
+                <div className="filter-scrim" onClick={closePanel} aria-hidden="true" />
+                <FilterPanel
+                  panelRef={panelRef}
+                  searchInputRef={searchInputRef}
+                  titleId="filters-panel-title"
+                  draft={draft}
+                  topicFacets={topicFacets}
+                  sourceFacets={sourceFacets}
+                  query={panelQuery}
+                  onQueryChange={setPanelQuery}
+                  topicsExpanded={topicsExpanded}
+                  sourcesExpanded={sourcesExpanded}
+                  onToggleTopicsExpanded={() => setTopicsExpanded((current) => !current)}
+                  onToggleSourcesExpanded={() => setSourcesExpanded((current) => !current)}
+                  onToggleFacet={toggleDraftFacet}
+                  onReset={resetDraft}
+                  onApply={applyPanel}
+                  onCancel={closePanel}
+                  applyLabel={applyLabel}
+                />
+              </>
+            )}
+          </div>
         </div>
       </header>
+
+      {appliedCount > 0 && (
+        <div className="filter-active-bar">
+          <span className="filter-active-label">Filtering by</span>
+          {applied.topics.map((topic) => (
+            <FilterChip
+              key={`topic-${topic}`}
+              label={topic}
+              removeLabel={`Remove filter: ${topic}`}
+              onRemove={() => removeAppliedFacet('topics', topic)}
+            />
+          ))}
+          {applied.sources.map((source) => (
+            <FilterChip
+              key={`source-${source}`}
+              label={formatSiteName(source)}
+              removeLabel={`Remove filter: ${formatSiteName(source)}`}
+              onRemove={() => removeAppliedFacet('sources', source)}
+            />
+          ))}
+          <button type="button" className="filter-active-clear" onClick={handleClearFilters}>Clear all</button>
+        </div>
+      )}
 
       {sortedArticles.length > 0 ? (
         <>
@@ -688,62 +1079,6 @@ function App() {
               <p className="masthead-meta">{metaLine}</p>
             </div>
           </section>
-
-          {(sites.length > 0 || topics.length > 0) && (
-            <nav id="filters" className="filter-bar" aria-label="Article filters">
-              {topics.length > 0 && (
-                <div className="filter-group">
-                  <span className="filter-group-label">Topic</span>
-                  <div className="filter-chip-row">
-                    <button
-                      type="button"
-                      className={`filter-chip${selectedTopic === '' ? ' active' : ''}`}
-                      onClick={() => handleTopicFilterClick('')}
-                    >
-                      All
-                    </button>
-                    {topics.map((topic) => (
-                      <button
-                        key={topic}
-                        type="button"
-                        className={`filter-chip${selectedTopic === topic ? ' active' : ''}`}
-                        onClick={() => handleTopicFilterClick(topic)}
-                      >
-                        {topic}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {sites.length > 0 && topics.length > 0 && <span className="filter-divider" aria-hidden="true" />}
-
-              {sites.length > 0 && (
-                <div className="filter-group">
-                  <span className="filter-group-label">Source</span>
-                  <div className="filter-chip-row">
-                    <button
-                      type="button"
-                      className={`filter-chip${selectedSite === '' ? ' active' : ''}`}
-                      onClick={() => handleSourceFilterClick('')}
-                    >
-                      All {sites.length}
-                    </button>
-                    {sites.map((site) => (
-                      <button
-                        key={site}
-                        type="button"
-                        className={`filter-chip${selectedSite === site ? ' active' : ''}`}
-                        onClick={() => handleSourceFilterClick(site)}
-                      >
-                        {formatSiteName(site)}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </nav>
-          )}
 
           <div className="section-divider" aria-hidden="true"></div>
 
@@ -760,8 +1095,7 @@ function App() {
                   )}
                 </div>
                 <div className="lead-copy">
-                  <div className="lead-meta">
-                    <span className="tag-outline">Lead</span>
+                  <div className="lead-meta">                   
                     <span className="lead-byline">{formatSiteName(leadArticle.site)} &middot; {formatRelativeTime(leadArticle.published_at)}</span>
                   </div>
                   <h2 className="lead-headline"><SafeArticleTitle article={leadArticle} /></h2>
@@ -847,7 +1181,7 @@ function App() {
           <p className="state-kicker">Nothing here yet</p>
           <h2>No captured articles for this filter.</h2>
           <p className="empty-state-description">Choose another source or topic, or run the scraper and refresh this page.</p>
-          {(selectedSite || selectedTopic) && (
+          {appliedCount > 0 && (
             <button type="button" className="empty-state-back" onClick={handleClearFilters}>
               &larr; Back to all sources
             </button>

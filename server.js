@@ -2,7 +2,7 @@ const express = require('express');
 const cors = require('cors');
 require('dotenv').config();
 
-const { fetchArticles, fetchSites, fetchTopics } = require('./lib/articles');
+const { countArticles, fetchArticles, fetchSites, fetchTopics } = require('./lib/articles');
 const { createCorsOptions } = require('./lib/cors');
 const { log, logRequest, sendError } = require('./lib/http');
 const { proxyImage } = require('./lib/imageProxy');
@@ -26,9 +26,22 @@ app.get('/api/health', rateLimitMiddleware(RATE_LIMITS.health), (req, res) => {
 
 app.get('/api/articles', rateLimitMiddleware(RATE_LIMITS.articles), async (req, res) => {
   try {
-    res.json(await fetchArticles({ topic: req.query.topic, limit: req.query.limit, offset: req.query.offset }));
+    res.json(await fetchArticles({
+      site: req.query.site,
+      topic: req.query.topic,
+      limit: req.query.limit,
+      offset: req.query.offset,
+    }));
   } catch (err) {
     sendError(res, 'Failed to fetch articles', err, req);
+  }
+});
+
+app.get('/api/article-count', rateLimitMiddleware(RATE_LIMITS.articles), async (req, res) => {
+  try {
+    res.json({ count: await countArticles({ site: req.query.site, topic: req.query.topic }) });
+  } catch (err) {
+    sendError(res, 'Failed to count articles', err, req);
   }
 });
 
