@@ -1,5 +1,6 @@
 import './App.css';
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import axios from 'axios';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || (import.meta.env.DEV ? 'http://localhost:5000' : '');
@@ -578,6 +579,7 @@ const FilterPanel = ({
   panelRef,
   searchInputRef,
   titleId,
+  anchorStyle,
   draft,
   topicFacets,
   sourceFacets,
@@ -604,6 +606,7 @@ const FilterPanel = ({
       ref={panelRef}
       id="filters-panel"
       className="filter-panel"
+      style={anchorStyle}
       role="dialog"
       aria-modal="true"
       aria-label="Filters"
@@ -681,6 +684,7 @@ function App() {
   const [topicsExpanded, setTopicsExpanded] = useState(false);
   const [sourcesExpanded, setSourcesExpanded] = useState(false);
   const [draftResultCount, setDraftResultCount] = useState(null);
+  const [panelAnchor, setPanelAnchor] = useState({ top: 70, right: 20 });
   const [pageSize, setPageSize] = useState(INITIAL_ARTICLE_COUNT);
   const [visibleCount, setVisibleCount] = useState(INITIAL_ARTICLE_COUNT);
   const [everythingViewMode, setEverythingViewMode] = useState(EVERYTHING_VIEW_MODES[0]);
@@ -801,19 +805,45 @@ function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [panelOpen, draftTopicsKey, draftSourcesKey]);
 
+  // The panel/scrim are portalled to document.body (see render below) so
+  // `position: fixed` resolves against the real viewport instead of getting
+  // trapped by the header's `backdrop-filter`, which — per spec — makes it a
+  // containing block for fixed descendants. Once portalled, the panel has no
+  // positioned ancestor to anchor to, so its desktop position is computed
+  // here from the Filters button's own rect and applied as CSS custom
+  // properties (see .filter-panel's `top`/`right` in App.css).
+  const updatePanelAnchor = useCallback(() => {
+    const rect = filtersButtonRef.current?.getBoundingClientRect();
+    if (rect) {
+      setPanelAnchor({ top: rect.bottom + 10, right: window.innerWidth - rect.right });
+    }
+  }, []);
+
   const openPanel = useCallback(() => {
+    updatePanelAnchor();
     setDraft(applied);
     setPanelQuery('');
     setTopicsExpanded(false);
     setSourcesExpanded(false);
     setPanelOpen(true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [appliedTopicsKey, appliedSourcesKey]);
+  }, [appliedTopicsKey, appliedSourcesKey, updatePanelAnchor]);
 
   const closePanel = useCallback(() => {
     setPanelOpen(false);
     filtersButtonRef.current?.focus();
   }, []);
+
+  // Keep the desktop anchor accurate across resize/rotation while open (the
+  // header is sticky at top:0, so scroll position doesn't otherwise move it).
+  useEffect(() => {
+    if (!panelOpen) {
+      return undefined;
+    }
+
+    window.addEventListener('resize', updatePanelAnchor);
+    return () => window.removeEventListener('resize', updatePanelAnchor);
+  }, [panelOpen, updatePanelAnchor]);
 
   const applyPanel = () => {
     setApplied(draft);
@@ -1019,13 +1049,14 @@ function App() {
               {appliedCount > 0 && <span className="filters-button-count">{appliedCount}</span>}
             </button>
 
-            {panelOpen && (
+            {panelOpen && createPortal(
               <>
                 <div className="filter-scrim" onClick={closePanel} aria-hidden="true" />
                 <FilterPanel
                   panelRef={panelRef}
                   searchInputRef={searchInputRef}
                   titleId="filters-panel-title"
+                  anchorStyle={{ '--filter-panel-top': `${panelAnchor.top}px`, '--filter-panel-right': `${panelAnchor.right}px` }}
                   draft={draft}
                   topicFacets={topicFacets}
                   sourceFacets={sourceFacets}
@@ -1041,7 +1072,8 @@ function App() {
                   onCancel={closePanel}
                   applyLabel={applyLabel}
                 />
-              </>
+              </>,
+              document.body
             )}
           </div>
         </div>

@@ -340,11 +340,17 @@ select {
   background: var(--scrim);
 }
 
+/* Portalled to document.body (see App.jsx), so this positions against the
+   real viewport via fixed coordinates computed from the Filters button's own
+   rect — it can't rely on a positioned ancestor once portalled, and staying
+   inside the header would put it behind the header's backdrop-filter, which
+   makes fixed descendants anchor to the header's box instead of the
+   viewport. */
 .filter-panel {
-  position: absolute;
+  position: fixed;
   z-index: 21;
-  top: calc(100% + 10px);
-  right: 0;
+  top: var(--filter-panel-top, 70px);
+  right: var(--filter-panel-right, 20px);
   display: flex;
   overflow: hidden;
   width: 360px;
