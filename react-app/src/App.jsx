@@ -398,11 +398,27 @@ const getSourceNameSizeClass = (name) => {
   return '';
 };
 
-const FallbackNewsImage = ({ site, className = '' }) => {
+const FALLBACK_IMAGE_VARIANT_COUNT = 5;
+
+// Deterministic (not Math.random()) so a given article's fallback color stays
+// put across re-renders instead of flickering to a new hue each time.
+const hashToVariant = (seed, count) => {
+  let hash = 0;
+  for (let i = 0; i < seed.length; i += 1) {
+    hash = (hash * 31 + seed.charCodeAt(i)) | 0;
+  }
+  return Math.abs(hash) % count;
+};
+
+const FallbackNewsImage = ({ site, seed, className = '' }) => {
   const sourceName = formatSiteName(site) || 'Precis';
+  const variant = hashToVariant(seed || sourceName, FALLBACK_IMAGE_VARIANT_COUNT);
 
   return (
-    <span className={`fallback-news-image${className ? ` ${className}` : ''}`} aria-hidden="true">
+    <span
+      className={`fallback-news-image fallback-news-image--${variant}${className ? ` ${className}` : ''}`}
+      aria-hidden="true"
+    >
       <span className="fallback-news-image__grid" />
       <span className="fallback-news-image__ticker">News Brief</span>
       <span className={`fallback-news-image__source${getSourceNameSizeClass(sourceName)}`}>{sourceName}</span>
@@ -419,7 +435,13 @@ const ArticleImage = ({ article, className = '' }) => {
   const imageUrl = article?.image_url;
 
   if (!imageUrl || hasError) {
-    return <FallbackNewsImage site={article?.site} className={className} />;
+    return (
+      <FallbackNewsImage
+        site={article?.site}
+        seed={article?.url || article?.id || article?.title}
+        className={className}
+      />
+    );
   }
 
   return (

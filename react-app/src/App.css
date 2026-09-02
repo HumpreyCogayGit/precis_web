@@ -1171,8 +1171,40 @@ select {
   background:
     radial-gradient(circle at 18% 18%, rgba(255, 255, 255, 0.28), transparent 22%),
     radial-gradient(circle at 88% 8%, rgba(255, 255, 255, 0.16), transparent 18%),
-    linear-gradient(135deg, var(--accent-900) 0%, var(--accent-800) 48%, var(--accent) 100%);
+    linear-gradient(135deg, var(--fallback-img-900) 0%, var(--fallback-img-800) 48%, var(--fallback-img-accent) 100%);
   transition: transform 320ms ease, opacity 180ms ease;
+}
+
+/* Five fallback palettes, randomly (but stably per-article) assigned so a
+   feed heavy on imageless articles doesn't read as one repeated blue block. */
+.fallback-news-image--0 {
+  --fallback-img-900: var(--accent-900);
+  --fallback-img-800: var(--accent-800);
+  --fallback-img-accent: var(--accent);
+}
+
+.fallback-news-image--1 {
+  --fallback-img-900: #1a2f29;
+  --fallback-img-800: #2b5147;
+  --fallback-img-accent: #4f9e8a;
+}
+
+.fallback-news-image--2 {
+  --fallback-img-900: #241c33;
+  --fallback-img-800: #3f3159;
+  --fallback-img-accent: #8266b3;
+}
+
+.fallback-news-image--3 {
+  --fallback-img-900: #332015;
+  --fallback-img-800: #5c3b26;
+  --fallback-img-accent: #c07a4a;
+}
+
+.fallback-news-image--4 {
+  --fallback-img-900: #331a22;
+  --fallback-img-800: #592c3e;
+  --fallback-img-accent: #b3577a;
 }
 
 .fallback-news-image::before,
