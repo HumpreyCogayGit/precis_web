@@ -18,7 +18,7 @@ Vercel
 
 - `precis_web/api/*` exposes Vercel Serverless Functions for:
   - `GET /api/articles`
-  - `GET /api/articles?topic=...&site=...&tags=...&tags_mode=...&not_tags=...&limit=50&offset=0`
+  - `GET /api/articles?topic=...&site=...&tags=...&not_tags=...&limit=50&offset=0`
   - `GET /api/articles/:site?topic=...&limit=50&offset=0`
   - `GET /api/article-count`
   - `GET /api/sites`

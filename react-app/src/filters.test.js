@@ -15,7 +15,7 @@ import {
 
 const article = (url, site, topic, tags) => ({ url, site, topic, tags });
 
-// A small edition with enough overlap to exercise ANY vs ALL and exclusion.
+// A small edition with enough tag overlap to tell an OR from an intersection.
 const EDITION = [
   article('a1', 'open_ai', 'AI', ['LLM Release', 'Agentic AI']),
   article('a2', 'open_ai', 'AI', ['LLM Release']),
@@ -60,11 +60,13 @@ describe('pass(article) truth table', () => {
     expect(urlsMatching(withFilter({ topics: ['AI'], sources: ['krebs_on_security'] }))).toEqual([]);
   });
 
-  test('tag mode any matches at least one; all matches every one', () => {
+  test('selected tags are OR\'d, so adding one can only widen the result', () => {
+    expect(urlsMatching(withFilter({ tags: { in: ['llm-release'] } }))).toEqual(['a1', 'a2']);
     expect(urlsMatching(withFilter({ tags: { in: ['llm-release', 'ransomware'] } })))
       .toEqual(['a1', 'a2', 'a4', 'a5']);
-    expect(urlsMatching(withFilter({ tags: { in: ['llm-release', 'agentic-ai'], mode: 'all' } })))
-      .toEqual(['a1']);
+    // Two tags one article carries do not intersect down to that article.
+    expect(urlsMatching(withFilter({ tags: { in: ['llm-release', 'agentic-ai'] } })))
+      .toEqual(['a1', 'a2', 'a3']);
   });
 
   test('exclusion wins over an include that matched the same article', () => {
@@ -94,7 +96,7 @@ describe('availability counts', () => {
     expect(rows.ransomware).toMatchObject({ count: 2, showPlus: false });
   });
 
-  test('ANY mode with a selection reads what each tag would ADD, prefixed with +', () => {
+  test('a selection switches the other rows to what they would ADD, prefixed with +', () => {
     const rows = rowsFor(withFilter({ tags: { in: ['llm-release'] } }));
 
     // a1 already matches llm-release, so agentic-ai only brings a3.
@@ -102,15 +104,6 @@ describe('availability counts', () => {
     expect(rows.ransomware).toMatchObject({ count: 2, showPlus: true });
     // The selected tag itself falls back to its own total for the day.
     expect(rows['llm-release']).toMatchObject({ count: 2, showPlus: false, state: 'included' });
-  });
-
-  test('ALL mode reads the remainder and never prints a +', () => {
-    const rows = rowsFor(withFilter({ tags: { in: ['llm-release'], mode: 'all' } }));
-
-    expect(rows['agentic-ai']).toMatchObject({ count: 1, showPlus: false, state: 'available' });
-    expect(rows.ransomware).toMatchObject({ count: 0, showPlus: false, state: 'unavailable' });
-    expect(computeFacetRows(EDITION, withFilter({ tags: { in: ['llm-release'], mode: 'all' } }), 'tags', vocabulary)
-      .every((row) => row.showPlus === false)).toBe(true);
   });
 
   test('an excluded tag keeps its own day total and its excluded state', () => {
@@ -127,25 +120,26 @@ describe('availability counts', () => {
   });
 
   test('dead rows sink below live ones instead of disappearing', () => {
+    // Excluding ransomware kills data-breach: a4 is the only article with both.
     const sorted = sortFacetRows(computeFacetRows(
       EDITION,
-      withFilter({ tags: { in: ['llm-release'], mode: 'all' } }),
+      withFilter({ tags: { not: ['ransomware'] } }),
       'tags',
       vocabulary,
     ));
 
-    expect(sorted.map((row) => row.slug)).toContain('ransomware');
+    expect(sorted.map((row) => row.slug)).toContain('data-breach');
     const firstDead = sorted.findIndex((row) => row.state === 'unavailable');
     expect(sorted.slice(firstDead).every((row) => row.state === 'unavailable')).toBe(true);
   });
 });
 
 describe('URL serialization', () => {
-  test('reads all three groups and defaults the tag mode to any', () => {
+  test('reads all three groups', () => {
     expect(readFiltersFromSearch('?topic=AI&source=nvidia&tags=security,new-exploits')).toEqual({
       topics: ['AI'],
       sources: ['nvidia'],
-      tags: { in: ['security', 'new-exploits'], not: [], mode: 'any' },
+      tags: { in: ['security', 'new-exploits'], not: [] },
     });
   });
 
@@ -166,18 +160,16 @@ describe('URL serialization', () => {
     expect(readFiltersFromSearch('?topic=', ['AI']).topics).toEqual([]);
   });
 
-  test('tags_mode is serialized only when it changes the result', () => {
-    const anyMode = filtersToSearchParams({ ...EMPTY_FILTER, tags: { in: ['a'], not: [], mode: 'any' } });
-    const allMode = filtersToSearchParams({ ...EMPTY_FILTER, tags: { in: ['a'], not: [], mode: 'all' } });
-    const noTags = filtersToSearchParams({ ...EMPTY_FILTER, tags: { in: [], not: [], mode: 'all' } });
+  test('a stale tags_mode is ignored on read and stripped on the next write', () => {
+    const filter = readFiltersFromSearch('?tags=a,b&tags_mode=all');
 
-    expect(anyMode.get('tags_mode')).toBe(null);
-    expect(allMode.get('tags_mode')).toBe('all');
-    expect(noTags.get('tags_mode')).toBe(null);
+    expect(filter.tags).toEqual({ in: ['a', 'b'], not: [] });
+    expect(filtersToSearchParams(filter, '?tags=a,b&tags_mode=all').get('tags_mode')).toBe(null);
   });
 
   test('an emptied group is removed from an existing query string', () => {
     const params = filtersToSearchParams(EMPTY_FILTER, '?topic=AI&tags=x&not_tags=y&view=cards');
+
     expect(params.get('topic')).toBe(null);
     expect(params.get('tags')).toBe(null);
     expect(params.get('not_tags')).toBe(null);

@@ -532,28 +532,35 @@ select {
   line-height: 1;
 }
 
-/* ANY / ALL belongs to the tag group, not to the panel: sources and topics are
-   always OR within themselves and never show a combiner. */
-.filter-panel-mode {
+/* Bulk controls for the tag group. Sources and topics are short enough to work
+   row by row, so they carry no actions of their own. */
+.filter-panel-group-actions {
   display: inline-flex;
   flex-shrink: 0;
-  border: 1px solid var(--neutral-400);
+  align-items: center;
+  gap: 10px;
 }
 
-.filter-panel-mode-option {
+.filter-panel-group-action {
   border: none;
-  background: transparent;
-  padding: 2px 7px;
-  color: var(--muted);
+  background: none;
+  padding: 2px 0;
+  color: var(--accent-dark);
   cursor: pointer;
   font-size: 0.6875rem;
   font-weight: 700;
   letter-spacing: 0.06em;
+  text-transform: uppercase;
+  white-space: nowrap;
 }
 
-.filter-panel-mode-option.active {
-  color: var(--accent);
-  background: var(--paper);
+.filter-panel-group-action:hover {
+  color: var(--accent-900);
+}
+
+.filter-panel-group-action[aria-disabled='true'] {
+  color: var(--subtle);
+  cursor: default;
 }
 
 .filter-panel-group-body {
@@ -787,14 +794,6 @@ select {
 
 .filter-active-chip-minus {
   line-height: 1;
-}
-
-.filter-active-mode {
-  color: var(--muted);
-  font-size: 0.6875rem;
-  font-weight: 700;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
 }
 
 .filter-active-chip-remove {
@@ -1502,7 +1501,7 @@ select {
 /* The facet rows are dense enough that the app's usual 3px/4px ring would spill
    over the neighbouring row, so these take the design system's 2px ring. */
 .filter-panel-group-toggle:focus-visible,
-.filter-panel-mode-option:focus-visible,
+.filter-panel-group-action:focus-visible,
 .filter-panel-row-toggle:focus-visible,
 .filter-panel-exclude:focus-visible {
   outline: 2px solid var(--accent);

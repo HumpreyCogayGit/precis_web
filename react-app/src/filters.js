@@ -1,18 +1,15 @@
 // Filter model for the Precis filter panel.
 //
-// One object, three groups. Sources and topics carry an include list each and are
-// always OR within themselves; tags additionally carry an exclude list and a
-// combiner, because "show me anything tagged either of these" and "show me only
-// things tagged both of these" are both useful and only the user knows which.
+// One object, three groups. All three include lists are OR within themselves and
+// AND across groups; tags additionally carry an exclude list, which is always
+// AND NOT. There is no per-group combiner: selecting two tags widens the result,
+// it never narrows it.
 //
 // Two copies of this object exist in the app at all times: `applied`, which drives
 // the article list and the URL, and `draft`, which drives the panel. That split is
 // what makes "close on apply" mean anything — do not merge them.
 
-export const TAG_MODES = ['any', 'all'];
-export const DEFAULT_TAG_MODE = 'any';
-
-export const EMPTY_TAG_FILTER = { in: [], not: [], mode: DEFAULT_TAG_MODE };
+export const EMPTY_TAG_FILTER = { in: [], not: [] };
 export const EMPTY_FILTER = { sources: [], topics: [], tags: EMPTY_TAG_FILTER };
 
 export const TAG_ROW_CAP = 8;
@@ -81,18 +78,12 @@ export const groupOr = (value, list) => list.length === 0 || list.includes(value
 
 // Exclusion is evaluated first and wins: a tag in `not` removes the article even
 // when a tag in `in` matched it.
-export const tagPredicate = (slugs, { in: included = [], not: excluded = [], mode = DEFAULT_TAG_MODE } = {}) => {
+export const tagPredicate = (slugs, { in: included = [], not: excluded = [] } = {}) => {
   if (excluded.length > 0 && excluded.some((slug) => slugs.includes(slug))) {
     return false;
   }
 
-  if (included.length === 0) {
-    return true;
-  }
-
-  return mode === 'all'
-    ? included.every((slug) => slugs.includes(slug))
-    : included.some((slug) => slugs.includes(slug));
+  return included.length === 0 || included.some((slug) => slugs.includes(slug));
 };
 
 export const passesFilter = (article, filter) => (
@@ -158,13 +149,12 @@ const includeListFor = (filter, group) => (group === 'tags' ? filter.tags.in : f
  * Availability counts. Every number in the panel answers one question: what
  * happens if I click this?
  *
- *   ALL mode, unselected            → rows that would be LEFT (a remainder)
- *   ANY mode, unselected, in filled → rows that would be ADDED (rendered with a +)
- *   ANY mode, unselected, in empty  → rows the facet returns on its own
+ *   unselected, nothing else picked → rows the facet returns on its own
+ *   unselected, something picked    → rows that would be ADDED (rendered with a +)
  *   selected (included or excluded) → the facet's own total for the day
  *
- * The `+` never appears in ALL mode: the number is a remainder there, and
- * labelling a shrink as an addition is the fastest way to make this lie.
+ * Because every group is OR within itself, a click can only ever add rows, so the
+ * second case is always an addition and always earns its `+`.
  *
  * `0` means clicking would produce an empty list. The row stays, dimmed and
  * disabled — removing it would reshuffle the list on every click and hide the
@@ -174,7 +164,6 @@ export const computeFacetRows = (articles, draft, group, vocabulary) => {
   const totals = vocabulary[group] || new Map();
   const baseCount = filterArticles(articles, draft).length;
   const includeList = includeListFor(draft, group);
-  const mode = group === 'tags' ? draft.tags.mode : DEFAULT_TAG_MODE;
   const excludeList = group === 'tags' ? draft.tags.not : [];
 
   return [...totals.values()].map(({ slug, label, count: dayCount }) => {
@@ -187,7 +176,7 @@ export const computeFacetRows = (articles, draft, group, vocabulary) => {
     }
 
     const withCount = filterArticles(articles, withValueAdded(draft, group, slug)).length;
-    const isDelta = mode !== 'all' && includeList.length > 0;
+    const isDelta = includeList.length > 0;
     const count = isDelta ? withCount - baseCount : withCount;
 
     return {
@@ -220,8 +209,6 @@ const parseCommaList = (value) => (
   value ? [...new Set(value.split(',').map((entry) => entry.trim()).filter(Boolean))] : []
 );
 
-export const parseTagMode = (value) => (TAG_MODES.includes(value) ? value : DEFAULT_TAG_MODE);
-
 export const readFiltersFromSearch = (search, defaultTopics = []) => {
   const params = new URLSearchParams(search);
   const excluded = parseCommaList(params.get('not_tags')).filter(isTagSlug);
@@ -235,7 +222,6 @@ export const readFiltersFromSearch = (search, defaultTopics = []) => {
       // for a tag that is included and excluded at once.
       in: parseCommaList(params.get('tags')).filter((slug) => isTagSlug(slug) && !excludedSet.has(slug)),
       not: excluded,
-      mode: parseTagMode(params.get('tags_mode')),
     },
   };
 };
@@ -255,14 +241,9 @@ export const filtersToSearchParams = (filter, search = '') => {
   write('topic', filter.topics);
   write('tags', filter.tags.in);
   write('not_tags', filter.tags.not);
-
-  // `mode` is part of the filter, not a view preference, so it is serialized —
-  // but only when it differs from the default, to keep shared links readable.
-  if (filter.tags.in.length > 0 && filter.tags.mode === 'all') {
-    params.set('tags_mode', 'all');
-  } else {
-    params.delete('tags_mode');
-  }
+  // Selected tags are always combined with OR, so there is no mode to carry.
+  // Cleared here too, so a link saved before that was settled stops claiming one.
+  params.delete('tags_mode');
 
   return params;
 };

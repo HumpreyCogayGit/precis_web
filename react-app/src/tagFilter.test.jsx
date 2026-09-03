@@ -94,21 +94,69 @@ describe('tag filter', () => {
     expect(screen.getByRole('button', { name: 'Show 2 briefs' })).toBeInTheDocument();
   });
 
-  test('ALL mode reads the remainder, never prints a +, and can reach zero', async () => {
+  test('Select all picks up every tag in the group, not just the visible rows', async () => {
     const user = userEvent.setup();
     render(<App />);
     await openPanel(user);
 
-    await user.click(tagRow('LLM Release'));
-    await user.click(screen.getByRole('button', { name: 'ALL' }));
+    await user.click(within(tagsSection()).getByRole('button', { name: 'Select all' }));
 
-    expect(tagRow('Agentic AI')).toHaveTextContent('Agentic AI1');
-    expect(tagRow('Agentic AI')).not.toHaveTextContent('+');
-    expect(tagRow('Ransomware')).toHaveTextContent('Ransomware0');
-    expect(tagRow('Ransomware')).toHaveAttribute('aria-disabled', 'true');
+    ['LLM Release', 'Agentic AI', 'Ransomware'].forEach((label) => {
+      expect(tagRow(label)).toHaveAttribute('aria-checked', 'true');
+    });
+    // Tags are OR'd, so this is "anything carrying a tag" — story 6 has none.
+    expect(screen.getByRole('button', { name: 'Show 5 briefs' })).toBeInTheDocument();
+  });
 
-    await user.click(tagRow('Agentic AI'));
-    expect(screen.getByRole('button', { name: 'Show 1 brief' })).toBeInTheDocument();
+  test('Select all is spent once everything is selected, and Clear empties the group', async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await openPanel(user);
+
+    const selectAll = () => within(tagsSection()).getByRole('button', { name: 'Select all' });
+    const clear = () => within(tagsSection()).getByRole('button', { name: 'Clear' });
+
+    expect(clear()).toHaveAttribute('aria-disabled', 'true');
+
+    await user.click(selectAll());
+    expect(selectAll()).toHaveAttribute('aria-disabled', 'true');
+    expect(clear()).not.toHaveAttribute('aria-disabled');
+
+    await user.click(clear());
+    expect(tagRow('LLM Release')).toHaveAttribute('aria-checked', 'false');
+    // Back to the six the default topic filter alone returns.
+    expect(screen.getByRole('button', { name: 'Show 6 briefs' })).toBeInTheDocument();
+  });
+
+  test('Clear also drops exclusions, and Select all leaves them alone', async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await openPanel(user);
+
+    await user.click(within(tagsSection()).getByRole('button', { name: 'Exclude tag: Ransomware' }));
+    await user.click(within(tagsSection()).getByRole('button', { name: 'Select all' }));
+
+    // Excluding is deliberate; selecting everything must not silently undo it.
+    expect(tagRow('Ransomware')).toHaveTextContent('excluded');
+    expect(tagRow('LLM Release')).toHaveAttribute('aria-checked', 'true');
+    expect(screen.getByRole('button', { name: 'Show 3 briefs' })).toBeInTheDocument();
+
+    await user.click(within(tagsSection()).getByRole('button', { name: 'Clear' }));
+    expect(tagRow('Ransomware')).not.toHaveTextContent('excluded');
+    expect(screen.getByRole('button', { name: 'Show 6 briefs' })).toBeInTheDocument();
+  });
+
+  test('Select all under a search selects only what the search matched', async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await openPanel(user);
+
+    await user.type(screen.getByLabelText('Find a source, topic or tag'), 'ransom');
+    await user.click(within(tagsSection()).getByRole('button', { name: 'Select all' }));
+    await user.clear(screen.getByLabelText('Find a source, topic or tag'));
+
+    expect(tagRow('Ransomware')).toHaveAttribute('aria-checked', 'true');
+    expect(tagRow('LLM Release')).toHaveAttribute('aria-checked', 'false');
   });
 
   test('the − control excludes a tag from any state and the row says so', async () => {
@@ -251,14 +299,16 @@ describe('tag filter', () => {
     render(<App />);
     await openPanel(user);
 
-    const order = () => within(tagsSection()).getAllByRole('checkbox').map((row) => row.textContent);
+    // Compare labels, not whole rows: the counts and the state glyphs are meant
+    // to change under a draft edit — only the ordering must hold still.
+    const order = () => within(tagsSection()).getAllByRole('checkbox')
+      .map((row) => row.querySelector('.filter-panel-row-label').textContent);
     const before = order();
 
-    // Ransomware drops to 0 in ALL mode but must stay where it is until reopened.
     await user.click(tagRow('LLM Release'));
-    await user.click(screen.getByRole('button', { name: 'ALL' }));
+    await user.click(within(tagsSection()).getByRole('button', { name: 'Exclude tag: Ransomware' }));
 
-    expect(order().map((text) => text.replace(/\d+$/, ''))).toEqual(before.map((text) => text.replace(/\d+$/, '')));
+    expect(order()).toEqual(before);
   });
 
   test('sources and topics are counted against the same draft as tags', async () => {

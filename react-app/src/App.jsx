@@ -256,7 +256,7 @@ const writeFiltersToUrl = (filters) => {
 };
 
 // The working set: today's edition, unfiltered. The API also accepts
-// site/topic/tags/tags_mode/not_tags (see lib/articles.js) for callers that want
+// site/topic/tags/not_tags (see lib/articles.js) for callers that want
 // the database to do the filtering, but the panel needs every reachable row in
 // the browser — a facet count that disagreed with the list behind it would be
 // worse than a slow one.
@@ -737,10 +737,20 @@ function App() {
     });
   };
 
-  // ANY/ALL belongs to the tag group and is part of the filter, not a view
-  // preference — it is serialized to the URL along with the rest.
-  const setDraftTagMode = (mode) => {
-    setDraft((current) => ({ ...current, tags: { ...current.tags, mode } }));
+  // Bulk controls for the tag group. Selecting every tag is a widening, not a
+  // narrowing — tags are OR'd — so it reads as "anything carrying a tag". A tag
+  // that is currently excluded is left excluded: exclusion is a deliberate act,
+  // and Clear is the control that undoes it.
+  const selectAllDraftTags = (slugs) => {
+    setDraft((current) => {
+      const excluded = new Set(current.tags.not);
+      const added = slugs.filter((slug) => !excluded.has(slug) && !current.tags.in.includes(slug));
+      return { ...current, tags: { ...current.tags, in: [...current.tags.in, ...added] } };
+    });
+  };
+
+  const clearDraftTags = () => {
+    setDraft((current) => ({ ...current, tags: { in: [], not: [] } }));
   };
 
   const resetDraft = () => {
@@ -841,7 +851,7 @@ function App() {
       key: 'sources', title: 'Sources', rows: orderRows('sources'), cap: FACET_ROW_CAP,
     },
     {
-      key: 'tags', title: 'Tags', rows: orderRows('tags'), cap: TAG_ROW_CAP, mode: draft.tags.mode,
+      key: 'tags', title: 'Tags', rows: orderRows('tags'), cap: TAG_ROW_CAP,
     },
   ].map((group) => ({
     ...group,
@@ -979,7 +989,8 @@ function App() {
                   onToggleExpanded={toggleGroupExpanded}
                   onToggleFacet={toggleDraftFacet}
                   onToggleExclude={toggleDraftExclude}
-                  onTagModeChange={setDraftTagMode}
+                  onSelectAllTags={selectAllDraftTags}
+                  onClearTags={clearDraftTags}
                   onReset={resetDraft}
                   onApply={applyPanel}
                   onCancel={closePanel}
@@ -1034,9 +1045,6 @@ function App() {
               />
             );
           })}
-          {applied.tags.in.length > 1 && (
-            <span className="filter-active-mode">{applied.tags.mode === 'all' ? 'all tags' : 'any tag'}</span>
-          )}
           <button type="button" className="filter-active-clear" onClick={handleClearFilters}>Clear all</button>
         </div>
       )}

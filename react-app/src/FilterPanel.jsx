@@ -7,9 +7,8 @@ import { MinusIcon, SearchIcon } from './icons.jsx';
 
 const matchesQuery = (row, query) => !query || row.label.toLowerCase().includes(query);
 
-// A count is only ever prefixed with + when it describes rows the click would
-// ADD. In ALL mode the number is a remainder, and labelling a shrink as an
-// addition is the single easiest way to make this feature lie.
+// A count is prefixed with + when it describes rows the click would ADD to what is
+// already selected, rather than rows the facet returns on its own.
 const formatCount = (row) => (row.showPlus ? `+${row.count}` : String(row.count));
 
 const FacetRow = ({ group, row, onToggle, onToggleExclude }) => {
@@ -47,23 +46,33 @@ const FacetRow = ({ group, row, onToggle, onToggleExclude }) => {
   );
 };
 
-const TagModeToggle = ({ mode, onChange }) => (
-  <span className="filter-panel-mode" role="group" aria-label="Combine selected tags">
-    {['any', 'all'].map((option) => (
-      <button
-        key={option}
-        type="button"
-        className={`filter-panel-mode-option${mode === option ? ' active' : ''}`}
-        aria-pressed={mode === option}
-        onClick={() => onChange(option)}
-      >
-        {option.toUpperCase()}
-      </button>
-    ))}
+// Bulk controls for the tag group. Selected tags are combined with OR, so
+// "Select all" means "anything carrying a tag at all" — it widens, and the row
+// counts follow it down to +0 the way any other selection does. "Clear" empties
+// both the includes and the exclusions, since together they are the group's
+// whole contribution to the draft.
+const TagGroupActions = ({ canSelectAll, canClear, onSelectAll, onClear }) => (
+  <span className="filter-panel-group-actions">
+    <button
+      type="button"
+      className="filter-panel-group-action"
+      aria-disabled={canSelectAll ? undefined : true}
+      onClick={() => (canSelectAll ? onSelectAll() : undefined)}
+    >
+      Select all
+    </button>
+    <button
+      type="button"
+      className="filter-panel-group-action"
+      aria-disabled={canClear ? undefined : true}
+      onClick={() => (canClear ? onClear() : undefined)}
+    >
+      Clear
+    </button>
   </span>
 );
 
-const FacetGroup = ({ group, query, isSearching, onToggleFacet, onToggleExclude, onToggleGroup, onToggleExpanded, onTagModeChange }) => {
+const FacetGroup = ({ group, query, isSearching, onToggleFacet, onToggleExclude, onToggleGroup, onToggleExpanded, onSelectAllTags, onClearTags }) => {
   const visible = group.rows.filter((row) => matchesQuery(row, query));
 
   if (group.rows.length === 0 || (isSearching && visible.length === 0)) {
@@ -87,7 +96,17 @@ const FacetGroup = ({ group, query, isSearching, onToggleFacet, onToggleExclude,
         >
           {group.title} &middot; {group.rows.length}
         </button>
-        {group.key === 'tags' && <TagModeToggle mode={group.mode} onChange={onTagModeChange} />}
+        {group.key === 'tags' && (
+          <TagGroupActions
+            // "Select all" acts on every row in the group, or on every row
+            // matching the search when one is active — never on just the eight
+            // the cap happens to be showing, which would be a trap.
+            canSelectAll={visible.some((row) => row.state !== 'included')}
+            canClear={group.rows.some((row) => row.state === 'included' || row.state === 'excluded')}
+            onSelectAll={() => onSelectAllTags(visible.map((row) => row.slug))}
+            onClear={onClearTags}
+          />
+        )}
         <span className="filter-panel-group-chevron" aria-hidden="true">{open ? '▾' : '▸'}</span>
       </div>
 
@@ -125,7 +144,8 @@ const FilterPanel = ({
   onToggleExpanded,
   onToggleFacet,
   onToggleExclude,
-  onTagModeChange,
+  onSelectAllTags,
+  onClearTags,
   onReset,
   onApply,
   onCancel,
@@ -184,7 +204,8 @@ const FilterPanel = ({
               onToggleExclude={onToggleExclude}
               onToggleGroup={onToggleGroup}
               onToggleExpanded={onToggleExpanded}
-              onTagModeChange={onTagModeChange}
+              onSelectAllTags={onSelectAllTags}
+              onClearTags={onClearTags}
             />
           ))
         )}

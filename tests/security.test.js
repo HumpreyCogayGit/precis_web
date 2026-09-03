@@ -231,15 +231,22 @@ test('tag slugs never carry a display label into the query string', () => {
 });
 
 test('tag filters resolve slugs in SQL and never interpolate a value into the text', () => {
-  const anyMode = buildFetchArticlesQuery({ tags: 'llm-release,agentic-ai' });
+  const built = buildFetchArticlesQuery({ tags: 'llm-release,agentic-ai' });
 
-  assert.match(anyMode.text, /EXISTS \(SELECT 1 FROM unnest\(COALESCE\(tags/);
-  assert.doesNotMatch(anyMode.text, /llm-release|agentic-ai/);
-  assert.deepEqual(anyMode.params, [['llm-release', 'agentic-ai'], WORKING_SET_LIMIT]);
+  assert.match(built.text, /EXISTS \(SELECT 1 FROM unnest\(COALESCE\(tags/);
+  assert.doesNotMatch(built.text, /llm-release|agentic-ai/);
+  assert.deepEqual(built.params, [['llm-release', 'agentic-ai'], WORKING_SET_LIMIT]);
+});
 
-  const allMode = buildFetchArticlesQuery({ tags: 'llm-release,agentic-ai', tagsMode: 'all' });
-  assert.match(allMode.text, /COUNT\(DISTINCT .+\) FROM unnest/);
-  assert.match(allMode.text, /= cardinality\(\$1::text\[\]\)/);
+test('included tags are always OR\'d — there is no intersection mode to reach', () => {
+  const built = buildFetchArticlesQuery({ tags: 'llm-release,agentic-ai' });
+
+  // An overlap test, not a superset test: two tags widen the result.
+  assert.doesNotMatch(built.text, /COUNT\(DISTINCT|cardinality/);
+
+  // A stale tags_mode from an older link is inert rather than an error.
+  assert.deepEqual(buildFetchArticlesQuery({ tags: 'llm-release', tagsMode: 'all' }).text,
+    buildFetchArticlesQuery({ tags: 'llm-release' }).text);
 });
 
 test('excluded tags are ANDed as NOT and win over the same slug in the include list', () => {
@@ -262,7 +269,6 @@ test('an empty tag filter constrains nothing, and tag length and mode are valida
   assert.deepEqual(buildFetchArticlesQuery({}).params, [WORKING_SET_LIMIT]);
   assert.doesNotMatch(buildFetchArticlesQuery({}).text, /unnest/);
 
-  assertValidationError(() => buildFetchArticlesQuery({ tagsMode: 'either' }), 'tags_mode');
   assertValidationError(() => buildFetchArticlesQuery({ tags: 'x'.repeat(MAX_TAG_LENGTH + 1) }), 'tags');
   assertValidationError(() => buildFetchArticlesQuery({ notTags: ['a', 'b'] }), 'not_tags');
 });

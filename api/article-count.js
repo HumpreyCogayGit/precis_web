@@ -21,7 +21,6 @@ module.exports = async function handler(req, res) {
         site: req.query.site,
         topic: req.query.topic,
         tags: req.query.tags,
-        tagsMode: req.query.tags_mode,
         notTags: req.query.not_tags,
       }),
     });
