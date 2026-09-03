@@ -1,13 +1,15 @@
 import './App.css';
-import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import { useState, useEffect, useLayoutEffect, useMemo, useCallback, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import axios from 'axios';
 import FilterPanel from './FilterPanel.jsx';
-import { CloseIcon, SearchIcon } from './icons.jsx';
+import { ChevronLeftIcon, ChevronRightIcon, CloseIcon, SearchIcon } from './icons.jsx';
 import {
   EMPTY_FILTER,
   FACET_ROW_CAP,
   TAG_ROW_CAP,
+  articleTagSlugs,
+  buildTagRail,
   buildVocabulary,
   computeFacetRows,
   countFilterValues,
@@ -349,6 +351,120 @@ const PageSizeSelect = ({ value, onChange }) => (
   </label>
 );
 
+// How far one press of a rail arrow travels. A fixed step rather than a full
+// page: the chip that was at the edge stays visible, so nothing is skipped over.
+const DISCOVER_SCROLL_STEP = 240;
+
+/**
+ * The Discover rail: one scrolling row of tag chips that narrows the Everything
+ * else section, and only that section.
+ *
+ * This is deliberately NOT a second filter. It never touches `applied`, the URL,
+ * or the active-filter bar — an earlier chip scroller was deleted for blurring
+ * that line (see design_handoff_precis_edition/README.md). It is a skim control
+ * that lives inside the section it reorders, and its state dies with the page.
+ *
+ * One tag at a time: "All" clears, and re-pressing the active chip clears too.
+ */
+const DiscoverRail = ({ tags, active, expanded, onSelect, onToggleExpanded }) => {
+  const trackRef = useRef(null);
+  const [overflow, setOverflow] = useState({ start: false, end: false });
+
+  // The arrows are an affordance for real overflow only, so they are driven by
+  // measurement rather than by the tag count — a short rail on a wide screen
+  // shows none, and the same rail on a phone shows both.
+  const syncOverflow = useCallback(() => {
+    const track = trackRef.current;
+    if (!track) {
+      return;
+    }
+
+    const maxScroll = track.scrollWidth - track.clientWidth;
+    setOverflow({
+      start: track.scrollLeft > 1,
+      end: maxScroll > 1 && track.scrollLeft < maxScroll - 1,
+    });
+  }, []);
+
+  useLayoutEffect(() => {
+    syncOverflow();
+    window.addEventListener('resize', syncOverflow);
+    return () => window.removeEventListener('resize', syncOverflow);
+  }, [syncOverflow, tags, expanded]);
+
+  const scrollByStep = (direction) => {
+    // The reduced-motion media query kills CSS `scroll-behavior`, but this is a
+    // JS argument and would sail straight past it, so honour it by hand.
+    const reduced = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    trackRef.current?.scrollBy?.({
+      left: direction * DISCOVER_SCROLL_STEP,
+      behavior: reduced ? 'auto' : 'smooth',
+    });
+  };
+
+  // One chip is not a choice, it's a label.
+  if (tags.length < 2) {
+    return null;
+  }
+
+  return (
+    <div className="discover-rail" role="group" aria-label="Discover by tag">
+      <span className="discover-label">Discover</span>
+      <div className="discover-viewport">
+        {!expanded && overflow.start && (
+          <button
+            type="button"
+            className="discover-scroll discover-scroll--start"
+            aria-label="Scroll tags left"
+            onClick={() => scrollByStep(-1)}
+          >
+            <ChevronLeftIcon />
+          </button>
+        )}
+        <div
+          ref={trackRef}
+          className={`discover-track${expanded ? ' expanded' : ''}`}
+          onScroll={syncOverflow}
+        >
+          <button
+            type="button"
+            className={`discover-chip${active === null ? ' active' : ''}`}
+            aria-pressed={active === null}
+            onClick={() => onSelect(null)}
+          >
+            All
+          </button>
+          {tags.map(({ slug, label, count }) => (
+            <button
+              key={slug}
+              type="button"
+              className={`discover-chip${active === slug ? ' active' : ''}`}
+              aria-pressed={active === slug}
+              onClick={() => onSelect(slug)}
+            >
+              {label}
+              <span className="discover-chip-count">{count}</span>
+            </button>
+          ))}
+        </div>
+        {!expanded && overflow.end && (
+          <button
+            type="button"
+            className="discover-scroll discover-scroll--end"
+            aria-label="Scroll tags right"
+            onClick={() => scrollByStep(1)}
+          >
+            <ChevronRightIcon />
+          </button>
+        )}
+      </div>
+      <button type="button" className="discover-see-all" onClick={onToggleExpanded}>
+        {expanded ? 'See fewer' : 'See all'}
+      </button>
+    </div>
+  );
+};
+
 // Length-tiered so long names (e.g. "KrebsOnSecurity", "Anthropic") shrink to
 // fit on one line instead of wrapping mid-word into the subtitle below.
 const getSourceNameSizeClass = (name) => {
@@ -540,6 +656,11 @@ function App() {
   const [pageSize, setPageSize] = useState(INITIAL_ARTICLE_COUNT);
   const [visibleCount, setVisibleCount] = useState(INITIAL_ARTICLE_COUNT);
   const [everythingViewMode, setEverythingViewMode] = useState(EVERYTHING_VIEW_MODES[0]);
+  // The Discover rail's selection: a tag slug, or null for "All". Local to the
+  // Everything else section on purpose — it is not part of the filter model and
+  // never reaches `applied` or the URL.
+  const [discoverTag, setDiscoverTag] = useState(null);
+  const [discoverExpanded, setDiscoverExpanded] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -864,11 +985,26 @@ function App() {
   const leadImage = <ArticleImage key={leadArticle?.url} article={leadArticle} />;
 
   const alsoTodayArticles = sortedArticles.slice(1, 1 + BRIEF_COUNT);
-  const everythingElseAll = sortedArticles.slice(1 + BRIEF_COUNT);
-  const visibleEverythingElse = Number.isFinite(visibleCount)
-    ? everythingElseAll.slice(0, visibleCount)
+  const everythingElseAll = useMemo(() => sortedArticles.slice(1 + BRIEF_COUNT), [sortedArticles]);
+
+  // Chips come from the section itself, not from the day's facets, so the rail
+  // only ever offers tags that are actually down there to be found.
+  const discoverTags = useMemo(() => buildTagRail(everythingElseAll), [everythingElseAll]);
+
+  // The selection can go stale underneath the rail when the page filter changes
+  // (an apply, a chip removal). Derive validity instead of clearing it in an
+  // effect: no extra render, and a rail whose tag has vanished simply reads
+  // "All" rather than showing an empty section.
+  const activeDiscoverTag = discoverTags.some(({ slug }) => slug === discoverTag) ? discoverTag : null;
+
+  const everythingElseVisible = activeDiscoverTag
+    ? everythingElseAll.filter((article) => articleTagSlugs(article).includes(activeDiscoverTag))
     : everythingElseAll;
-  const hasMoreArticles = visibleCount < everythingElseAll.length;
+
+  const visibleEverythingElse = Number.isFinite(visibleCount)
+    ? everythingElseVisible.slice(0, visibleCount)
+    : everythingElseVisible;
+  const hasMoreArticles = visibleCount < everythingElseVisible.length;
 
   const sourceCounts = useMemo(() => {
     const counts = new Map();
@@ -905,6 +1041,14 @@ function App() {
   const handlePageSizeChange = (newPageSize) => {
     setPageSize(newPageSize);
     setVisibleCount(newPageSize);
+  };
+
+  // Pressing the active chip again is the same as pressing All. Either way the
+  // section is a different length now, so paging starts over rather than leaving
+  // a count from the previous selection in place.
+  const handleDiscoverSelect = (slug) => {
+    setDiscoverTag((current) => (current === slug ? null : slug));
+    setVisibleCount(pageSize);
   };
 
   if (loading) {
@@ -1107,7 +1251,7 @@ function App() {
             <section className="everything-else" aria-labelledby="everything-else-title">
               <div className="tier-heading">
                 <h3 id="everything-else-title">Everything else</h3>
-                <span className="tier-count">{everythingElseAll.length} items</span>
+                <span className="tier-count">{everythingElseVisible.length} items</span>
                 {everythingElseAll.length > 0 && (
                   <div className="tier-controls">
                     <PageSizeSelect value={pageSize} onChange={handlePageSizeChange} />
@@ -1115,6 +1259,15 @@ function App() {
                   </div>
                 )}
               </div>
+              {everythingElseAll.length > 0 && (
+                <DiscoverRail
+                  tags={discoverTags}
+                  active={activeDiscoverTag}
+                  expanded={discoverExpanded}
+                  onSelect={handleDiscoverSelect}
+                  onToggleExpanded={() => setDiscoverExpanded((current) => !current)}
+                />
+              )}
               {everythingElseAll.length > 0 ? (
                 <>
                   {everythingViewMode === 'cards' && (
@@ -1141,10 +1294,10 @@ function App() {
                   {hasMoreArticles && (
                     <div className="show-more-inline">
                       <button type="button" className="show-more-link" onClick={handleShowMore}>
-                        Show {Math.min(pageSize, everythingElseAll.length - visibleEverythingElse.length)} more &rarr;
+                        Show {Math.min(pageSize, everythingElseVisible.length - visibleEverythingElse.length)} more &rarr;
                       </button>
                       <p className="article-count">
-                        Showing {visibleEverythingElse.length} of {everythingElseAll.length} items
+                        Showing {visibleEverythingElse.length} of {everythingElseVisible.length} items
                       </p>
                     </div>
                   )}

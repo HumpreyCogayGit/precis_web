@@ -137,6 +137,15 @@ export const buildVocabulary = (articles) => ({
   topics: tally(articles, (article) => (article.topic ? [{ slug: article.topic, label: article.topic }] : [])),
 });
 
+// The Discover rail's chips. Counted over the exact slice the rail will filter,
+// so a chip can never advertise a number that section cannot deliver, and a chip
+// that would return nothing is never rendered in the first place. Ordering is
+// count-desc so the day's live subjects lead, alphabetical on ties so the rail
+// doesn't reshuffle between two tags that happen to be level.
+export const buildTagRail = (articles) => [...tally(articles, (article) => (
+  articleTagSlugs(article).map((slug, index) => ({ slug, label: article.tags[index] }))
+)).values()].sort((a, b) => b.count - a.count || a.label.localeCompare(b.label));
+
 const withValueAdded = (filter, group, slug) => (
   group === 'tags'
     ? { ...filter, tags: { ...filter.tags, in: [...filter.tags.in, slug] } }

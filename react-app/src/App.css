@@ -992,6 +992,140 @@ select {
   margin-left: auto;
 }
 
+/* Discover rail — the tag chips over the Everything else grid.
+
+   One row, overflow-x, white-space: nowrap, flex: none on every chip: the chips
+   keep their intrinsic width and the row scrolls instead of reflowing. Expanding
+   is the same track with wrapping turned on, so nothing moves except the wrap. */
+
+.discover-rail {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  border-block: 1px solid var(--line);
+  padding: 10px 0;
+  margin-bottom: 18px;
+}
+
+.discover-label {
+  flex: none;
+  color: var(--muted);
+  font-size: 0.6875rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.discover-viewport {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+}
+
+.discover-track {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  white-space: nowrap;
+  /* The arrows are the affordance; a scrollbar under the chips only adds noise. */
+  scrollbar-width: none;
+}
+
+.discover-track::-webkit-scrollbar {
+  display: none;
+}
+
+.discover-track.expanded {
+  flex-wrap: wrap;
+  overflow: visible;
+  white-space: normal;
+  row-gap: 8px;
+}
+
+.discover-chip {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid var(--accent);
+  border-radius: var(--radius);
+  padding: 5px 10px;
+  color: var(--accent-dark);
+  background: transparent;
+  cursor: pointer;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.discover-chip:hover {
+  background: var(--accent-100);
+}
+
+.discover-chip.active {
+  color: #ffffff;
+  background: var(--accent);
+}
+
+.discover-chip-count {
+  border-radius: var(--radius);
+  padding: 0 5px;
+  color: var(--accent-dark);
+  background: var(--accent-100);
+  font-size: 0.6875rem;
+  font-weight: 800;
+}
+
+.discover-chip.active .discover-chip-count {
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.28);
+}
+
+/* Sits over the scrolling edge rather than in the flow, so pressing it doesn't
+   shift the chips sideways as it appears and disappears. */
+.discover-scroll {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  width: 40px;
+  border: none;
+  padding: 0;
+  color: var(--ink);
+  cursor: pointer;
+}
+
+/* Solid under the chevron, fading out over the chip behind it, so the arrow is
+   always legible and the row still reads as cut off rather than as ending. */
+.discover-scroll--start {
+  left: 0;
+  justify-content: flex-start;
+  background: linear-gradient(90deg, var(--paper) 55%, transparent);
+}
+
+.discover-scroll--end {
+  right: 0;
+  justify-content: flex-end;
+  background: linear-gradient(270deg, var(--paper) 55%, transparent);
+}
+
+.discover-see-all {
+  flex: none;
+  border: none;
+  background: none;
+  padding: 0;
+  color: var(--accent-dark);
+  cursor: pointer;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  text-decoration: underline;
+}
+
+.discover-see-all:hover {
+  color: var(--accent-900);
+}
+
 .page-size-select {
   display: inline-flex;
   align-items: center;
@@ -1493,6 +1627,9 @@ select {
 .filter-panel-apply:focus-visible,
 .filter-panel-cancel:focus-visible,
 .filter-active-chip:focus-visible,
+.discover-chip:focus-visible,
+.discover-scroll:focus-visible,
+.discover-see-all:focus-visible,
 .filter-active-clear:focus-visible {
   outline: 3px solid var(--accent);
   outline-offset: 4px;
@@ -1591,6 +1728,23 @@ select {
     justify-content: space-between;
     margin-left: 0;
     width: 100%;
+  }
+
+  /* The rail's parts stack rather than compete for one line: the label and
+     "See all" sit together over a full-width track that keeps scrolling. */
+  .discover-rail {
+    flex-wrap: wrap;
+    gap: 8px 14px;
+  }
+
+  .discover-see-all {
+    order: 1;
+    margin-left: auto;
+  }
+
+  .discover-viewport {
+    order: 2;
+    flex-basis: 100%;
   }
 
   .small-list-meta {

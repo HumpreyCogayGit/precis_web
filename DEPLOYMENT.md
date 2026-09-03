@@ -110,6 +110,7 @@ In Vercel:
 | `PG_SSL_ALLOW_UNAUTHORIZED=false` | Avoid in production | Explicit insecure opt-in only for exceptional provider compatibility; default production behavior verifies DB certificates |
 | `PG_POOL_MAX=1` | Vercel Production/Preview | Keeps serverless Postgres connection usage low unless you use a pooled DB URL |
 | `VITE_API_BASE_URL` | Usually unset on Vercel | Leave blank so the browser calls same-origin `/api/*` |
+| `VITE_GA_MEASUREMENT_ID` | Vercel Production, optional | GA4 measurement ID; unset falls back to the default in `react-app/src/analytics.js`. Set it to an empty string on Preview so preview builds stay out of the analytics property |
 | `CORS_ALLOWED_ORIGINS` | Usually unset on Vercel | Comma-separated exact origins only when a separate frontend origin must call the Express API; same-origin Vercel `/api` calls do not need CORS |
 | `IMAGE_PROXY_TIMEOUT_MS=5000` | Optional | Limits remote image fetch time |
 | `IMAGE_PROXY_MAX_BYTES=5242880` | Optional | Limits proxied image size to 5 MB |

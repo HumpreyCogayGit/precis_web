@@ -29,6 +29,7 @@ const {
   getDatabaseUrl,
   shouldUseSsl,
 } = require('../lib/db');
+const { SECURITY_HEADERS } = require('../lib/securityHeaders');
 const articlesHandler = require('../api/articles');
 const { isHostAllowed, isIpAllowed, proxyImage, validateUrlTarget } = require('../lib/imageProxy');
 
@@ -361,6 +362,30 @@ test('CORS origin callback rejects unapproved browser origins', async () => {
       });
     });
   });
+});
+
+test('the Express and Vercel CSPs stay identical and admit analytics without unsafe-inline', () => {
+  const csp = SECURITY_HEADERS['Content-Security-Policy'];
+  const vercelConfig = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'vercel.json'), 'utf8'));
+  const vercelCsp = vercelConfig.headers
+    .flatMap((entry) => entry.headers)
+    .find((header) => header.key === 'Content-Security-Policy');
+
+  // Production serves the vercel.json copy and local dev serves this one; a
+  // silent drift between them means a policy that was only ever tested locally.
+  assert.equal(vercelCsp.value, csp);
+
+  const directive = (name) => csp.split(';').map((part) => part.trim()).find((part) => part.startsWith(`${name} `));
+
+  // GA4 (react-app/src/analytics.js) loads the tag, opens a beacon, and may fall
+  // back to a pixel — one blocked directive collects nothing but a console error.
+  assert.match(directive('script-src'), /https:\/\/www\.googletagmanager\.com/);
+  assert.match(directive('connect-src'), /https:\/\/\*\.google-analytics\.com/);
+  assert.match(directive('img-src'), /https:\/\/\*\.google-analytics\.com/);
+
+  // Loading gtag from a bundled module rather than an inline snippet is what buys
+  // us this; adding 'unsafe-inline' here would give the payoff away.
+  assert.doesNotMatch(directive('script-src'), /unsafe-inline/);
 });
 
 test('articles API returns 400 for invalid query parameters before querying the database', async () => {

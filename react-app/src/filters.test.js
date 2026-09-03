@@ -1,6 +1,7 @@
 import { describe, expect, test } from 'vitest';
 import {
   EMPTY_FILTER,
+  buildTagRail,
   buildVocabulary,
   computeFacetRows,
   filterArticles,
@@ -174,5 +175,22 @@ describe('URL serialization', () => {
     expect(params.get('tags')).toBe(null);
     expect(params.get('not_tags')).toBe(null);
     expect(params.get('view')).toBe('cards');
+  });
+
+  test('the discover rail is ordered by count, then alphabetically on a tie', () => {
+    expect(buildTagRail(EDITION)).toEqual([
+      { slug: 'agentic-ai', label: 'Agentic AI', count: 2 },
+      { slug: 'llm-release', label: 'LLM Release', count: 2 },
+      { slug: 'ransomware', label: 'Ransomware', count: 2 },
+      { slug: 'ai-hardware-chips', label: 'AI Hardware & Chips', count: 1 },
+      { slug: 'data-breach', label: 'Data Breach', count: 1 },
+    ]);
+  });
+
+  test('the rail only ever offers tags the given slice can deliver', () => {
+    // An untagged article contributes nothing, and a tag no article carries is
+    // never invented — every chip is guaranteed to return at least one row.
+    expect(buildTagRail([EDITION[5]])).toEqual([]);
+    expect(buildTagRail(EDITION).every(({ count }) => count > 0)).toBe(true);
   });
 });
