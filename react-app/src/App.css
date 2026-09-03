@@ -12,8 +12,11 @@
   --ink-soft: #424244;
   --muted: #7a7a7d;
   --subtle: #98989b;
+  --neutral-200: #e6e6e8;
+  --neutral-250: #c4c4c6;
   --neutral-300: #d4d4d7;
   --neutral-400: #b7b7ba;
+  --band: #eaeaec;
   --paper: #ffffff;
   --surface: #f5f5f8;
   --surface-strong: #eeeeee;
@@ -496,26 +499,72 @@ select {
   padding-bottom: 4px;
 }
 
-.filter-panel-group--rule {
-  border-top: 1px solid var(--neutral-300);
+/* Group head: a band, not a floating label — it is the hit target that collapses
+   the group, and it carries the tag group's own ANY/ALL combiner. */
+.filter-panel-group-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border-bottom: 1px solid var(--neutral-300);
+  padding: 0 18px;
+  background: var(--band);
 }
 
-.filter-panel-group-head {
-  padding: 14px 18px 6px;
-  color: var(--muted);
+.filter-panel-group-toggle {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  background: none;
+  padding: 9px 0;
+  color: var(--ink);
+  cursor: pointer;
   font-size: 0.75rem;
   font-weight: 800;
   letter-spacing: 0.12em;
+  text-align: left;
   text-transform: uppercase;
+}
+
+.filter-panel-group-chevron {
+  flex-shrink: 0;
+  color: var(--subtle);
+  font-size: 0.6875rem;
+  line-height: 1;
+}
+
+/* ANY / ALL belongs to the tag group, not to the panel: sources and topics are
+   always OR within themselves and never show a combiner. */
+.filter-panel-mode {
+  display: inline-flex;
+  flex-shrink: 0;
+  border: 1px solid var(--neutral-400);
+}
+
+.filter-panel-mode-option {
+  border: none;
+  background: transparent;
+  padding: 2px 7px;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+}
+
+.filter-panel-mode-option.active {
+  color: var(--accent);
+  background: var(--paper);
+}
+
+.filter-panel-group-body {
+  padding-bottom: 2px;
 }
 
 .filter-panel-row {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  padding: 8px 18px;
-  cursor: pointer;
-  font-size: 0.875rem;
+  gap: 10px;
+  padding: 7px 18px;
   transition: background-color 120ms ease;
 }
 
@@ -523,38 +572,116 @@ select {
   background: var(--accent-100);
 }
 
-.filter-panel-row-main {
+.filter-panel-row-toggle {
   display: flex;
+  flex: 1;
   min-width: 0;
   align-items: center;
   gap: 10px;
+  border: none;
+  background: none;
+  padding: 0;
+  cursor: pointer;
+  font-size: 0.875rem;
+  text-align: left;
+}
+
+.filter-panel-row-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .filter-panel-checkbox {
-  display: inline-block;
+  display: inline-flex;
   flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
   width: 13px;
   height: 13px;
   border: 1px solid var(--subtle);
   background: transparent;
+  color: var(--subtle);
+  font-size: 0.6875rem;
+  line-height: 1;
 }
 
-.filter-panel-checkbox.checked {
+.filter-panel-row--included .filter-panel-checkbox {
   border-color: var(--accent);
   background: var(--accent);
 }
 
+.filter-panel-row--excluded .filter-panel-checkbox {
+  border-style: dashed;
+}
+
+.filter-panel-row--excluded .filter-panel-row-label {
+  color: var(--muted);
+  text-decoration: line-through;
+}
+
+/* A combination that can no longer return anything is shown, dimmed, at the
+   bottom of the group — removing it would reshuffle the list on every click and
+   hide the fact that the combination is dead. */
+.filter-panel-row--unavailable {
+  opacity: 0.45;
+}
+
+.filter-panel-row--unavailable .filter-panel-checkbox {
+  border-color: var(--neutral-250);
+}
+
+.filter-panel-row--unavailable .filter-panel-row-toggle,
+.filter-panel-row--unavailable .filter-panel-exclude {
+  cursor: default;
+}
+
+.filter-panel-row--unavailable .filter-panel-row-label,
+.filter-panel-row--unavailable .filter-panel-count {
+  color: var(--muted);
+}
+
 .filter-panel-count {
   flex-shrink: 0;
-  margin-left: 12px;
+  margin-left: auto;
+  padding-left: 12px;
   color: var(--muted);
   font-size: 0.75rem;
+}
+
+.filter-panel-row--excluded .filter-panel-count {
+  color: var(--subtle);
+  font-size: 0.71875rem;
+}
+
+.filter-panel-exclude {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border: 1px solid var(--neutral-200);
+  background: none;
+  padding: 0;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.filter-panel-row--included .filter-panel-exclude,
+.filter-panel-row--excluded .filter-panel-exclude {
+  border-color: var(--neutral-300);
+}
+
+.filter-panel-exclude:hover {
+  border-color: var(--accent);
+  color: var(--accent-dark);
 }
 
 .filter-panel-show-all {
   border: none;
   background: none;
-  padding: 7px 18px 14px;
+  padding: 8px 18px 15px;
   color: var(--accent-dark);
   cursor: pointer;
   font-size: 0.8125rem;
@@ -643,6 +770,31 @@ select {
   cursor: pointer;
   font-size: 0.75rem;
   font-weight: 700;
+}
+
+/* An excluded tag reads as the negative of an included one: dashed frame, no
+   accent fill, the label struck through. */
+.filter-active-chip--excluded {
+  border-style: dashed;
+  border-color: var(--subtle);
+  color: var(--muted);
+  background: transparent;
+}
+
+.filter-active-chip--excluded span:not(.filter-active-chip-minus):not(.filter-active-chip-remove) {
+  text-decoration: line-through;
+}
+
+.filter-active-chip-minus {
+  line-height: 1;
+}
+
+.filter-active-mode {
+  color: var(--muted);
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
 }
 
 .filter-active-chip-remove {
@@ -1347,7 +1499,12 @@ select {
   outline-offset: 4px;
 }
 
-.filter-panel-row input:focus-visible + .filter-panel-checkbox {
+/* The facet rows are dense enough that the app's usual 3px/4px ring would spill
+   over the neighbouring row, so these take the design system's 2px ring. */
+.filter-panel-group-toggle:focus-visible,
+.filter-panel-mode-option:focus-visible,
+.filter-panel-row-toggle:focus-visible,
+.filter-panel-exclude:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
@@ -1495,16 +1652,31 @@ select {
     min-height: 44px;
     border-bottom: 1px solid var(--neutral-300);
     padding: 12px 18px;
-    font-size: 0.9375rem;
   }
 
   .filter-panel-row:hover {
     background: none;
   }
 
+  /* List rows, not chips: no wrapping and no stretching, which is what fixed the
+     reported distortion in the first place. */
+  .filter-panel-row-toggle {
+    align-self: stretch;
+    font-size: 0.9375rem;
+  }
+
   .filter-panel-checkbox {
     width: 15px;
     height: 15px;
+  }
+
+  .filter-panel-exclude {
+    width: 28px;
+    height: 28px;
+  }
+
+  .filter-panel-group-toggle {
+    padding: 11px 0;
   }
 
   .filter-panel-footer {

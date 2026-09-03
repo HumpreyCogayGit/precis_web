@@ -29,9 +29,14 @@ SELECT
     ELSE regexp_replace(body_text, '\s+', ' ', 'g')
   END AS excerpt,                   -- unchanged for now; remove after the UI migrates
   fetched_at,
-  summary                           -- new: one sentence, written at scrape time. Appended
+  summary,                          -- new: one sentence, written at scrape time. Appended
                                      -- last: CREATE OR REPLACE VIEW can only add columns at
                                      -- the end without dropping the view (and its grants).
+  tags                              -- content-derived tag labels; the filter panel's third
+                                     -- facet group. Appended after summary for the same
+                                     -- reason. Display labels, not slugs — the slug is
+                                     -- derived from the label (see lib/articles.js), so the
+                                     -- label is never round-tripped through the URL.
 FROM public.articles
 WHERE COALESCE(needs_review, FALSE) = FALSE;
 

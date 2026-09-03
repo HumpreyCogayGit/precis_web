@@ -29,6 +29,9 @@ app.get('/api/articles', rateLimitMiddleware(RATE_LIMITS.articles), async (req, 
     res.json(await fetchArticles({
       site: req.query.site,
       topic: req.query.topic,
+      tags: req.query.tags,
+      tagsMode: req.query.tags_mode,
+      notTags: req.query.not_tags,
       limit: req.query.limit,
       offset: req.query.offset,
     }));
@@ -39,7 +42,15 @@ app.get('/api/articles', rateLimitMiddleware(RATE_LIMITS.articles), async (req, 
 
 app.get('/api/article-count', rateLimitMiddleware(RATE_LIMITS.articles), async (req, res) => {
   try {
-    res.json({ count: await countArticles({ site: req.query.site, topic: req.query.topic }) });
+    res.json({
+      count: await countArticles({
+        site: req.query.site,
+        topic: req.query.topic,
+        tags: req.query.tags,
+        tagsMode: req.query.tags_mode,
+        notTags: req.query.not_tags,
+      }),
+    });
   } catch (err) {
     sendError(res, 'Failed to count articles', err, req);
   }
@@ -48,7 +59,15 @@ app.get('/api/article-count', rateLimitMiddleware(RATE_LIMITS.articles), async (
 app.get('/api/articles/:site', rateLimitMiddleware(RATE_LIMITS.articles), async (req, res) => {
   try {
     const { site } = req.params;
-    res.json(await fetchArticles({ site, topic: req.query.topic, limit: req.query.limit, offset: req.query.offset }));
+    res.json(await fetchArticles({
+      site,
+      topic: req.query.topic,
+      tags: req.query.tags,
+      tagsMode: req.query.tags_mode,
+      notTags: req.query.not_tags,
+      limit: req.query.limit,
+      offset: req.query.offset,
+    }));
   } catch (err) {
     sendError(res, 'Failed to fetch articles', err, req);
   }

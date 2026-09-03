@@ -5,12 +5,15 @@ const path = require('node:path');
 const test = require('node:test');
 
 const {
+  buildFacets,
   buildFetchArticlesQuery,
+  slugifyTag,
   WORKING_SET_LIMIT,
   MAX_LIMIT,
   MAX_MULTI_VALUES,
   MAX_OFFSET,
   MAX_SITE_LENGTH,
+  MAX_TAG_LENGTH,
   MAX_TOPIC_LENGTH,
   PUBLIC_ARTICLES_RELATION,
   QueryValidationError,
@@ -221,6 +224,64 @@ test('multi-value site/topic filters build an ANY() clause with one array param'
   assert.deepEqual(built.params, [['nvidia', 'openai'], 'AI', WORKING_SET_LIMIT]);
 });
 
+test('tag slugs never carry a display label into the query string', () => {
+  assert.equal(slugifyTag('Zero-Day / Exploit'), 'zero-day-exploit');
+  assert.equal(slugifyTag('Identity & Access (IAM)'), 'identity-access-iam');
+  assert.equal(slugifyTag('  LLM Release  '), 'llm-release');
+});
+
+test('tag filters resolve slugs in SQL and never interpolate a value into the text', () => {
+  const anyMode = buildFetchArticlesQuery({ tags: 'llm-release,agentic-ai' });
+
+  assert.match(anyMode.text, /EXISTS \(SELECT 1 FROM unnest\(COALESCE\(tags/);
+  assert.doesNotMatch(anyMode.text, /llm-release|agentic-ai/);
+  assert.deepEqual(anyMode.params, [['llm-release', 'agentic-ai'], WORKING_SET_LIMIT]);
+
+  const allMode = buildFetchArticlesQuery({ tags: 'llm-release,agentic-ai', tagsMode: 'all' });
+  assert.match(allMode.text, /COUNT\(DISTINCT .+\) FROM unnest/);
+  assert.match(allMode.text, /= cardinality\(\$1::text\[\]\)/);
+});
+
+test('excluded tags are ANDed as NOT and win over the same slug in the include list', () => {
+  const excludeOnly = buildFetchArticlesQuery({ notTags: 'advisory' });
+  assert.match(excludeOnly.text, /NOT EXISTS \(SELECT 1 FROM unnest/);
+  assert.deepEqual(excludeOnly.params, [['advisory'], WORKING_SET_LIMIT]);
+
+  // not_tags wins: 'advisory' is dropped from the include list, leaving one slug.
+  const both = buildFetchArticlesQuery({ tags: 'advisory,ransomware', notTags: 'advisory' });
+  assert.deepEqual(both.params, [['advisory'], ['ransomware'], WORKING_SET_LIMIT]);
+
+  // A tag filter that is entirely cancelled out adds no include clause at all.
+  const cancelled = buildFetchArticlesQuery({ tags: 'advisory', notTags: 'advisory' });
+  assert.deepEqual(cancelled.params, [['advisory'], WORKING_SET_LIMIT]);
+  assert.equal((cancelled.text.match(/NOT EXISTS/g) || []).length, 1);
+  assert.equal((cancelled.text.match(/EXISTS/g) || []).length, 1);
+});
+
+test('an empty tag filter constrains nothing, and tag length and mode are validated', () => {
+  assert.deepEqual(buildFetchArticlesQuery({}).params, [WORKING_SET_LIMIT]);
+  assert.doesNotMatch(buildFetchArticlesQuery({}).text, /unnest/);
+
+  assertValidationError(() => buildFetchArticlesQuery({ tagsMode: 'either' }), 'tags_mode');
+  assertValidationError(() => buildFetchArticlesQuery({ tags: 'x'.repeat(MAX_TAG_LENGTH + 1) }), 'tags');
+  assertValidationError(() => buildFetchArticlesQuery({ notTags: ['a', 'b'] }), 'not_tags');
+});
+
+test('facets are tallied from the returned items so a count cannot outrun its rows', () => {
+  const facets = buildFacets([
+    { site: 'nvidia', topic: 'AI', tags: ['LLM Release', 'Agentic AI'] },
+    { site: 'nvidia', topic: 'AI', tags: ['LLM Release'] },
+    { site: 'open_ai', topic: 'AI', tags: [] },
+  ]);
+
+  assert.deepEqual(facets.tags, [
+    { slug: 'llm-release', label: 'LLM Release', count: 2 },
+    { slug: 'agentic-ai', label: 'Agentic AI', count: 1 },
+  ]);
+  assert.deepEqual(facets.topics, [{ slug: 'AI', label: 'AI', count: 3 }]);
+  assert.equal(facets.sources[0].slug, 'nvidia');
+});
+
 test('public articles view withholds review-held records and truncates body text in SQL', () => {
   const viewSql = fs.readFileSync(
     path.join(__dirname, '..', 'sql', 'create-public-articles-view.sql'),
@@ -231,6 +292,7 @@ test('public articles view withholds review-held records and truncates body text
   assert.match(viewSql, /WHERE\s+COALESCE\(needs_review,\s*FALSE\)\s*=\s*FALSE/i);
   assert.match(viewSql, /left\(regexp_replace\(body_text, '\\s\+', ' ', 'g'\), 360\) \|\| '…'/i);
   assert.doesNotMatch(viewSql, /\bcontent_hash\b|\bmatched_strategy\b|\bflag_reason\b|\braw_html_path\b/i);
+  assert.match(viewSql, /^\s*tags\b/im);
 });
 
 test('production database configuration fails closed when env vars are missing', () => {

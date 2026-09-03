@@ -18,8 +18,9 @@ Vercel
 
 - `precis_web/api/*` exposes Vercel Serverless Functions for:
   - `GET /api/articles`
-  - `GET /api/articles?topic=...&limit=50&offset=0`
+  - `GET /api/articles?topic=...&site=...&tags=...&tags_mode=...&not_tags=...&limit=50&offset=0`
   - `GET /api/articles/:site?topic=...&limit=50&offset=0`
+  - `GET /api/article-count`
   - `GET /api/sites`
   - `GET /api/topics`
   - `GET /api/health`
@@ -72,6 +73,12 @@ psql "$ADMIN_DATABASE_URL" \
 ```
 
 The role script includes `sql/create-public-articles-view.sql`, which creates or replaces `public.public_articles`. That view is the only relation the public web role should be able to read. It exposes public fields, derives a 360-character excerpt from `body_text`, and excludes records where `needs_review` is true.
+
+**Existing deployments must re-run that view script** — the filter panel's Tags group reads `public_articles.tags`, and a view created before that column was added will still be serving the old column list. `CREATE OR REPLACE VIEW` appends the column in place and keeps the existing grants, so no role changes are needed:
+
+```bash
+psql "$ADMIN_DATABASE_URL" -f sql/create-public-articles-view.sql
+```
 
 Build the Vercel `DATABASE_URL` or `POSTGRES_URL` from that `precis_web_readonly` role and password. Keep the local scraper on its separate write-capable `BLOGSCRAPER_DATABASE_URL` credential. The scraper/admin credential remains responsible for writing `articles`, reviewing held records, and rerunning failed extractions.
 
@@ -166,7 +173,14 @@ Use `docs/monitoring.md` as the monitoring runbook. At minimum, configure dashbo
 - Visit `https://your-project.vercel.app/api/health` and confirm it returns exactly `{ "ok": true }` and does not expose Node/runtime/database details.
 - Visit `https://your-project.vercel.app/api/sites` and confirm it returns a JSON array.
 - Visit `https://your-project.vercel.app/api/articles?limit=10` and confirm articles are returned.
-- Confirm article list responses include `excerpt` and do not include `body_text`.
+- Confirm article list responses include `excerpt` and `tags` and do not include `body_text`.
+- Confirm `GET /api/articles?limit=10` returns `{ items, facets }` and that `facets.tags` entries
+  carry a slug, a label and a count. An empty `facets.tags` means the view has not been recreated
+  since the tag column was added — re-run `sql/create-public-articles-view.sql`.
+- Visit `https://your-project.vercel.app/api/articles?tags=zero-day-exploit&limit=10` and confirm
+  every returned article carries that tag. Swap it for `?not_tags=zero-day-exploit` and confirm
+  none of them do. Passing the same slug in both is not an empty result: `not_tags` wins and the
+  slug is dropped from `tags`, so the response is every article *without* that tag.
 - Confirm `psql "$WEB_READONLY_DATABASE_URL" -f sql/verify-readonly-web-role.sql` passes, including direct `articles` table denial and `public.public_articles` access.
 - Confirm records with `needs_review = TRUE` do not appear through `/api/articles`, `/api/sites`, or `/api/topics`; see `docs/content-moderation.md`.
 - Confirm invalid article query parameters such as `?limit=abc`, `?offset=-1`, and excessively long `topic` values return `400 Bad Request`.

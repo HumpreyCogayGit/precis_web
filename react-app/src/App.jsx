@@ -2,10 +2,29 @@ import './App.css';
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import axios from 'axios';
+import FilterPanel from './FilterPanel.jsx';
+import { CloseIcon, SearchIcon } from './icons.jsx';
+import {
+  EMPTY_FILTER,
+  FACET_ROW_CAP,
+  TAG_ROW_CAP,
+  buildVocabulary,
+  computeFacetRows,
+  countFilterValues,
+  filterArticles,
+  filtersToSearchParams,
+  isFilterEmpty,
+  labelFromTagSlug,
+  readFiltersFromSearch,
+  sortFacetRows,
+} from './filters';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || (import.meta.env.DEV ? 'http://localhost:5000' : '');
 const INITIAL_ARTICLE_COUNT = 12;
-const API_ARTICLE_LIMIT = 100;
+// One working set per load. Filtering happens in the browser over this array, so
+// it has to hold every row any draft could reach — not just the rows matching the
+// filter that is applied right now.
+const API_ARTICLE_LIMIT = 300;
 const BRIEF_COUNT = 5;
 const DEFAULT_TOPIC = 'AI';
 const PAGE_SIZE_OPTIONS = [12, 24, 48, 96];
@@ -219,79 +238,30 @@ const getCardSummaryText = (article) => {
   return `${safe}…`;
 };
 
-const EMPTY_FILTERS = { topics: [], sources: [] };
-
-const parseCommaList = (value) => (
-  value ? [...new Set(value.split(',').map((entry) => entry.trim()).filter(Boolean))] : []
+const readFiltersFromUrl = () => (
+  typeof window === 'undefined'
+    ? { ...EMPTY_FILTER, topics: [DEFAULT_TOPIC] }
+    : readFiltersFromSearch(window.location.search, [DEFAULT_TOPIC])
 );
 
-const readFiltersFromUrl = () => {
-  if (typeof window === 'undefined') {
-    return { topics: [DEFAULT_TOPIC], sources: [] };
-  }
-
-  const params = new URLSearchParams(window.location.search);
-  return {
-    topics: params.has('topic') ? parseCommaList(params.get('topic')) : [DEFAULT_TOPIC],
-    sources: parseCommaList(params.get('source')),
-  };
-};
-
-const writeFiltersToUrl = ({ topics, sources }) => {
+// Written on Apply and on chip removal — not on every checkbox click, which would
+// stack a history entry per click and make the back button unusable.
+const writeFiltersToUrl = (filters) => {
   if (typeof window === 'undefined') {
     return;
   }
 
-  const params = new URLSearchParams(window.location.search);
-
-  if (sources.length > 0) {
-    params.set('source', sources.join(','));
-  } else {
-    params.delete('source');
-  }
-
-  if (topics.length > 0) {
-    params.set('topic', topics.join(','));
-  } else {
-    params.delete('topic');
-  }
-
-  const query = params.toString();
-  const nextUrl = `${window.location.pathname}${query ? `?${query}` : ''}`;
-  window.history.replaceState(null, '', nextUrl);
+  const query = filtersToSearchParams(filters, window.location.search).toString();
+  window.history.replaceState(null, '', `${window.location.pathname}${query ? `?${query}` : ''}`);
 };
 
-const buildFilterParams = ({ topics, sources }) => {
-  const params = new URLSearchParams();
-
-  if (sources.length > 0) {
-    params.set('site', sources.join(','));
-  }
-
-  if (topics.length > 0) {
-    params.set('topic', topics.join(','));
-  }
-
-  return params;
-};
-
-const buildArticleUrl = (filters) => {
-  const params = buildFilterParams(filters);
-  params.set('limit', String(API_ARTICLE_LIMIT));
-  params.set('offset', '0');
-
-  return `${API_BASE_URL}/api/articles?${params.toString()}`;
-};
-
-const buildArticleCountUrl = (filters) => (
-  `${API_BASE_URL}/api/article-count?${buildFilterParams(filters).toString()}`
-);
-
-const SearchIcon = () => (
-  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true">
-    <circle cx="11" cy="11" r="8" />
-    <path d="m21 21-4.3-4.3" />
-  </svg>
+// The working set: today's edition, unfiltered. The API also accepts
+// site/topic/tags/tags_mode/not_tags (see lib/articles.js) for callers that want
+// the database to do the filtering, but the panel needs every reachable row in
+// the browser — a facet count that disagreed with the list behind it would be
+// worse than a slow one.
+const buildArticleUrl = () => (
+  `${API_BASE_URL}/api/articles?limit=${API_ARTICLE_LIMIT}&offset=0`
 );
 
 const SlidersIcon = () => (
@@ -302,13 +272,6 @@ const SlidersIcon = () => (
     <circle cx="9" cy="6" r="2" fill="currentColor" stroke="none" />
     <circle cx="16" cy="12" r="2" fill="currentColor" stroke="none" />
     <circle cx="10" cy="18" r="2" fill="currentColor" stroke="none" />
-  </svg>
-);
-
-const CloseIcon = () => (
-  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true">
-    <path d="M18 6 6 18" />
-    <path d="M6 6l12 12" />
   </svg>
 );
 
@@ -537,175 +500,42 @@ const SmallListRow = ({ article }) => (
   </li>
 );
 
-const FACET_ROW_CAP = 5;
+// Sources are stored as scraper keys ("open_ai") and need their display name.
+// Topics and tags already carry a display label from the facet payload — passing
+// a tag label back through the slug prettifier would turn "Zero-Day / Exploit"
+// into "Zero Day / Exploit", so only a slug with no label ever goes near it.
+const formatFacetLabel = (group, row) => (
+  group === 'sources' ? formatSiteName(row.slug) : row.label
+);
 
-const filterFacetsByQuery = (facets, q) => {
-  if (!q) {
-    return facets;
-  }
-
-  const lowerQuery = q.toLowerCase();
-  return facets.filter((facet) => facet.name.toLowerCase().includes(lowerQuery));
-};
-
-const formatFacetLabel = (group, name) => (group === 'sources' ? formatSiteName(name) : name);
-
-const FilterChip = ({ label, onRemove, removeLabel }) => (
-  <button type="button" className="filter-active-chip" onClick={onRemove} aria-label={removeLabel}>
+const FilterChip = ({ label, onRemove, removeLabel, excluded = false }) => (
+  <button
+    type="button"
+    className={`filter-active-chip${excluded ? ' filter-active-chip--excluded' : ''}`}
+    onClick={onRemove}
+    aria-label={removeLabel}
+  >
+    {excluded && <span className="filter-active-chip-minus" aria-hidden="true">&minus;</span>}
     <span>{label}</span>
     <span className="filter-active-chip-remove" aria-hidden="true"><CloseIcon /></span>
   </button>
 );
 
-const FacetGroupRows = ({ group, title, facets, query, expanded, onToggleExpanded, selected, onToggleFacet, topBorder }) => {
-  if (facets.length === 0) {
-    return null;
-  }
-
-  const visible = filterFacetsByQuery(facets, query);
-  const isSearching = query.trim().length > 0;
-  const rows = isSearching || expanded ? visible : visible.slice(0, FACET_ROW_CAP);
-  const hasCap = !isSearching && visible.length > FACET_ROW_CAP;
-
-  return (
-    <div className={`filter-panel-group${topBorder ? ' filter-panel-group--rule' : ''}`}>
-      <div className="filter-panel-group-head">{title} &middot; {facets.length}</div>
-      {rows.map((facet) => {
-        const checked = selected.includes(facet.name);
-        return (
-          <label key={facet.name} className="filter-panel-row">
-            <span className="filter-panel-row-main">
-              <input
-                type="checkbox"
-                className="sr-only"
-                checked={checked}
-                onChange={() => onToggleFacet(group, facet.name)}
-              />
-              <span className={`filter-panel-checkbox${checked ? ' checked' : ''}`} aria-hidden="true" />
-              <span>{formatFacetLabel(group, facet.name)}</span>
-            </span>
-            <span className="filter-panel-count">{facet.count}</span>
-          </label>
-        );
-      })}
-      {hasCap && (
-        <button type="button" className="filter-panel-show-all" onClick={onToggleExpanded}>
-          {expanded ? 'Show fewer' : `Show all ${visible.length}`}
-        </button>
-      )}
-    </div>
-  );
-};
-
-const FilterPanel = ({
-  panelRef,
-  searchInputRef,
-  titleId,
-  anchorStyle,
-  draft,
-  topicFacets,
-  sourceFacets,
-  query,
-  onQueryChange,
-  topicsExpanded,
-  sourcesExpanded,
-  onToggleTopicsExpanded,
-  onToggleSourcesExpanded,
-  onToggleFacet,
-  onReset,
-  onApply,
-  onCancel,
-  applyLabel,
-}) => {
-  const isSearching = query.trim().length > 0;
-  const visibleTopics = filterFacetsByQuery(topicFacets, query);
-  const visibleSources = filterFacetsByQuery(sourceFacets, query);
-  const noMatches = isSearching && visibleTopics.length === 0 && visibleSources.length === 0
-    && (topicFacets.length > 0 || sourceFacets.length > 0);
-
-  return (
-    <div
-      ref={panelRef}
-      id="filters-panel"
-      className="filter-panel"
-      style={anchorStyle}
-      role="dialog"
-      aria-modal="true"
-      aria-label="Filters"
-      aria-labelledby={titleId}
-    >
-      <span className="filter-panel-mark filter-panel-mark--tl" aria-hidden="true" />
-      <span className="filter-panel-mark filter-panel-mark--tr" aria-hidden="true" />
-      <span className="filter-panel-mark filter-panel-mark--bl" aria-hidden="true" />
-      <span className="filter-panel-mark filter-panel-mark--br" aria-hidden="true" />
-      <span className="filter-panel-grab" aria-hidden="true" />
-      <div className="filter-panel-head">
-        <div className="filter-panel-head-row">
-          <h2 id={titleId} className="filter-panel-title">Filters</h2>
-          <button type="button" className="filter-panel-reset" onClick={onReset}>Reset</button>
-        </div>
-        <label className="filter-panel-search">
-          <SearchIcon />
-          <input
-            ref={searchInputRef}
-            type="search"
-            value={query}
-            onChange={(event) => onQueryChange(event.target.value)}
-            placeholder="Find a source or topic"
-            aria-label="Find a source or topic"
-          />
-        </label>
-      </div>
-
-      <div className="filter-panel-body">
-        {noMatches ? (
-          <p className="filter-panel-no-matches">No source or topic matches that.</p>
-        ) : (
-          <>
-            <FacetGroupRows
-              group="topics"
-              title="Topics"
-              facets={topicFacets}
-              query={query}
-              expanded={topicsExpanded}
-              onToggleExpanded={onToggleTopicsExpanded}
-              selected={draft.topics}
-              onToggleFacet={onToggleFacet}
-            />
-            <FacetGroupRows
-              group="sources"
-              title="Sources"
-              facets={sourceFacets}
-              query={query}
-              expanded={sourcesExpanded}
-              onToggleExpanded={onToggleSourcesExpanded}
-              selected={draft.sources}
-              onToggleFacet={onToggleFacet}
-              topBorder
-            />
-          </>
-        )}
-      </div>
-
-      <div className="filter-panel-footer">
-        <button type="button" className="filter-panel-apply" onClick={onApply}>{applyLabel}</button>
-        <button type="button" className="filter-panel-cancel" onClick={onCancel}>Cancel</button>
-      </div>
-    </div>
-  );
-};
-
 function App() {
   const [articles, setArticles] = useState([]);
-  const [topicFacets, setTopicFacets] = useState([]);
-  const [sourceFacets, setSourceFacets] = useState([]);
+  // The day's totals for all three groups, as returned alongside the items. Every
+  // other number in the panel is recomputed from the draft; these are only the
+  // starting state, and the size shown next to an already-selected facet.
+  const [dayFacets, setDayFacets] = useState(null);
   const [applied, setApplied] = useState(() => readFiltersFromUrl());
   const [draft, setDraft] = useState(applied);
   const [panelOpen, setPanelOpen] = useState(false);
   const [panelQuery, setPanelQuery] = useState('');
-  const [topicsExpanded, setTopicsExpanded] = useState(false);
-  const [sourcesExpanded, setSourcesExpanded] = useState(false);
-  const [draftResultCount, setDraftResultCount] = useState(null);
+  const [openGroup, setOpenGroup] = useState('tags');
+  const [expandedGroups, setExpandedGroups] = useState({});
+  // Row ordering is frozen for as long as the panel is open: the counts are
+  // recomputed on every draft change, but rows must not move under the cursor.
+  const [frozenOrder, setFrozenOrder] = useState(null);
   const [panelAnchor, setPanelAnchor] = useState({ top: 70, right: 20 });
   const [pageSize, setPageSize] = useState(INITIAL_ARTICLE_COUNT);
   const [visibleCount, setVisibleCount] = useState(INITIAL_ARTICLE_COUNT);
@@ -717,17 +547,20 @@ function App() {
   const panelRef = useRef(null);
   const searchInputRef = useRef(null);
 
-  const appliedTopicsKey = applied.topics.join(',');
-  const appliedSourcesKey = applied.sources.join(',');
-  const draftTopicsKey = draft.topics.join(',');
-  const draftSourcesKey = draft.sources.join(',');
+  const appliedKey = JSON.stringify(applied);
+  const draftKey = JSON.stringify(draft);
 
-  const fetchArticles = useCallback(async (filters) => {
+  const fetchArticles = useCallback(async () => {
     try {
       setLoading(true);
-      const response = await axios.get(buildArticleUrl(filters));
+      const response = await axios.get(buildArticleUrl());
+      // The endpoint returns { items, facets }; tolerate a bare array so a stale
+      // edge cache or an older deployment of the API still renders.
+      const payload = response.data;
+      const items = Array.isArray(payload) ? payload : (payload?.items ?? []);
 
-      setArticles(response.data);
+      setArticles(items);
+      setDayFacets(Array.isArray(payload) ? null : (payload?.facets ?? null));
       setVisibleCount(pageSize);
       setError(null);
     } catch (err) {
@@ -740,92 +573,75 @@ function App() {
     }
   }, [pageSize]);
 
-  // Sources available for the applied topic filter (independent of the source
-  // filter itself, so picking topics narrows the source list to only the
-  // sources that actually cover them). Counts come from the server so they
-  // reflect the full table, not just the currently loaded page of articles.
-  const fetchSourceFacets = useCallback(async (topics) => {
-    try {
-      const params = topics.length ? `?topic=${encodeURIComponent(topics.join(','))}` : '';
-      const response = await axios.get(`${API_BASE_URL}/api/sites${params}`);
-      setSourceFacets(response.data);
-      return response.data;
-    } catch (err) {
-      console.error('Error fetching sites:', err);
-      return [];
-    }
-  }, []);
-
-  // Topics available for the applied source filter, mirroring the above.
-  const fetchTopicFacets = useCallback(async (sources) => {
-    try {
-      const params = sources.length ? `?site=${encodeURIComponent(sources.join(','))}` : '';
-      const response = await axios.get(`${API_BASE_URL}/api/topics${params}`);
-      setTopicFacets(response.data);
-      return response.data;
-    } catch (err) {
-      console.error('Error fetching topics:', err);
-      return [];
-    }
-  }, []);
-
-  // Single source of truth for actually fetching the edition: reacts to the
-  // applied filters, so it also "self-heals" a moment later if the validity
-  // effects below prune an incompatible selection.
+  // One fetch per load. Filtering, faceting and the predictive Apply label all
+  // run over this array, so a count and the rows behind it can never disagree,
+  // and ANY/ALL, exclusion and the panel search cost nothing.
   useEffect(() => {
-    fetchArticles(applied);
+    fetchArticles();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
     writeFiltersToUrl(applied);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [appliedTopicsKey, appliedSourcesKey]);
+  }, [appliedKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  useEffect(() => {
-    fetchSourceFacets(applied.topics).then((availableSources) => {
-      const availableNames = new Set(availableSources.map((facet) => facet.name));
-      setApplied((current) => {
-        const pruned = current.sources.filter((source) => availableNames.has(source));
-        return pruned.length === current.sources.length ? current : { ...current, sources: pruned };
-      });
-    });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [appliedTopicsKey, fetchSourceFacets]);
+  const appliedTagSlugs = [...applied.tags.in, ...applied.tags.not].join(',');
+  const draftTagSlugs = [...draft.tags.in, ...draft.tags.not].join(',');
 
-  useEffect(() => {
-    fetchTopicFacets(applied.sources).then((availableTopics) => {
-      const availableNames = new Set(availableTopics.map((facet) => facet.name));
-      setApplied((current) => {
-        const pruned = current.topics.filter((topic) => availableNames.has(topic));
-        return pruned.length === current.topics.length ? current : { ...current, topics: pruned };
-      });
-    });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [appliedSourcesKey, fetchTopicFacets]);
+  // Vocabulary for the three groups, as slug -> { slug, label, count }. It comes
+  // from the items actually loaded rather than from the scraper's global tag
+  // table, so nothing is listed with a corpus-wide total it cannot deliver. Tags
+  // named in the URL but absent from today are folded back in at 0: the user
+  // shared that link on purpose and should see why it is empty.
+  const vocabulary = useMemo(() => {
+    const fromPayload = (facets) => new Map(facets.map((facet) => [facet.slug, { ...facet }]));
+    const groups = dayFacets
+      ? {
+        tags: fromPayload(dayFacets.tags || []),
+        sources: fromPayload(dayFacets.sources || []),
+        topics: fromPayload(dayFacets.topics || []),
+      }
+      : buildVocabulary(articles);
 
-  // Live "Show N results" / "Show all N" label on the panel's Apply button —
-  // debounced so rapid checkbox clicks don't fire a request per click.
-  useEffect(() => {
-    if (!panelOpen) {
-      return undefined;
+    for (const slug of new Set([...applied.tags.in, ...applied.tags.not, ...draft.tags.in, ...draft.tags.not])) {
+      if (!groups.tags.has(slug)) {
+        groups.tags.set(slug, { slug, label: labelFromTagSlug(slug), count: 0 });
+      }
     }
 
-    setDraftResultCount(null);
-    let cancelled = false;
-    const timer = setTimeout(async () => {
-      try {
-        const response = await axios.get(buildArticleCountUrl(draft));
-        if (!cancelled) {
-          setDraftResultCount(response.data.count);
-        }
-      } catch (err) {
-        console.error('Error counting articles:', err);
-      }
-    }, 250);
+    return groups;
+  }, [articles, dayFacets, appliedTagSlugs, draftTagSlugs]);
 
-    return () => {
-      cancelled = true;
-      clearTimeout(timer);
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [panelOpen, draftTopicsKey, draftSourcesKey]);
+  const sortedArticles = useMemo(
+    () => sortArticlesNewestFirst(filterArticles(articles, applied)),
+    [articles, appliedKey], // eslint-disable-line react-hooks/exhaustive-deps
+  );
+
+  const facetRows = useMemo(() => {
+    if (!panelOpen) {
+      return { tags: [], topics: [], sources: [] };
+    }
+
+    const decorate = (group) => computeFacetRows(articles, draft, group, vocabulary)
+      .map((row) => ({ ...row, label: formatFacetLabel(group, row) }));
+
+    return { tags: decorate('tags'), topics: decorate('topics'), sources: decorate('sources') };
+  }, [panelOpen, articles, draftKey, vocabulary]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const orderRows = useCallback((group) => {
+    const rows = facetRows[group];
+    const order = frozenOrder?.[group];
+
+    if (!order) {
+      return sortFacetRows(rows);
+    }
+
+    const byslug = new Map(rows.map((row) => [row.slug, row]));
+    const ordered = order.map((slug) => byslug.get(slug)).filter(Boolean);
+    const placed = new Set(order);
+
+    return [...ordered, ...rows.filter((row) => !placed.has(row.slug))];
+  }, [facetRows, frozenOrder]);
 
   // The panel/scrim are portalled to document.body (see render below) so
   // `position: fixed` resolves against the real viewport instead of getting
@@ -845,11 +661,17 @@ function App() {
     updatePanelAnchor();
     setDraft(applied);
     setPanelQuery('');
-    setTopicsExpanded(false);
-    setSourcesExpanded(false);
+    setExpandedGroups({});
+    // Capture the row order once, from the draft the panel opens with. It stays
+    // put until the panel is reopened, so a click never shuffles the list the
+    // cursor is resting on.
+    setFrozenOrder(Object.fromEntries(['tags', 'topics', 'sources'].map((group) => [
+      group,
+      sortFacetRows(computeFacetRows(articles, applied, group, vocabulary)).map((row) => row.slug),
+    ])));
     setPanelOpen(true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [appliedTopicsKey, appliedSourcesKey, updatePanelAnchor]);
+  }, [appliedKey, articles, vocabulary, updatePanelAnchor]);
 
   const closePanel = useCallback(() => {
     setPanelOpen(false);
@@ -873,28 +695,80 @@ function App() {
     filtersButtonRef.current?.focus();
   };
 
-  const toggleDraftFacet = (group, name) => {
+  const withoutSlug = (list, slug) => list.filter((entry) => entry !== slug);
+
+  // Clicking the row body toggles inclusion. A tag can never be in both lists, so
+  // including one drops it from the exclusions.
+  const toggleDraftFacet = (group, slug) => {
     setDraft((current) => {
-      const list = current[group];
-      const next = list.includes(name) ? list.filter((entry) => entry !== name) : [...list, name];
-      return { ...current, [group]: next };
+      if (group !== 'tags') {
+        const list = current[group];
+        return {
+          ...current,
+          [group]: list.includes(slug) ? withoutSlug(list, slug) : [...list, slug],
+        };
+      }
+
+      const { in: included, not: excluded } = current.tags;
+      return {
+        ...current,
+        tags: {
+          ...current.tags,
+          in: included.includes(slug) ? withoutSlug(included, slug) : [...included, slug],
+          not: withoutSlug(excluded, slug),
+        },
+      };
     });
   };
 
+  // The row's − control moves a tag straight to excluded from any state; pressing
+  // it again clears the exclusion.
+  const toggleDraftExclude = (slug) => {
+    setDraft((current) => {
+      const { in: included, not: excluded } = current.tags;
+      return {
+        ...current,
+        tags: {
+          ...current.tags,
+          in: withoutSlug(included, slug),
+          not: excluded.includes(slug) ? withoutSlug(excluded, slug) : [...excluded, slug],
+        },
+      };
+    });
+  };
+
+  // ANY/ALL belongs to the tag group and is part of the filter, not a view
+  // preference — it is serialized to the URL along with the rest.
+  const setDraftTagMode = (mode) => {
+    setDraft((current) => ({ ...current, tags: { ...current.tags, mode } }));
+  };
+
   const resetDraft = () => {
-    setDraft({ ...EMPTY_FILTERS });
+    setDraft(EMPTY_FILTER);
     setPanelQuery('');
   };
 
-  const removeAppliedFacet = (group, name) => {
-    setApplied((current) => ({ ...current, [group]: current[group].filter((entry) => entry !== name) }));
-    setDraft((current) => ({ ...current, [group]: current[group].filter((entry) => entry !== name) }));
+  const removeApplied = (updater) => {
+    setApplied(updater);
+    setDraft(updater);
   };
 
-  const handleClearFilters = () => {
-    setApplied({ ...EMPTY_FILTERS });
-    setDraft({ ...EMPTY_FILTERS });
-  };
+  const removeAppliedFacet = (group, slug) => removeApplied(
+    (current) => ({ ...current, [group]: withoutSlug(current[group], slug) }),
+  );
+
+  const removeAppliedTag = (list, slug) => removeApplied((current) => ({
+    ...current,
+    tags: { ...current.tags, [list]: withoutSlug(current.tags[list], slug) },
+  }));
+
+  const handleClearFilters = () => removeApplied(EMPTY_FILTER);
+
+  const toggleGroup = (group) => setOpenGroup((current) => (current === group ? null : group));
+
+  const toggleGroupExpanded = (group) => setExpandedGroups(
+    (current) => ({ ...current, [group]: !current[group] }),
+  );
 
   // Escape closes the panel; focus is trapped inside while it's open and
   // returned to the Filters button on close (handled by closePanel).
@@ -945,16 +819,35 @@ function App() {
     };
   }, [panelOpen, closePanel]);
 
-  const appliedCount = applied.topics.length + applied.sources.length;
-  const isDraftEmpty = draft.topics.length === 0 && draft.sources.length === 0;
-  const applyLabel = draftResultCount === null
-    ? 'Show results'
-    : (isDraftEmpty ? `Show all ${draftResultCount}` : `Show ${draftResultCount} results`);
+  const appliedCount = countFilterValues(applied);
 
-  const sortedArticles = useMemo(
-    () => sortArticlesNewestFirst(articles),
-    [articles]
+  // The Apply label is predictive and exact: it counts the same array, through the
+  // same predicate, that the list behind the panel will use. With three tags in
+  // ALL mode that is usually zero — and reading "Show 0 briefs" before committing
+  // is the whole point.
+  const draftResultCount = useMemo(
+    () => (panelOpen ? filterArticles(articles, draft).length : 0),
+    [panelOpen, articles, draftKey], // eslint-disable-line react-hooks/exhaustive-deps
   );
+  const applyLabel = isFilterEmpty(draft)
+    ? `Show all ${articles.length}`
+    : `Show ${draftResultCount} brief${draftResultCount === 1 ? '' : 's'}`;
+
+  const panelGroups = [
+    {
+      key: 'topics', title: 'Topics', rows: orderRows('topics'), cap: FACET_ROW_CAP,
+    },
+    {
+      key: 'sources', title: 'Sources', rows: orderRows('sources'), cap: FACET_ROW_CAP,
+    },
+    {
+      key: 'tags', title: 'Tags', rows: orderRows('tags'), cap: TAG_ROW_CAP, mode: draft.tags.mode,
+    },
+  ].map((group) => ({
+    ...group,
+    open: openGroup === group.key,
+    expanded: Boolean(expandedGroups[group.key]),
+  }));
 
   const leadArticle = sortedArticles[0];
   const leadArticleUrl = safeHttpUrl(leadArticle?.url);
@@ -989,7 +882,7 @@ function App() {
     []
   );
 
-  const sourceCountForMeta = sourceFacets.length || sourceCounts.length;
+  const sourceCountForMeta = sourceCounts.length;
   const metaLine = [
     `${sortedArticles.length} item${sortedArticles.length === 1 ? '' : 's'} from ${sourceCountForMeta} source${sourceCountForMeta === 1 ? '' : 's'}`,
     lastScrapeLabel ? `last scrape ${lastScrapeLabel}` : null,
@@ -1079,16 +972,14 @@ function App() {
                   searchInputRef={searchInputRef}
                   titleId="filters-panel-title"
                   anchorStyle={{ '--filter-panel-top': `${panelAnchor.top}px`, '--filter-panel-right': `${panelAnchor.right}px` }}
-                  draft={draft}
-                  topicFacets={topicFacets}
-                  sourceFacets={sourceFacets}
+                  groups={panelGroups}
                   query={panelQuery}
                   onQueryChange={setPanelQuery}
-                  topicsExpanded={topicsExpanded}
-                  sourcesExpanded={sourcesExpanded}
-                  onToggleTopicsExpanded={() => setTopicsExpanded((current) => !current)}
-                  onToggleSourcesExpanded={() => setSourcesExpanded((current) => !current)}
+                  onToggleGroup={toggleGroup}
+                  onToggleExpanded={toggleGroupExpanded}
                   onToggleFacet={toggleDraftFacet}
+                  onToggleExclude={toggleDraftExclude}
+                  onTagModeChange={setDraftTagMode}
                   onReset={resetDraft}
                   onApply={applyPanel}
                   onCancel={closePanel}
@@ -1120,6 +1011,32 @@ function App() {
               onRemove={() => removeAppliedFacet('sources', source)}
             />
           ))}
+          {applied.tags.in.map((slug) => {
+            const label = vocabulary.tags.get(slug)?.label ?? labelFromTagSlug(slug);
+            return (
+              <FilterChip
+                key={`tag-${slug}`}
+                label={label}
+                removeLabel={`Remove filter: ${label}`}
+                onRemove={() => removeAppliedTag('in', slug)}
+              />
+            );
+          })}
+          {applied.tags.not.map((slug) => {
+            const label = vocabulary.tags.get(slug)?.label ?? labelFromTagSlug(slug);
+            return (
+              <FilterChip
+                key={`not-tag-${slug}`}
+                label={label}
+                excluded
+                removeLabel={`Stop excluding: ${label}`}
+                onRemove={() => removeAppliedTag('not', slug)}
+              />
+            );
+          })}
+          {applied.tags.in.length > 1 && (
+            <span className="filter-active-mode">{applied.tags.mode === 'all' ? 'all tags' : 'any tag'}</span>
+          )}
           <button type="button" className="filter-active-clear" onClick={handleClearFilters}>Clear all</button>
         </div>
       )}
@@ -1232,13 +1149,22 @@ function App() {
         </>
       ) : (
         <section className="empty-state">
-          <p className="state-kicker">Nothing here yet</p>
-          <h2>No captured articles for this filter.</h2>
-          <p className="empty-state-description">Choose another source or topic, or run the scraper and refresh this page.</p>
-          {appliedCount > 0 && (
-            <button type="button" className="empty-state-back" onClick={handleClearFilters}>
-              &larr; Back to all sources
-            </button>
+          {appliedCount > 0 ? (
+            <>
+              {/* Never a blank region: the combination is what came up empty, and
+                  the panel still opens and still lists every facet, most at 0. */}
+              <p className="state-kicker">No matches</p>
+              <h2>Nothing matches this combination today.</h2>
+              <button type="button" className="empty-state-back" onClick={handleClearFilters}>
+                Clear filters
+              </button>
+            </>
+          ) : (
+            <>
+              <p className="state-kicker">Nothing here yet</p>
+              <h2>No captured articles.</h2>
+              <p className="empty-state-description">Run the scraper and refresh this page.</p>
+            </>
           )}
         </section>
       )}

@@ -36,13 +36,40 @@ This is a React web application that displays news blog items from the Precis Sc
 ## API Endpoints
 
 - `GET /api/health` - Public liveness check returning only `{ "ok": true }`
-- `GET /api/articles` - Get articles, optionally filtered/paginated with `?topic=...&limit=50&offset=0`
-- `GET /api/articles/:site` - Get articles from specific site, optionally filtered/paginated with `?topic=...&limit=50&offset=0`
+- `GET /api/articles` - Get articles as `{ items, facets }`, optionally filtered/paginated with
+  `?topic=...&source=...&tags=...&tags_mode=...&not_tags=...&limit=50&offset=0`
+- `GET /api/articles/:site` - Get articles from specific site, with the same filters
+- `GET /api/article-count` - Count articles for a candidate filter combination
 - `GET /api/sites` - Get list of all available sites
 - `GET /api/topics` - Get list of all available topics
 - `GET /api/image-proxy?url=...` - Proxy remote article images for browser display
 
-Article list pagination and filters are strictly validated. `limit` must be an integer from 1 to 100, `offset` must be an integer from 0 to 10000, and `site`/`topic` values must be 120 characters or fewer. Invalid values return `400 Bad Request` instead of being silently ignored.
+### Article filters
+
+`topic` and `source` are OR within themselves and AND across groups; an empty group is no
+constraint, never "match nothing". All three accept a single comma-separated value.
+
+| Parameter | Meaning |
+| --- | --- |
+| `topic=AI,Cyber Security` | article topic, OR within |
+| `site=open_ai,nvidia` | source, OR within |
+| `tags=zero-day-exploit,ransomware` | tag slugs, combined per `tags_mode` |
+| `tags_mode=all` | `any` (default, overlap) or `all` (superset) |
+| `not_tags=advisory` | tag slugs to remove, always AND NOT |
+
+Tags travel as **slugs** — lowercase, hyphenated, derived from the display label
+(`Zero-Day / Exploit` → `zero-day-exploit`). The label stays on the article record and is never
+round-tripped through a URL. Exclusion is evaluated before inclusion and wins: a slug in both
+`tags` and `not_tags` is dropped from `tags`.
+
+The `facets` block carries the day's totals for all three groups as `{ slug, label, count }`,
+tallied from the very items in the same response so a count and the rows behind it cannot
+disagree. The web app filters and recounts that array in the browser as the user works.
+
+Article list pagination and filters are strictly validated. `limit` must be an integer from 1 to
+300, `offset` must be an integer from 0 to 10000, `site`/`topic`/`tags`/`not_tags` values must be
+120 characters or fewer with at most 25 values each, and `tags_mode` must be `any` or `all`.
+Invalid values return `400 Bad Request` instead of being silently ignored.
 
 ## Features
 

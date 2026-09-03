@@ -20,6 +20,9 @@ module.exports = async function handler(req, res) {
       count: await countArticles({
         site: req.query.site,
         topic: req.query.topic,
+        tags: req.query.tags,
+        tagsMode: req.query.tags_mode,
+        notTags: req.query.not_tags,
       }),
     });
   } catch (err) {
