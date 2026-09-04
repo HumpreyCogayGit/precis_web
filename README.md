@@ -98,13 +98,13 @@ For production deployment details, including how to keep the scraper local while
 
 ## Security validation
 
-Run the backend security tests from `/Users/humprey/root/Dev/Precis Scraper/Precis_Web`:
+Run the backend security tests from the repository root:
 
 ```bash
 npm run test:backend
 ```
 
-Run the frontend security tests from `/Users/humprey/root/Dev/Precis Scraper/Precis_Web/react-app`:
+Run the frontend security tests from `react-app/`:
 
 ```bash
 npm test -- --run
