@@ -111,6 +111,25 @@ app.use((err, req, res, next) => {
   return sendError(res, 'Internal server error', err, req);
 });
 
-app.listen(port, () => {
-  log('info', 'server_started', { port, node: process.version });
+// Node still fires the listening callback on a failed bind, so defer the success
+// log by a tick and confirm the socket is actually listening before claiming it.
+const server = app.listen(port, () => {
+  setImmediate(() => {
+    if (server.listening) {
+      log('info', 'server_started', { port, node: process.version });
+    }
+  });
+});
+
+server.on('error', (err) => {
+  if (err.code === 'EADDRINUSE') {
+    log('error', 'server_port_in_use', {
+      port,
+      hint: `Another process already owns port ${port}. Stop it (lsof -nP -iTCP:${port} -sTCP:LISTEN) or set PORT.`,
+    });
+  } else {
+    log('error', 'server_start_failed', { port, code: err.code, message: err.message });
+  }
+
+  process.exit(1);
 });

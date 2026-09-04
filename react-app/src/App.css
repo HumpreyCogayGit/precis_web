@@ -848,15 +848,21 @@ select {
 .lead-image-link {
   display: block;
   overflow: hidden;
-  background: var(--surface-strong);
+  background: var(--surface);
 }
 
+/* Source thumbnails are mostly 1.91:1 or 16:9 og:images with headline text baked
+   into them, so `cover` was cropping the left edge of that text off. `contain`
+   letterboxes against the tile background instead and keeps the artwork whole.
+   The fallback graphic is a <span> that object-fit doesn't apply to, so it still
+   fills the tile. */
 .lead-image-link img,
 .lead-image-link .fallback-news-image {
   display: block;
   width: 100%;
   height: 280px;
-  object-fit: cover;
+  object-fit: contain;
+  object-position: center;
   transition: transform 320ms ease, opacity 180ms ease;
 }
 
@@ -1225,7 +1231,7 @@ select {
   width: 96px;
   height: 72px;
   flex-shrink: 0;
-  background: var(--surface-strong);
+  background: var(--surface);
 }
 
 .brief-thumb img,
@@ -1233,7 +1239,8 @@ select {
   display: block;
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  object-fit: contain;
+  object-position: center;
 }
 
 .brief-thumb .fallback-news-image {
@@ -1351,7 +1358,7 @@ select {
   display: block;
   overflow: hidden;
   margin-top: 14px;
-  background: var(--surface-strong);
+  background: var(--surface);
 }
 
 .everything-card-image,
@@ -1359,7 +1366,8 @@ select {
   display: block;
   width: 100%;
   height: 170px;
-  object-fit: cover;
+  object-fit: contain;
+  object-position: center;
   transition: transform 320ms ease, opacity 180ms ease;
 }
 
