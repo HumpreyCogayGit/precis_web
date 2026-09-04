@@ -116,7 +116,7 @@ In Vercel:
 | `IMAGE_PROXY_MAX_BYTES=5242880` | Optional | Limits proxied image size to 5 MB |
 | `IMAGE_PROXY_ALLOWED_HOSTS` | Vercel Production/Preview | Required comma-separated hostname allowlist for proxied images |
 
-Recommended `IMAGE_PROXY_ALLOWED_HOSTS` values should match the image CDN hostnames emitted by your scraper configs. Start with the exact hostnames observed in stored `image_url` values, then add only trusted parent domains when subdomains are required. Example:
+The current value, generated from every distinct `image_url` host in the database, lives in [docs/image-proxy-allowlist.md](docs/image-proxy-allowlist.md) — copy it from there and regenerate after adding scraper configs. Values should match the image CDN hostnames emitted by your scraper configs: start with the exact hostnames observed in stored `image_url` values, then add only trusted parent domains when subdomains are required. Example:
 
 ```text
 IMAGE_PROXY_ALLOWED_HOSTS=cdn.openai.com,substackcdn.com,blogs.nvidia.com,storage.googleapis.com

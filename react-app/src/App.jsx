@@ -23,14 +23,14 @@ import {
 } from './filters';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || (import.meta.env.DEV ? 'http://localhost:5000' : '');
-const INITIAL_ARTICLE_COUNT = 12;
+const INITIAL_ARTICLE_COUNT = 24;
 // One working set per load. Filtering happens in the browser over this array, so
 // it has to hold every row any draft could reach — not just the rows matching the
 // filter that is applied right now.
 const API_ARTICLE_LIMIT = 300;
 const BRIEF_COUNT = 5;
 const DEFAULT_TOPIC = 'AI';
-const PAGE_SIZE_OPTIONS = [12, 24, 48, 96];
+const PAGE_SIZE_OPTIONS = [24, 48, 96, 192];
 const EVERYTHING_VIEW_MODES = ['cards', 'list', 'small-list'];
 
 const proxiedImageUrl = (imageUrl) => (
