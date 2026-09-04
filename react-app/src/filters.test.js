@@ -9,6 +9,7 @@ import {
   isTagSlug,
   labelFromTagSlug,
   passesFilter,
+  pickDiverseTop,
   readFiltersFromSearch,
   slugifyTag,
   sortFacetRows,
@@ -48,6 +49,95 @@ describe('slugs', () => {
     expect(isTagSlug('-leading')).toBe(false);
     expect(isTagSlug('double--hyphen')).toBe(false);
     expect(isTagSlug('')).toBe(false);
+  });
+});
+
+describe('front-page source diversity', () => {
+  // Newest-first, which is the order pickDiverseTop is contracted to receive.
+  const feed = (...sites) => sites.map((site, index) => ({ url: `u${index}`, site }));
+  const sitesOf = (items) => items.map((item) => item.site);
+  const urlsOf = (items) => items.map((item) => item.url);
+
+  test('six sources within reach fill the front page one apiece, newest first', () => {
+    const articles = feed('nvidia', 'open_ai', 'krebs', 'anthropic', 'hf_blog', 'meta_ai', 'nvidia');
+    const { top, rest } = pickDiverseTop(articles, 6);
+
+    expect(sitesOf(top)).toEqual(['nvidia', 'open_ai', 'krebs', 'anthropic', 'hf_blog', 'meta_ai']);
+    expect(top[0]).toBe(articles[0]);
+    expect(rest).toEqual([articles[6]]);
+  });
+
+  test('a burst is skipped past for fresh sources, and the skipped items keep their order below', () => {
+    const articles = feed(
+      'nvidia', 'nvidia', 'nvidia', 'nvidia', 'nvidia',
+      'open_ai', 'krebs', 'anthropic', 'hf_blog', 'meta_ai',
+    );
+    const { top, rest } = pickDiverseTop(articles, 6);
+
+    // The lead is still the newest item overall; the other four nvidia posts are
+    // demoted so five different mastheads sit under it.
+    expect(top[0]).toBe(articles[0]);
+    expect(sitesOf(top)).toEqual(['nvidia', 'open_ai', 'krebs', 'anthropic', 'hf_blog', 'meta_ai']);
+    expect(new Set(sitesOf(top)).size).toBe(6);
+    expect(urlsOf(rest)).toEqual(['u1', 'u2', 'u3', 'u4']);
+  });
+
+  test('too few distinct sources backfills by recency rather than short-changing the tier', () => {
+    const articles = feed('nvidia', 'nvidia', 'open_ai', 'nvidia', 'krebs', 'nvidia', 'nvidia');
+    const { top, rest } = pickDiverseTop(articles, 6);
+
+    // Diversity first (u0, u2, u4), then the newest of what is left.
+    expect(urlsOf(top)).toEqual(['u0', 'u1', 'u2', 'u3', 'u4', 'u5']);
+    expect(urlsOf(rest)).toEqual(['u6']);
+  });
+
+  test('top + rest is always an exact partition of the input', () => {
+    const articles = feed('nvidia', 'open_ai', 'nvidia', 'krebs', 'nvidia');
+    const { top, rest } = pickDiverseTop(articles, 6);
+
+    expect(top).toHaveLength(5);
+    expect(rest).toHaveLength(0);
+    expect(new Set([...top, ...rest]).size).toBe(articles.length);
+    expect(urlsOf([...top, ...rest]).sort()).toEqual(urlsOf(articles).sort());
+  });
+
+  test('a single-source day is left exactly as recency ordered it', () => {
+    // The three App-level fixtures lean on this: with nothing to diversify, the
+    // split has to stay the plain slice it was before.
+    const articles = feed(...Array.from({ length: 20 }, () => 'open_ai'));
+    const { top, rest } = pickDiverseTop(articles, 6);
+
+    expect(top).toEqual(articles.slice(0, 6));
+    expect(rest).toEqual(articles.slice(6));
+  });
+
+  test('a source beyond the reach is not promoted; recency takes the slot instead', () => {
+    const articles = [...feed(...Array.from({ length: 8 }, () => 'nvidia')), { url: 'stale', site: 'hf_blog' }];
+    const { top, rest } = pickDiverseTop(articles, 6, { reach: 3 });
+
+    // hf_blog is the one other source on offer, but it sits past the reach cutoff,
+    // so the tier fills by recency and leaves it where it was.
+    expect(urlsOf(top)).toEqual(['u0', 'u1', 'u2', 'u3', 'u4', 'u5']);
+    expect(urlsOf(rest)).toEqual(['u6', 'u7', 'stale']);
+  });
+
+  test('articles with no site share one bucket instead of each reading as a new source', () => {
+    const articles = [
+      { url: 'u0' }, { url: 'u1', site: '' }, { url: 'u2', site: 'nvidia' }, { url: 'u3', site: 'open_ai' },
+    ];
+    const { top } = pickDiverseTop(articles, 2);
+
+    expect(urlsOf(top)).toEqual(['u0', 'u2']);
+  });
+
+  test('keyOf collapses sibling feeds that share one masthead', () => {
+    const articles = feed('open_ai', 'open_ai_releases', 'nvidia');
+    const masthead = (article) => (article.site.startsWith('open_ai') ? 'OpenAI' : article.site);
+
+    // Keyed on the raw site the two OpenAI feeds read as two sources...
+    expect(sitesOf(pickDiverseTop(articles, 2).top)).toEqual(['open_ai', 'open_ai_releases']);
+    // ...but the reader only ever sees one byline, so the display name is what counts.
+    expect(sitesOf(pickDiverseTop(articles, 2, { keyOf: masthead }).top)).toEqual(['open_ai', 'nvidia']);
   });
 });
 

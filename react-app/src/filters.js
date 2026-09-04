@@ -100,6 +100,62 @@ export const countFilterValues = (filter) => (
 
 export const isFilterEmpty = (filter) => countFilterValues(filter) === 0;
 
+// --- Front page ---------------------------------------------------------------
+
+// The front page (lead + "Previous stories") must not become one publisher's feed
+// just because that source shipped a burst. One pass over the newest DIVERSITY_REACH
+// items takes the first article of each source; anything still unfilled falls back to
+// pure recency — which is also what keeps a single-source day, or an applied source
+// filter, behaving exactly as it does today. The reach is what stops a quiet source
+// whose newest item is days old from being promoted above the fold.
+export const DIVERSITY_REACH = 40;
+
+// Matches the `article.site || 'unknown'` convention the source tally uses, so items
+// with no site collapse into one bucket rather than each counting as a fresh source.
+const defaultSourceKey = (article) => article?.site || 'unknown';
+
+/**
+ * Splits a newest-first list into the front page and everything below it.
+ *
+ * `articles` must already be sorted newest-first. Index 0 is always taken on the
+ * first pass (its source is by definition unseen), so the lead stays the newest
+ * article overall. Both lists are rebuilt by walking the input in order, so a
+ * backfilled pick never lands out of sequence and `top` + `rest` is always an exact
+ * partition of the input — no article is duplicated, none is dropped.
+ *
+ * `keyOf` exists because several stored sites share one masthead (`open_ai` and
+ * `open_ai_releases` both read "OpenAI"). Diversity is about what the reader sees,
+ * so the caller passes the displayed name; the filter panel keeps treating them as
+ * the two separate feeds they are.
+ */
+export const pickDiverseTop = (articles, count, { reach = DIVERSITY_REACH, keyOf = defaultSourceKey } = {}) => {
+  const chosen = new Set();
+  const seenSources = new Set();
+
+  const limit = Math.min(articles.length, reach);
+  for (let index = 0; index < limit && chosen.size < count; index += 1) {
+    const key = keyOf(articles[index]) || 'unknown';
+    if (seenSources.has(key)) {
+      continue;
+    }
+
+    seenSources.add(key);
+    chosen.add(index);
+  }
+
+  for (let index = 0; index < articles.length && chosen.size < count; index += 1) {
+    chosen.add(index);
+  }
+
+  const top = [];
+  const rest = [];
+  articles.forEach((article, index) => {
+    (chosen.has(index) ? top : rest).push(article);
+  });
+
+  return { top, rest };
+};
+
 // --- Facets -----------------------------------------------------------------
 
 // The day's totals for one group: the panel's starting state before anything is

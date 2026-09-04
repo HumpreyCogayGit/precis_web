@@ -17,6 +17,7 @@ import {
   filtersToSearchParams,
   isFilterEmpty,
   labelFromTagSlug,
+  pickDiverseTop,
   readFiltersFromSearch,
   sortFacetRows,
 } from './filters';
@@ -980,12 +981,20 @@ function App() {
     expanded: Boolean(expandedGroups[group.key]),
   }));
 
-  const leadArticle = sortedArticles[0];
+  // The tier above the fold is one source per slot where the day allows it, so a
+  // single publisher's burst can't own the whole edition. Keyed on the byline the
+  // reader actually sees, since two stored sites can share one masthead. See
+  // pickDiverseTop.
+  const { top: frontPageArticles, rest: everythingElseAll } = useMemo(
+    () => pickDiverseTop(sortedArticles, 1 + BRIEF_COUNT, { keyOf: (article) => formatSiteName(article.site) }),
+    [sortedArticles],
+  );
+
+  const leadArticle = frontPageArticles[0];
   const leadArticleUrl = safeHttpUrl(leadArticle?.url);
   const leadImage = <ArticleImage key={leadArticle?.url} article={leadArticle} />;
 
-  const alsoTodayArticles = sortedArticles.slice(1, 1 + BRIEF_COUNT);
-  const everythingElseAll = useMemo(() => sortedArticles.slice(1 + BRIEF_COUNT), [sortedArticles]);
+  const alsoTodayArticles = frontPageArticles.slice(1);
 
   // Chips come from the section itself, not from the day's facets, so the rail
   // only ever offers tags that are actually down there to be found.
