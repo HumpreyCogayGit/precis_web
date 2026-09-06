@@ -117,8 +117,10 @@ AS $$
       )
     ORDER BY rank DESC, a.fetched_at DESC NULLS LAST
     -- Clamped here as well as in lib/articles.js: the function is the security
-    -- boundary, so it does not rely on its caller having validated anything.
-    LIMIT LEAST(GREATEST(COALESCE(match_limit, 50), 1), 300)
+    -- boundary, so it does not rely on its caller having validated anything. Keep
+    -- the ceiling in step with MAX_LIMIT there (600) — if this one is lower it
+    -- silently truncates a result set the API believes it is allowed to return.
+    LIMIT LEAST(GREATEST(COALESCE(match_limit, 50), 1), 600)
     OFFSET GREATEST(COALESCE(match_offset, 0), 0)
   )
   SELECT

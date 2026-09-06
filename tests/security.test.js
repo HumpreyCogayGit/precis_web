@@ -406,6 +406,26 @@ test('the search function reproduces every guarantee the public view makes', () 
   assert.doesNotMatch(functionSql, /\bcontent_hash\b|\bmatched_strategy\b|\bflag_reason\b|\braw_html_path\b/i);
 });
 
+test('the working set cap is the same number in all three places that enforce it', () => {
+  // Three enforcement points, three different failure modes if they drift:
+  //   App.jsx asking for more than MAX_LIMIT   -> the page load 400s outright
+  //   the SQL clamp being lower than MAX_LIMIT -> results silently truncated
+  const appJsx = fs.readFileSync(
+    path.join(__dirname, '..', 'react-app', 'src', 'App.jsx'), 'utf8',
+  );
+  const functionSql = fs.readFileSync(
+    path.join(__dirname, '..', 'sql', 'create-search-articles-function.sql'), 'utf8',
+  );
+
+  const requested = Number(appJsx.match(/const API_ARTICLE_LIMIT = (\d+)/)[1]);
+  const clamp = Number(functionSql.match(/LIMIT LEAST\(GREATEST\(COALESCE\(match_limit, \d+\), 1\), (\d+)\)/)[1]);
+
+  assert.ok(requested <= MAX_LIMIT,
+    `App.jsx requests ${requested} but the API rejects anything over ${MAX_LIMIT}`);
+  assert.equal(clamp, MAX_LIMIT,
+    `the SQL clamp (${clamp}) must equal MAX_LIMIT (${MAX_LIMIT}) or it truncates silently`);
+});
+
 test('the indexed expression matches the one the search function filters on', () => {
   // If these drift the planner silently stops using idx_articles_search and every
   // search becomes a sequential scan, with no visible failure to catch it.

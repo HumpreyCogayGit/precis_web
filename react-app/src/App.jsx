@@ -33,8 +33,13 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || (import.meta.env.DEV ?
 const INITIAL_ARTICLE_COUNT = 24;
 // One working set per load. Filtering happens in the browser over this array, so
 // it has to hold every row any draft could reach — not just the rows matching the
-// filter that is applied right now.
-const API_ARTICLE_LIMIT = 300;
+// filter that is applied right now, and not just the rows the header search box
+// would match.
+//
+// Must not exceed MAX_LIMIT in lib/articles.js, which is 600: the API rejects a
+// larger limit with a 400 rather than quietly returning fewer rows, so raising this
+// alone breaks the page load outright.
+const API_ARTICLE_LIMIT = 600;
 const BRIEF_COUNT = 5;
 // One page of archive results. The count line reports the true total separately,
 // so this caps what is rendered, not what was found.
