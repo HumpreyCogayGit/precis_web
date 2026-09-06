@@ -213,8 +213,27 @@ select {
   color: var(--subtle);
 }
 
-.header-search input:disabled {
-  cursor: not-allowed;
+.header-search:focus-within {
+  border-color: var(--accent);
+  color: var(--ink);
+}
+
+/* The archive tier sits below the edition's own results and is visibly a different
+   kind of list — server-side, older, ranked by relevance rather than date. The rule
+   above it is what separates "today" from "everything". */
+.archive-tier {
+  border-top: 2px solid var(--ink);
+  margin-top: 8px;
+  padding-top: 20px;
+}
+
+/* Matched terms in headlines and summaries. A wash rather than a block fill, so a
+   result row still reads as prose. */
+mark.search-hit {
+  background: var(--accent-200);
+  color: inherit;
+  border-radius: 2px;
+  padding: 0 1px;
 }
 
 .membership-link {

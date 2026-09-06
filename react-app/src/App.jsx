@@ -1,5 +1,7 @@
 import './App.css';
-import { useState, useEffect, useLayoutEffect, useMemo, useCallback, useRef } from 'react';
+import {
+  createContext, useContext, useState, useEffect, useLayoutEffect, useMemo, useCallback, useRef,
+} from 'react';
 import { createPortal } from 'react-dom';
 import axios from 'axios';
 import FilterPanel from './FilterPanel.jsx';
@@ -7,6 +9,7 @@ import { ChevronLeftIcon, ChevronRightIcon, CloseIcon, SearchIcon } from './icon
 import {
   EMPTY_FILTER,
   FACET_ROW_CAP,
+  MAX_QUERY_LENGTH,
   TAG_ROW_CAP,
   articleTagSlugs,
   buildTagRail,
@@ -15,12 +18,16 @@ import {
   countFilterValues,
   filterArticles,
   filtersToSearchParams,
+  hasQuery,
   isFilterEmpty,
   labelFromTagSlug,
   pickDiverseTop,
+  queryTerms,
   readFiltersFromSearch,
+  sanitizeQueryInput,
   sortFacetRows,
 } from './filters';
+import { formatSiteName } from './sources';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || (import.meta.env.DEV ? 'http://localhost:5000' : '');
 const INITIAL_ARTICLE_COUNT = 24;
@@ -29,27 +36,19 @@ const INITIAL_ARTICLE_COUNT = 24;
 // filter that is applied right now.
 const API_ARTICLE_LIMIT = 300;
 const BRIEF_COUNT = 5;
-const DEFAULT_TOPIC = 'AI';
+// One page of archive results. The count line reports the true total separately,
+// so this caps what is rendered, not what was found.
+const ARCHIVE_RESULT_LIMIT = 24;
+// Below this, a query is still being typed rather than searched. Two characters is
+// enough for "ai" and short enough not to fire on a stray keystroke.
+const MIN_ARCHIVE_QUERY_LENGTH = 2;
+const ARCHIVE_DEBOUNCE_MS = 400;
 const PAGE_SIZE_OPTIONS = [24, 48, 96, 192];
 const EVERYTHING_VIEW_MODES = ['cards', 'list', 'small-list'];
 
 const proxiedImageUrl = (imageUrl) => (
   imageUrl ? `${API_BASE_URL}/api/image-proxy?url=${encodeURIComponent(imageUrl)}` : ''
 );
-
-const SOURCE_DISPLAY_NAMES = {
-  alibaba: 'Alibaba Cloud',
-  anthropic_news: 'Anthropic',
-  google_innovation_ai: 'Google AI',
-  krebs_on_security: 'KrebsOnSecurity',
-  microsoft_ai_blog: 'Microsoft AI',
-  nvidia: 'NVIDIA',
-  open_ai: 'OpenAI',
-  open_ai_releases: 'OpenAI',
-  perplexity_blog: 'Perplexity',
-  together_ai_blog: 'Together AI',
-  x_ai_news: 'xAI',
-};
 
 const safeHttpUrl = (url) => {
   if (!url) {
@@ -70,12 +69,17 @@ const safeHttpUrl = (url) => {
 // article's actual date. Pin those to UTC midnight so sorting is deterministic.
 const HAS_TIME_COMPONENT = /\d{1,2}:\d{2}/;
 
+// Mirrors lib/articles.js: "July 15th, 2026" (Zero Day Initiative) is NaN to Date.parse.
+const ORDINAL_SUFFIX = /(?<=\d)(?:st|nd|rd|th)\b/gi;
+
 const parseDateTimestamp = (dateValue) => {
   if (!dateValue) {
     return 0;
   }
 
-  const normalizedDate = String(dateValue).trim().replace(/^Published\s+/i, '');
+  const normalizedDate = String(dateValue).trim()
+    .replace(/^Published\s+/i, '')
+    .replace(ORDINAL_SUFFIX, '');
   if (!normalizedDate) {
     return 0;
   }
@@ -108,19 +112,6 @@ const sortArticlesNewestFirst = (articles) => (
     return parseDateTimestamp(b.fetched_at) - parseDateTimestamp(a.fetched_at);
   })
 );
-
-const formatSiteName = (site = '') => {
-  const normalizedSite = String(site).trim().toLowerCase();
-
-  if (SOURCE_DISPLAY_NAMES[normalizedSite]) {
-    return SOURCE_DISPLAY_NAMES[normalizedSite];
-  }
-
-  return String(site)
-    .replace(/[_-]+/g, ' ')
-    .replace(/\b\w/g, (letter) => letter.toUpperCase())
-    .replace(/\bAi\b/g, 'AI');
-};
 
 const formatShortDate = (dateValue) => {
   const timestamp = typeof dateValue === 'number' ? dateValue : parseDateTimestamp(dateValue);
@@ -241,10 +232,13 @@ const getCardSummaryText = (article) => {
   return `${safe}…`;
 };
 
+// No default topic: the edition opens on everything the working set holds. Defaulting to
+// one topic silently hid every article carrying another one — Cyber Security sources were
+// invisible on a fresh load despite being scraped, tagged and published normally.
 const readFiltersFromUrl = () => (
   typeof window === 'undefined'
-    ? { ...EMPTY_FILTER, topics: [DEFAULT_TOPIC] }
-    : readFiltersFromSearch(window.location.search, [DEFAULT_TOPIC])
+    ? { ...EMPTY_FILTER }
+    : readFiltersFromSearch(window.location.search)
 );
 
 // Written on Apply and on chip removal — not on every checkbox click, which would
@@ -266,6 +260,30 @@ const writeFiltersToUrl = (filters) => {
 const buildArticleUrl = () => (
   `${API_BASE_URL}/api/articles?limit=${API_ARTICLE_LIMIT}&offset=0`
 );
+
+// The archive request. filtersToSearchParams gives the page's own query string, so
+// the panel's selections narrow the archive the same way they narrow the edition —
+// but the page and the API disagree on one name. The page has always called the
+// source facet `source` (a public URL people hold links to), while every API route
+// reads `site`. `q`, `topic`, `tags` and `not_tags` already match, so this is the
+// only rename. Getting it wrong fails silently: the endpoint ignores the unknown
+// key and returns unfiltered results.
+const buildSearchUrl = (filters) => {
+  const params = filtersToSearchParams(filters);
+  const sources = params.get('source');
+
+  if (sources) {
+    params.set('site', sources);
+  }
+  params.delete('source');
+
+  params.set('limit', String(ARCHIVE_RESULT_LIMIT));
+  return `${API_BASE_URL}/api/search?${params.toString()}`;
+};
+
+const EMPTY_ARCHIVE = {
+  status: 'idle', query: '', items: [], total: 0,
+};
 
 const SlidersIcon = () => (
   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true">
@@ -534,14 +552,44 @@ const ArticleImage = ({ article, className = '' }) => {
   );
 };
 
-const SafeArticleTitle = ({ article }) => {
-  const articleUrl = safeHttpUrl(article.url);
+// The active search terms as one alternation regex, or null when nothing is being
+// searched. Passed by context rather than threaded as a prop: highlighting has to
+// reach the headline and summary of four different row components plus the lead,
+// and none of them otherwise care that a search is running.
+const SearchHighlightContext = createContext(null);
 
-  if (!articleUrl) {
-    return <span>{article.title}</span>;
+const escapeRegExp = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+export const buildHighlightPattern = (terms) => (
+  terms.length > 0 ? new RegExp(`(${terms.map(escapeRegExp).join('|')})`, 'gi') : null
+);
+
+// String.split with a single capturing group puts the delimiters at the odd
+// indices, which is exactly the alternating plain/matched sequence we want.
+const Highlight = ({ text }) => {
+  const pattern = useContext(SearchHighlightContext);
+  const value = text ?? '';
+
+  if (!pattern || !value) {
+    return value;
   }
 
-  return <a href={articleUrl} target="_blank" rel="noopener noreferrer">{article.title}</a>;
+  return value.split(pattern).map((part, index) => (
+    index % 2 === 1
+      ? <mark key={`${index}-${part}`} className="search-hit">{part}</mark>
+      : part
+  ));
+};
+
+const SafeArticleTitle = ({ article }) => {
+  const articleUrl = safeHttpUrl(article.url);
+  const title = <Highlight text={article.title} />;
+
+  if (!articleUrl) {
+    return <span>{title}</span>;
+  }
+
+  return <a href={articleUrl} target="_blank" rel="noopener noreferrer">{title}</a>;
 };
 
 const SaveAffordance = ({ iconOnly = false }) => (
@@ -567,7 +615,7 @@ const BriefRow = ({ article, index }) => {
       </span>
       <div className="brief-copy">
         <h4><SafeArticleTitle article={article} /></h4>
-        {summaryText && <p>{summaryText}</p>}
+        {summaryText && <p><Highlight text={summaryText} /></p>}
         <div className="brief-meta">
           <span>{formatSiteName(article.site)}</span>
           <span aria-hidden="true">&middot;</span>
@@ -600,7 +648,7 @@ const EverythingCard = ({ article }) => {
           <span className="everything-card-date">{formatShortDate(article.published_at)}</span>
         </div>
         <h4><SafeArticleTitle article={article} /></h4>
-        {summaryText && <p>{summaryText}</p>}
+        {summaryText && <p><Highlight text={summaryText} /></p>}
       </div>
     </article>
   );
@@ -664,13 +712,26 @@ function App() {
   const [discoverExpanded, setDiscoverExpanded] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  // The archive escalation. The header box searches the loaded working set
+  // instantly; this is the other ~90% of the corpus, which only the server can
+  // reach. Kept in its own state, and rendered in its own section, because the two
+  // searches do not have the same semantics — the local one is a substring match
+  // over what is on the row, the server one is stemmed full-text over title and
+  // summary — so folding them into one count would put a number on screen that
+  // neither half can account for.
+  const [archive, setArchive] = useState(EMPTY_ARCHIVE);
 
   const filtersButtonRef = useRef(null);
   const panelRef = useRef(null);
+  // The panel's own facet-name box. The header search box is headerSearchRef.
   const searchInputRef = useRef(null);
+  const headerSearchRef = useRef(null);
 
   const appliedKey = JSON.stringify(applied);
   const draftKey = JSON.stringify(draft);
+  // The facet half of the filter, so the URL effect below can treat a deliberate
+  // Apply differently from a keystroke in the search box.
+  const appliedFacetsKey = JSON.stringify({ ...applied, query: '' });
 
   const fetchArticles = useCallback(async () => {
     try {
@@ -703,9 +764,62 @@ function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Facet changes are discrete and deliberate (an Apply, a chip removal), so the
+  // URL follows them immediately.
   useEffect(() => {
     writeFiltersToUrl(applied);
-  }, [appliedKey]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [appliedFacetsKey]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // The query is not: it changes on every keystroke, and a replaceState per
+  // character is history-API churn for a URL nobody reads mid-word. Both effects
+  // write the whole filter, so whichever fires last still writes the truth.
+  useEffect(() => {
+    const timer = setTimeout(() => writeFiltersToUrl(applied), 200);
+    return () => clearTimeout(timer);
+  }, [applied.query]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Escalate to the archive. Debounced harder than the URL write because this one
+  // costs a request, and cancelled on every change so a slow response for an
+  // abandoned query can never overwrite the results of the current one.
+  useEffect(() => {
+    const trimmed = applied.query.trim();
+
+    if (trimmed.length < MIN_ARCHIVE_QUERY_LENGTH) {
+      setArchive(EMPTY_ARCHIVE);
+      return undefined;
+    }
+
+    let cancelled = false;
+    setArchive((current) => ({ ...current, status: 'loading' }));
+
+    const timer = setTimeout(async () => {
+      try {
+        const response = await axios.get(buildSearchUrl(applied));
+        if (cancelled) {
+          return;
+        }
+
+        const payload = response.data ?? {};
+        setArchive({
+          status: 'ready',
+          query: trimmed,
+          items: Array.isArray(payload.items) ? payload.items : [],
+          total: Number(payload.total) || 0,
+        });
+      } catch (err) {
+        if (!cancelled) {
+          setArchive({
+            status: 'error', query: trimmed, items: [], total: 0,
+          });
+        }
+      }
+    }, ARCHIVE_DEBOUNCE_MS);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [applied.query, appliedFacetsKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const appliedTagSlugs = [...applied.tags.in, ...applied.tags.not].join(',');
   const draftTagSlugs = [...draft.tags.in, ...draft.tags.not].join(',');
@@ -896,6 +1010,19 @@ function App() {
 
   const handleClearFilters = () => removeApplied(EMPTY_FILTER);
 
+  // The query lives in the filter model, so it goes through the same applied/draft
+  // pair as everything else — otherwise reopening the panel would silently drop it.
+  // The section below the fold is a different length now, so paging starts over.
+  const handleQueryChange = (value) => {
+    removeApplied((current) => ({ ...current, query: sanitizeQueryInput(value) }));
+    setVisibleCount(pageSize);
+  };
+
+  const clearQuery = () => {
+    handleQueryChange('');
+    headerSearchRef.current?.focus();
+  };
+
   const toggleGroup = (group) => setOpenGroup((current) => (current === group ? null : group));
 
   const toggleGroupExpanded = (group) => setExpandedGroups(
@@ -951,7 +1078,36 @@ function App() {
     };
   }, [panelOpen, closePanel]);
 
+  // "/" and ⌘K jump to the search box — the shortcuts readers already expect. Both
+  // are ignored while the caret is in another field, so "/" stays a literal slash
+  // in the filter panel's own box.
+  useEffect(() => {
+    const handleKeyDown = (event) => {
+      if (panelOpen || !event.key) {
+        return;
+      }
+
+      const { target } = event;
+      const isTyping = target instanceof HTMLElement
+        && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable);
+      const isShortcut = (event.key === '/' && !isTyping)
+        || (event.key.toLowerCase() === 'k' && (event.metaKey || event.ctrlKey));
+
+      if (isShortcut) {
+        event.preventDefault();
+        headerSearchRef.current?.focus();
+        headerSearchRef.current?.select();
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [panelOpen]);
+
   const appliedCount = countFilterValues(applied);
+  const isSearching = hasQuery(applied);
+  const searchTerms = queryTerms(applied.query);
+  const highlightPattern = useMemo(() => buildHighlightPattern(searchTerms), [searchTerms]);
 
   // The Apply label is predictive and exact: it counts the same array, through the
   // same predicate, that the list behind the panel will use. With three tags in
@@ -985,9 +1141,16 @@ function App() {
   // single publisher's burst can't own the whole edition. Keyed on the byline the
   // reader actually sees, since two stored sites can share one masthead. See
   // pickDiverseTop.
+  //
+  // A search is not an edition, so it does not get a front page: promoting one hit
+  // to a hero and burying the rest under "Previous stories" would be the app making
+  // an editorial claim about a list the reader assembled. Under an active query the
+  // split collapses and every result goes into one flat, ranked-by-recency list.
   const { top: frontPageArticles, rest: everythingElseAll } = useMemo(
-    () => pickDiverseTop(sortedArticles, 1 + BRIEF_COUNT, { keyOf: (article) => formatSiteName(article.site) }),
-    [sortedArticles],
+    () => (isSearching
+      ? { top: [], rest: sortedArticles }
+      : pickDiverseTop(sortedArticles, 1 + BRIEF_COUNT, { keyOf: (article) => formatSiteName(article.site) })),
+    [sortedArticles, isSearching],
   );
 
   const leadArticle = frontPageArticles[0];
@@ -1043,6 +1206,19 @@ function App() {
     lastScrapeLabel ? `last scrape ${lastScrapeLabel}` : null,
   ].filter(Boolean).join(' · ');
 
+  // Anything the edition already showed is dropped rather than repeated lower down
+  // the page. The two searches overlap but neither contains the other — the local
+  // one matches source names and tags, the server one stems title and summary — so
+  // this is a de-duplication, not a subtraction.
+  const archiveExtras = useMemo(() => {
+    if (archive.status !== 'ready' || archive.query !== applied.query.trim()) {
+      return [];
+    }
+
+    const shown = new Set(sortedArticles.map((item) => item.url));
+    return archive.items.filter((item) => !shown.has(item.url));
+  }, [archive, sortedArticles, applied.query]);
+
   const handleShowMore = () => {
     setVisibleCount((currentCount) => currentCount + pageSize);
   };
@@ -1084,7 +1260,56 @@ function App() {
     );
   }
 
+  // The archive tier. Rendered under the results when the edition had some, and
+  // under the empty state when it had none — that second case is the whole point of
+  // the endpoint, so it must not be trapped inside the "we found something" branch.
+  const archiveQuery = applied.query.trim();
+  const archiveSection = isSearching && archive.status !== 'idle' && (
+    <section className="everything-else archive-tier" aria-labelledby="archive-title">
+      <div className="tier-heading">
+        <h3 id="archive-title">More from the archive</h3>
+        {archive.status === 'ready' && archive.total > 0 && (
+          <span className="tier-count">
+            {`${archive.total} brief${archive.total === 1 ? '' : 's'} in the full archive`}
+          </span>
+        )}
+      </div>
+
+      {archive.status === 'loading' && (
+        <p className="tier-empty" aria-live="polite">Searching the archive&hellip;</p>
+      )}
+
+      {archive.status === 'error' && (
+        <p className="tier-empty">The archive could not be reached. Today&rsquo;s briefs are still searchable above.</p>
+      )}
+
+      {archive.status === 'ready' && (
+        archiveExtras.length > 0 ? (
+          <>
+            <ul className="small-list">
+              {archiveExtras.map((item) => (
+                <SmallListRow key={item.url} article={item} />
+              ))}
+            </ul>
+            {archive.total > archiveExtras.length && (
+              <p className="article-count">
+                Showing the {archiveExtras.length} most relevant of {archive.total}.
+              </p>
+            )}
+          </>
+        ) : (
+          <p className="tier-empty">
+            {archive.total > 0
+              ? 'Everything the archive found is already shown above.'
+              : `Nothing in the archive mentions “${archiveQuery}” either.`}
+          </p>
+        )
+      )}
+    </section>
+  );
+
   return (
+    <SearchHighlightContext.Provider value={highlightPattern}>
     <div className="app">
       <header className="site-header" id="top">
         <a className="brand" href="#top" aria-label="Precis home">
@@ -1106,10 +1331,24 @@ function App() {
           <label className="header-search">
             <SearchIcon />
             <input
+              ref={headerSearchRef}
               type="search"
-              placeholder={`Search ${sortedArticles.length} briefs`}
-              disabled
-              aria-label="Search briefs (coming soon)"
+              // The working set, not the filtered list: a placeholder that counted
+              // down as the reader typed would be describing its own effect.
+              placeholder={`Search ${articles.length} briefs`}
+              value={applied.query}
+              maxLength={MAX_QUERY_LENGTH}
+              enterKeyHint="search"
+              autoComplete="off"
+              spellCheck="false"
+              aria-label="Search briefs by headline, summary, tag, source or topic"
+              onChange={(event) => handleQueryChange(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === 'Escape' && applied.query) {
+                  event.preventDefault();
+                  clearQuery();
+                }
+              }}
             />
           </label>
           <div className="filters-anchor">
@@ -1156,9 +1395,16 @@ function App() {
         </div>
       </header>
 
-      {appliedCount > 0 && (
+      {(appliedCount > 0 || isSearching) && (
         <div className="filter-active-bar">
           <span className="filter-active-label">Filtering by</span>
+          {isSearching && (
+            <FilterChip
+              label={`“${applied.query.trim()}”`}
+              removeLabel={`Clear search: ${applied.query.trim()}`}
+              onRemove={clearQuery}
+            />
+          )}
           {applied.topics.map((topic) => (
             <FilterChip
               key={`topic-${topic}`}
@@ -1231,7 +1477,9 @@ function App() {
                     <span className="lead-byline">{formatSiteName(leadArticle.site)} &middot; {formatRelativeTime(leadArticle.published_at)}</span>
                   </div>
                   <h2 className="lead-headline"><SafeArticleTitle article={leadArticle} /></h2>
-                  {getLeadSummaryText(leadArticle) && <p className="lead-summary">{getLeadSummaryText(leadArticle)}</p>}
+                  {getLeadSummaryText(leadArticle) && (
+                    <p className="lead-summary"><Highlight text={getLeadSummaryText(leadArticle)} /></p>
+                  )}
                   <div className="lead-actions">
                     {leadArticleUrl && (
                       <a className="btn-secondary" href={leadArticleUrl} target="_blank" rel="noopener noreferrer">
@@ -1259,8 +1507,12 @@ function App() {
 
             <section className="everything-else" aria-labelledby="everything-else-title">
               <div className="tier-heading">
-                <h3 id="everything-else-title">Everything else</h3>
-                <span className="tier-count">{everythingElseVisible.length} items</span>
+                <h3 id="everything-else-title">{isSearching ? 'Results' : 'Everything else'}</h3>
+                <span className="tier-count">
+                  {isSearching
+                    ? `${everythingElseVisible.length} brief${everythingElseVisible.length === 1 ? ' mentions' : 's mention'} “${applied.query.trim()}”`
+                    : `${everythingElseVisible.length} items`}
+                </span>
                 {everythingElseAll.length > 0 && (
                   <div className="tier-controls">
                     <PageSizeSelect value={pageSize} onChange={handlePageSizeChange} />
@@ -1315,11 +1567,31 @@ function App() {
                 <p className="tier-empty">Nothing else yet.</p>
               )}
             </section>
+
+            {archiveSection}
           </div>
         </>
       ) : (
+        <>
         <section className="empty-state">
-          {appliedCount > 0 ? (
+          {isSearching ? (
+            <>
+              {/* Scoped to today's edition, because the archive tier below may well
+                  have found the story. Claiming "no briefs mention this" while
+                  listing briefs that mention it would be the page arguing with
+                  itself. */}
+              <p className="state-kicker">No matches</p>
+              <h2>Nothing in today&rsquo;s edition mentions &ldquo;{applied.query.trim()}&rdquo;.</h2>
+              <p className="empty-state-description">
+                Searched {articles.length} brief{articles.length === 1 ? '' : 's'}
+                {appliedCount > 0 ? ' within the filters you have applied' : ''}
+                {archiveExtras.length > 0 ? '. The archive found more, below' : ''}.
+              </p>
+              <button type="button" className="empty-state-back" onClick={clearQuery}>
+                Clear search
+              </button>
+            </>
+          ) : appliedCount > 0 ? (
             <>
               {/* Never a blank region: the combination is what came up empty, and
                   the panel still opens and still lists every facet, most at 0. */}
@@ -1337,8 +1609,11 @@ function App() {
             </>
           )}
         </section>
+        {archiveSection && <div className="edition-main">{archiveSection}</div>}
+        </>
       )}
     </div>
+    </SearchHighlightContext.Provider>
   );
 }
 

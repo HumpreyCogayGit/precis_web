@@ -1,16 +1,21 @@
 // Filter model for the Precis filter panel.
 //
-// One object, three groups. All three include lists are OR within themselves and
-// AND across groups; tags additionally carry an exclude list, which is always
-// AND NOT. There is no per-group combiner: selecting two tags widens the result,
-// it never narrows it.
+// One object, three groups and a free-text query. All three include lists are OR
+// within themselves and AND across groups; tags additionally carry an exclude
+// list, which is always AND NOT. There is no per-group combiner: selecting two
+// tags widens the result, it never narrows it. The query is ANDed on top of all
+// of them, which is what makes the panel's counts read "within this search".
 //
 // Two copies of this object exist in the app at all times: `applied`, which drives
 // the article list and the URL, and `draft`, which drives the panel. That split is
 // what makes "close on apply" mean anything — do not merge them.
 
+import { formatSiteName } from './sources';
+
 export const EMPTY_TAG_FILTER = { in: [], not: [] };
-export const EMPTY_FILTER = { sources: [], topics: [], tags: EMPTY_TAG_FILTER };
+export const EMPTY_FILTER = {
+  sources: [], topics: [], tags: EMPTY_TAG_FILTER, query: '',
+};
 
 export const TAG_ROW_CAP = 8;
 export const FACET_ROW_CAP = 5;
@@ -73,6 +78,87 @@ export const articleTagSlugs = (article) => {
   return slugs;
 };
 
+// --- Text query ---------------------------------------------------------------
+
+// The query travels through the model and the URL as the reader typed it, so the
+// input stays a faithful controlled field and a shared link keeps its casing.
+// Normalisation happens at match time instead.
+export const MAX_QUERY_LENGTH = 120;
+const MAX_QUERY_TERMS = 8;
+
+export const sanitizeQueryInput = (value) => String(value ?? '').slice(0, MAX_QUERY_LENGTH);
+
+export const normalizeQuery = (value) => (
+  sanitizeQueryInput(value).toLowerCase().replace(/\s+/g, ' ').trim()
+);
+
+// Every term must match (AND), and a term matches as a plain substring — no
+// stemming, no fuzziness. Same contract as the panel's own facet search, so the
+// two boxes never disagree about what "matches" means.
+//
+// Splitting is memoised on the last query string because computeFacetRows runs
+// filterArticles once per facet row: without this, one keystroke re-splits the
+// same string thousands of times.
+let lastQueryInput;
+let lastQueryTerms = [];
+
+export const queryTerms = (query) => {
+  if (query === lastQueryInput) {
+    return lastQueryTerms;
+  }
+
+  const normalized = normalizeQuery(query);
+  lastQueryInput = query;
+  lastQueryTerms = normalized ? normalized.split(' ').slice(0, MAX_QUERY_TERMS) : [];
+  return lastQueryTerms;
+};
+
+export const hasQuery = (filter) => queryTerms(filter?.query).length > 0;
+
+// Only the fields the reader can see on a result row. `excerpt` is deliberately
+// excluded: it is body_text truncated to 360 characters, so matching it returns
+// hits whose matched words appear nowhere in the row that comes back. The site is
+// indexed both as stored ("open_ai") and as displayed ("OpenAI") — nobody types
+// the slug. Cached in a WeakMap for the same reason articleTagSlugs is: the
+// article objects are replaced wholesale when new data arrives.
+const searchTextCache = new WeakMap();
+
+export const articleSearchText = (article) => {
+  if (!article || typeof article !== 'object') {
+    return '';
+  }
+
+  const cached = searchTextCache.get(article);
+  if (cached !== undefined) {
+    return cached;
+  }
+
+  const text = [
+    article.title,
+    article.summary,
+    ...(Array.isArray(article.tags) ? article.tags : []),
+    article.topic,
+    article.site,
+    formatSiteName(article.site),
+  ].filter(Boolean).join(' ').toLowerCase().replace(/\s+/g, ' ');
+
+  searchTextCache.set(article, text);
+  return text;
+};
+
+// An empty query is no constraint at all, exactly like an empty group.
+export const queryPredicate = (article, query) => {
+  const terms = queryTerms(query);
+  if (terms.length === 0) {
+    return true;
+  }
+
+  const haystack = articleSearchText(article);
+  return terms.every((term) => haystack.includes(term));
+};
+
+// --- Predicate ----------------------------------------------------------------
+
 // An empty group is no constraint at all — never "match nothing".
 export const groupOr = (value, list) => list.length === 0 || list.includes(value);
 
@@ -90,15 +176,21 @@ export const passesFilter = (article, filter) => (
   groupOr(article.site, filter.sources)
   && groupOr(article.topic, filter.topics)
   && tagPredicate(articleTagSlugs(article), filter.tags)
+  && queryPredicate(article, filter.query)
 );
 
 export const filterArticles = (articles, filter) => articles.filter((article) => passesFilter(article, filter));
 
+// Facet selections only. The query is not counted here because it has its own
+// visible affordance in the header — adding it to the Filters badge would claim a
+// selection the panel cannot show.
 export const countFilterValues = (filter) => (
   filter.sources.length + filter.topics.length + filter.tags.in.length + filter.tags.not.length
 );
 
-export const isFilterEmpty = (filter) => countFilterValues(filter) === 0;
+// Reset and "Clear all" do have to account for it: a filter carrying only a query
+// is not empty.
+export const isFilterEmpty = (filter) => countFilterValues(filter) === 0 && !hasQuery(filter);
 
 // --- Front page ---------------------------------------------------------------
 
@@ -282,6 +374,7 @@ export const readFiltersFromSearch = (search, defaultTopics = []) => {
   return {
     topics: params.has('topic') ? parseCommaList(params.get('topic')) : [...defaultTopics],
     sources: parseCommaList(params.get('source')),
+    query: sanitizeQueryInput(params.get('q')),
     tags: {
       // A slug named in both lists resolves to excluded — the panel has no state
       // for a tag that is included and excluded at once.
@@ -301,6 +394,15 @@ export const filtersToSearchParams = (filter, search = '') => {
       params.delete(key);
     }
   };
+
+  // Trimmed on the way out so a half-typed "openai " doesn't leave a trailing
+  // space in every link the reader copies.
+  const trimmedQuery = sanitizeQueryInput(filter.query).trim();
+  if (trimmedQuery) {
+    params.set('q', trimmedQuery);
+  } else {
+    params.delete('q');
+  }
 
   write('source', filter.sources);
   write('topic', filter.topics);

@@ -17,9 +17,13 @@ const {
   MAX_TOPIC_LENGTH,
   PUBLIC_ARTICLES_RELATION,
   QueryValidationError,
+  MAX_QUERY_LENGTH,
+  buildSearchArticlesQuery,
   normalizeFilter,
   normalizeMultiFilter,
   normalizePagination,
+  normalizeQuery,
+  searchArticles,
 } = require('../lib/articles');
 const { createCorsOptions, getAllowedCorsOrigins } = require('../lib/cors');
 const {
@@ -300,6 +304,126 @@ test('public articles view withholds review-held records and truncates body text
   assert.match(viewSql, /left\(regexp_replace\(body_text, '\\s\+', ' ', 'g'\), 360\) \|\| '…'/i);
   assert.doesNotMatch(viewSql, /\bcontent_hash\b|\bmatched_strategy\b|\bflag_reason\b|\braw_html_path\b/i);
   assert.match(viewSql, /^\s*tags\b/im);
+});
+
+test('search validates the query the same way every other filter is validated', () => {
+  assert.equal(normalizeQuery('  openai codex  '), 'openai codex');
+  assert.equal(normalizeQuery(''), undefined);
+  assert.equal(normalizeQuery('   '), undefined);
+  assert.equal(normalizeQuery(undefined), undefined);
+
+  assertValidationError(() => normalizeQuery('x'.repeat(MAX_QUERY_LENGTH + 1)), 'q');
+  // A repeated ?q= arrives as an array and is rejected, like every other filter.
+  assertValidationError(() => normalizeQuery(['a', 'b']), 'q');
+});
+
+test('search refuses a blank query rather than returning the whole archive', async () => {
+  await assert.rejects(() => searchArticles({}), QueryValidationError);
+  await assert.rejects(() => searchArticles({ q: '   ' }), QueryValidationError);
+});
+
+test('search goes through the SECURITY DEFINER function, never the barrier view', () => {
+  // public.public_articles is security_barrier, so the planner cannot push the
+  // match below it and the tsvector filter runs above the view's excerpt
+  // expression -- measured at 1675 ms against 3,361 rows, versus 0.78 ms on the
+  // base table. The function is what keeps the index reachable.
+  const built = buildSearchArticlesQuery({ q: 'codex', limit: 20, offset: 0 });
+
+  assert.match(built.text, /public\.search_public_articles/);
+  assert.doesNotMatch(built.text, new RegExp(PUBLIC_ARTICLES_RELATION.replace('.', '\\.')));
+  assert.doesNotMatch(built.text, /to_tsvector|websearch_to_tsquery/);
+});
+
+test('search passes every reader-supplied value as a bound parameter', () => {
+  const built = buildSearchArticlesQuery({
+    q: "robert'); drop table articles;--",
+    site: 'nvidia,open_ai',
+    topic: 'AI',
+    tags: 'llm-release',
+    notTags: 'advisory',
+    limit: 20,
+    offset: 40,
+  });
+
+  // Seven placeholders, seven params, and not one value in the query text.
+  assert.doesNotMatch(built.text, /drop table|nvidia|open_ai|llm-release|advisory/i);
+  assert.deepEqual(built.params, [
+    "robert'); drop table articles;--",
+    ['nvidia', 'open_ai'],
+    ['AI'],
+    ['llm-release'],
+    ['advisory'],
+    20,
+    40,
+  ]);
+});
+
+test('search leaves a group unconstrained as NULL rather than as an empty array', () => {
+  // An empty array would match nothing; NULL is what the function reads as "no
+  // constraint on this group", matching the empty-group rule in the panel.
+  const built = buildSearchArticlesQuery({ q: 'codex', limit: 50, offset: 0 });
+
+  assert.deepEqual(built.params, ['codex', null, null, null, null, 50, 0]);
+});
+
+test('search applies not_tags over tags for a slug named in both, as the list does', () => {
+  const both = buildSearchArticlesQuery({
+    q: 'codex', tags: 'advisory,ransomware', notTags: 'advisory', limit: 50, offset: 0,
+  });
+  assert.deepEqual(both.params[3], ['ransomware']);
+  assert.deepEqual(both.params[4], ['advisory']);
+
+  // Entirely cancelled out: no include constraint survives.
+  const cancelled = buildSearchArticlesQuery({
+    q: 'codex', tags: 'advisory', notTags: 'advisory', limit: 50, offset: 0,
+  });
+  assert.equal(cancelled.params[3], null);
+});
+
+test('search enforces the same pagination bounds as the article list', async () => {
+  await assert.rejects(() => searchArticles({ q: 'codex', limit: MAX_LIMIT + 1 }), QueryValidationError);
+  await assert.rejects(() => searchArticles({ q: 'codex', offset: MAX_OFFSET + 1 }), QueryValidationError);
+  await assert.rejects(() => searchArticles({ q: 'codex', limit: 'abc' }), QueryValidationError);
+});
+
+test('the search function reproduces every guarantee the public view makes', () => {
+  const functionSql = fs.readFileSync(
+    path.join(__dirname, '..', 'sql', 'create-search-articles-function.sql'),
+    'utf8',
+  );
+
+  assert.match(functionSql, /SECURITY DEFINER/);
+  // Mandatory on any SECURITY DEFINER function: without it a caller can shadow a
+  // referenced object by putting their own schema ahead of public.
+  assert.match(functionSql, /SET search_path = public, pg_temp/);
+  // Granted to PUBLIC by default, so the revoke has to be explicit.
+  assert.match(functionSql, /REVOKE ALL ON FUNCTION public\.search_public_articles/);
+
+  // Same row filter and same excerpt truncation as the view it stands in for.
+  assert.match(functionSql, /COALESCE\(a\.needs_review, FALSE\) = FALSE/i);
+  assert.match(functionSql, /left\(regexp_replace\(a\.body_text, '\\s\+', ' ', 'g'\), 360\) \|\| '…'/i);
+  // And the same withheld columns.
+  assert.doesNotMatch(functionSql, /\bcontent_hash\b|\bmatched_strategy\b|\bflag_reason\b|\braw_html_path\b/i);
+});
+
+test('the indexed expression matches the one the search function filters on', () => {
+  // If these drift the planner silently stops using idx_articles_search and every
+  // search becomes a sequential scan, with no visible failure to catch it.
+  const vector = /to_tsvector\('english', coalesce\((?:a\.)?title, ''\) \|\| ' ' \|\| coalesce\((?:a\.)?summary, ''\)\)/;
+
+  const functionSql = fs.readFileSync(
+    path.join(__dirname, '..', 'sql', 'create-search-articles-function.sql'), 'utf8',
+  );
+  const migrationSql = fs.readFileSync(
+    path.join(__dirname, '..', '..', 'scraper', 'migrations', '2026-09-06_articles_search_index.sql'), 'utf8',
+  );
+  const schemaPy = fs.readFileSync(
+    path.join(__dirname, '..', '..', 'scraper', 'blogscraper', 'storage.py'), 'utf8',
+  );
+
+  assert.match(functionSql, vector);
+  assert.match(migrationSql, vector);
+  assert.match(schemaPy, vector);
 });
 
 test('production database configuration fails closed when env vars are missing', () => {

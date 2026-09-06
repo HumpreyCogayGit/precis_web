@@ -1,16 +1,21 @@
 import { describe, expect, test } from 'vitest';
 import {
   EMPTY_FILTER,
+  MAX_QUERY_LENGTH,
   buildTagRail,
   buildVocabulary,
   computeFacetRows,
   filterArticles,
   filtersToSearchParams,
+  hasQuery,
   isTagSlug,
   labelFromTagSlug,
+  normalizeQuery,
   passesFilter,
   pickDiverseTop,
+  queryTerms,
   readFiltersFromSearch,
+  sanitizeQueryInput,
   slugifyTag,
   sortFacetRows,
 } from './filters';
@@ -231,6 +236,7 @@ describe('URL serialization', () => {
       topics: ['AI'],
       sources: ['nvidia'],
       tags: { in: ['security', 'new-exploits'], not: [] },
+      query: '',
     });
   });
 
@@ -282,5 +288,124 @@ describe('URL serialization', () => {
     // never invented — every chip is guaranteed to return at least one row.
     expect(buildTagRail([EDITION[5]])).toEqual([]);
     expect(buildTagRail(EDITION).every(({ count }) => count > 0)).toBe(true);
+  });
+});
+
+describe('text search', () => {
+  // Titles and summaries are what the reader sees, so that is what the corpus for
+  // these tests carries. `excerpt` is present on the first row to prove it is NOT
+  // searched.
+  const SEARCHABLE = [
+    {
+      url: 's1',
+      site: 'open_ai',
+      topic: 'AI',
+      tags: ['LLM Release'],
+      title: 'Introducing Codex',
+      summary: 'A new coding agent for developers.',
+      excerpt: 'This body text mentions kubernetes at length.',
+    },
+    {
+      url: 's2',
+      site: 'krebs_on_security',
+      topic: 'Cyber Security',
+      tags: ['Ransomware'],
+      title: 'Hospital chain hit by ransomware',
+      summary: 'Attackers demanded payment in bitcoin.',
+    },
+    {
+      url: 's3',
+      site: 'x_ai_news',
+      topic: 'AI',
+      tags: [],
+      title: 'Grok gains vision',
+      summary: null,
+    },
+  ];
+
+  const searchUrls = (query) => filterArticles(SEARCHABLE, withFilter({ query })).map((item) => item.url);
+
+  test('normalizes case, surrounding and internal whitespace', () => {
+    expect(normalizeQuery('  CODEX   Agent ')).toBe('codex agent');
+    expect(queryTerms(' Codex  Agent ')).toEqual(['codex', 'agent']);
+  });
+
+  test('an empty or whitespace-only query is no constraint at all', () => {
+    expect(searchUrls('')).toEqual(['s1', 's2', 's3']);
+    expect(searchUrls('   ')).toEqual(['s1', 's2', 's3']);
+    expect(hasQuery(withFilter({ query: '   ' }))).toBe(false);
+  });
+
+  test('every term must match — terms are ANDed, not ORed', () => {
+    expect(searchUrls('codex')).toEqual(['s1']);
+    expect(searchUrls('codex coding')).toEqual(['s1']);
+    // 'codex' is only in s1 and 'ransomware' only in s2, so ANDing them matches nothing.
+    expect(searchUrls('codex ransomware')).toEqual([]);
+  });
+
+  test('matches the title, the summary, a tag, the topic and the source', () => {
+    expect(searchUrls('grok')).toEqual(['s3']);              // title
+    expect(searchUrls('bitcoin')).toEqual(['s2']);           // summary
+    expect(searchUrls('llm release')).toEqual(['s1']);       // tag label
+    expect(searchUrls('cyber security')).toEqual(['s2']);    // topic
+    expect(searchUrls('open_ai')).toEqual(['s1']);           // stored site slug
+  });
+
+  test('matches the source by the name the reader actually sees', () => {
+    // Nobody types "x_ai_news"; the byline reads "xAI".
+    expect(searchUrls('xai')).toEqual(['s3']);
+    expect(searchUrls('openai')).toEqual(['s1']);
+  });
+
+  test('does not match the excerpt, whose text never appears on the row', () => {
+    expect(searchUrls('kubernetes')).toEqual([]);
+  });
+
+  test('a null summary is skipped rather than matching the string "null"', () => {
+    expect(searchUrls('null')).toEqual([]);
+  });
+
+  test('the query is ANDed with the facet groups, never ORed', () => {
+    expect(filterArticles(SEARCHABLE, withFilter({ query: 'a', topics: ['AI'] })).map((i) => i.url))
+      .toEqual(['s1', 's3']);
+    // The source group excludes s1, so the query cannot bring it back.
+    expect(filterArticles(SEARCHABLE, withFilter({ query: 'codex', sources: ['x_ai_news'] })))
+      .toEqual([]);
+  });
+
+  test('a query narrows the panel counts, so a facet reads what it would deliver', () => {
+    const vocabulary = buildVocabulary(SEARCHABLE);
+    const rows = computeFacetRows(SEARCHABLE, withFilter({ query: 'codex' }), 'topics', vocabulary);
+    const ai = rows.find((row) => row.slug === 'AI');
+
+    // Two AI articles in the edition, but only one of them mentions "codex".
+    expect(vocabulary.topics.get('AI').count).toBe(2);
+    expect(ai.count).toBe(1);
+    expect(rows.find((row) => row.slug === 'Cyber Security').state).toBe('unavailable');
+  });
+
+  test('input is capped rather than truncating mid-match at match time', () => {
+    expect(sanitizeQueryInput('x'.repeat(500))).toHaveLength(MAX_QUERY_LENGTH);
+  });
+});
+
+describe('the query in the URL', () => {
+  test('round-trips through ?q=, preserving the reader’s casing', () => {
+    expect(readFiltersFromSearch('?q=OpenAI%20Codex').query).toBe('OpenAI Codex');
+    expect(filtersToSearchParams(withFilter({ query: 'OpenAI Codex' })).get('q')).toBe('OpenAI Codex');
+  });
+
+  test('composes with the facet groups in one query string', () => {
+    const filter = readFiltersFromSearch('?q=codex&topic=AI&source=open_ai');
+
+    expect(filter.query).toBe('codex');
+    expect(filter.topics).toEqual(['AI']);
+    expect(filter.sources).toEqual(['open_ai']);
+  });
+
+  test('a half-typed query is trimmed on the way out, and an empty one is removed', () => {
+    expect(filtersToSearchParams(withFilter({ query: 'codex ' })).get('q')).toBe('codex');
+    expect(filtersToSearchParams(withFilter({ query: '   ' })).get('q')).toBe(null);
+    expect(filtersToSearchParams(EMPTY_FILTER, '?q=stale').get('q')).toBe(null);
   });
 });

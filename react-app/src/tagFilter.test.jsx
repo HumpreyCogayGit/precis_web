@@ -6,7 +6,7 @@ import { buildVocabulary } from './filters';
 
 const hoursAgo = (hours) => new Date(Date.now() - hours * 3_600_000).toISOString();
 
-// Six briefs, all on one topic so the default topic filter is not in the way.
+// Six briefs, all on one topic. The edition no longer defaults to a topic filter.
 const item = (n, site, tags) => ({
   url: `https://example.com/${n}`,
   site,
@@ -124,8 +124,8 @@ describe('tag filter', () => {
 
     await user.click(clear());
     expect(tagRow('LLM Release')).toHaveAttribute('aria-checked', 'false');
-    // Back to the six the default topic filter alone returns.
-    expect(screen.getByRole('button', { name: 'Show 6 briefs' })).toBeInTheDocument();
+    // Clearing the last group leaves no filter at all, which the button says as ALL.
+    expect(screen.getByRole('button', { name: 'Show all 6' })).toBeInTheDocument();
   });
 
   test('Clear also drops exclusions, and Select all leaves them alone', async () => {
@@ -143,7 +143,7 @@ describe('tag filter', () => {
 
     await user.click(within(tagsSection()).getByRole('button', { name: 'Clear' }));
     expect(tagRow('Ransomware')).not.toHaveTextContent('excluded');
-    expect(screen.getByRole('button', { name: 'Show 6 briefs' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Show all 6' })).toBeInTheDocument();
   });
 
   test('Select all under a search selects only what the search matched', async () => {

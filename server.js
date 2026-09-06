@@ -2,7 +2,9 @@ const express = require('express');
 const cors = require('cors');
 require('dotenv').config();
 
-const { countArticles, fetchArticles, fetchSites, fetchTopics } = require('./lib/articles');
+const {
+  countArticles, fetchArticles, fetchSites, fetchTopics, searchArticles,
+} = require('./lib/articles');
 const { createCorsOptions } = require('./lib/cors');
 const { log, logRequest, sendError } = require('./lib/http');
 const { proxyImage } = require('./lib/imageProxy');
@@ -51,6 +53,25 @@ app.get('/api/article-count', rateLimitMiddleware(RATE_LIMITS.articles), async (
     });
   } catch (err) {
     sendError(res, 'Failed to count articles', err, req);
+  }
+});
+
+// Full-text search across the whole archive, not the 300-row working set the app
+// filters in the browser. Registered before /api/articles/:site so a request for
+// /api/search is never captured by that route's parameter.
+app.get('/api/search', rateLimitMiddleware(RATE_LIMITS.search), async (req, res) => {
+  try {
+    res.json(await searchArticles({
+      q: req.query.q,
+      site: req.query.site,
+      topic: req.query.topic,
+      tags: req.query.tags,
+      notTags: req.query.not_tags,
+      limit: req.query.limit,
+      offset: req.query.offset,
+    }));
+  } catch (err) {
+    sendError(res, 'Failed to search articles', err, req);
   }
 });
 
