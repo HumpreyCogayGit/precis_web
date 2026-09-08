@@ -228,7 +228,7 @@ describe('tag filter', () => {
     const user = userEvent.setup();
     render(<App />);
 
-    expect(await screen.findByText('Nothing matches this combination today.')).toBeInTheDocument();
+    expect(await screen.findByText('Nothing matches this combination.')).toBeInTheDocument();
 
     // The panel still opens, and still lists every tag — most of them at 0.
     await openPanel(user);
@@ -253,7 +253,7 @@ describe('tag filter', () => {
     const user = userEvent.setup();
     render(<App />);
 
-    expect(await screen.findByText('Nothing matches this combination today.')).toBeInTheDocument();
+    expect(await screen.findByText('Nothing matches this combination.')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Remove filter: Zero Day Exploit' })).toBeInTheDocument();
 
     await openPanel(user);

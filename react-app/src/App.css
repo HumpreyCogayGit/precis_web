@@ -309,10 +309,332 @@ mark.search-hit {
   letter-spacing: -0.02em;
 }
 
-.masthead-meta {
-  margin: 0;
+/* Date filter
+   ---------------------------------------------------------------------------
+   Sits under the masthead date, where the payload read-out ("600 items from 54
+   sources") used to. Pills rather than the app's usual 2px corners: this is a
+   control strip, and rounding it is what stops four buttons reading as four more
+   headings in a page built out of hard rules. */
+
+.date-filter {
+  position: relative;
+  margin-top: 4px;
+}
+
+.date-filter-chips {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.date-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: none;
+  border-radius: 999px;
+  padding: 9px 16px;
+  color: var(--ink-soft);
+  background: var(--surface);
+  cursor: pointer;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  white-space: nowrap;
+  transition: background-color 160ms ease, color 160ms ease;
+}
+
+.date-chip:hover {
+  color: var(--ink);
+  background: var(--surface-strong);
+}
+
+.date-chip--active,
+.date-chip--active:hover {
+  color: #ffffff;
+  background: var(--ink);
+}
+
+.date-chip-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+
+/* The count rides inside the chip rather than after it, so the selection and the
+   number it produced can never wrap apart from each other. */
+.date-chip-count {
+  border-radius: 999px;
+  padding: 2px 7px;
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.18);
+  font-size: 0.6875rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.date-filter-tune {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 36px;
+  border: none;
+  border-radius: 12px;
+  color: var(--ink-soft);
+  background: var(--surface);
+  cursor: pointer;
+  transition: background-color 160ms ease, color 160ms ease;
+}
+
+.date-filter-tune:hover,
+.date-filter-tune--open {
+  color: var(--ink);
+  background: var(--surface-strong);
+}
+
+/* Custom range popover */
+
+.date-range-popover {
+  position: absolute;
+  z-index: 40;
+  top: calc(100% + 10px);
+  left: 0;
+  width: min(360px, calc(100vw - 32px));
+  border: 1px solid var(--neutral-200);
+  border-radius: 18px;
+  padding: 14px;
+  background: var(--paper);
+  box-shadow: 0 18px 44px rgba(29, 31, 32, 0.16);
+}
+
+.date-range-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.date-range-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  border: 1px solid transparent;
+  border-radius: 12px;
+  padding: 12px;
+  text-align: left;
+  background: var(--surface);
+  cursor: pointer;
+  transition: border-color 160ms ease, background-color 160ms ease;
+}
+
+.date-range-field--active {
+  border-color: var(--ink);
+  background: var(--paper);
+}
+
+.date-range-field-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
   color: var(--muted);
-  font-size: 0.875rem;
+}
+
+.date-range-field--active .date-range-field-head {
+  color: var(--ink);
+}
+
+.date-range-field-side {
+  font-size: 0.6875rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.date-range-field-value {
+  color: var(--ink);
+  font-size: 1rem;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+}
+
+.date-range-field-edition {
+  color: var(--muted);
+  font-size: 0.75rem;
+}
+
+.date-range-calendar {
+  margin-top: 16px;
+}
+
+.date-range-calendar-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.date-range-month {
+  margin: 0;
+  font-size: 1.125rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+.date-range-month span {
+  color: var(--accent);
+}
+
+.date-range-nav {
+  display: flex;
+  gap: 6px;
+}
+
+.date-range-nav button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 28px;
+  border: none;
+  border-radius: 8px;
+  color: var(--ink-soft);
+  background: var(--surface);
+  cursor: pointer;
+}
+
+.date-range-nav button:hover {
+  color: var(--ink);
+  background: var(--surface-strong);
+}
+
+.date-range-weekdays,
+.date-range-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+}
+
+.date-range-weekdays {
+  margin-bottom: 6px;
+}
+
+.date-range-weekdays span {
+  color: var(--ink);
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-align: center;
+}
+
+/* No column gap: the in-range days form one continuous band, so any horizontal
+   gutter would break it into seven stripes a week. */
+.date-range-grid {
+  row-gap: 4px;
+}
+
+.date-range-day {
+  height: 36px;
+  border: none;
+  border-radius: 0;
+  padding: 0;
+  color: var(--ink);
+  background: none;
+  cursor: pointer;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.date-range-day:hover:not(:disabled) {
+  background: var(--surface);
+}
+
+.date-range-day--outside {
+  color: var(--neutral-400);
+}
+
+.date-range-day:disabled {
+  color: var(--neutral-300);
+  cursor: default;
+}
+
+/* Today is marked even when it is outside the range, so the grid always says
+   where "now" is relative to the days being picked. */
+.date-range-day--today {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.date-range-day--inside,
+.date-range-day--inside:hover:not(:disabled) {
+  color: var(--accent-800);
+  background: var(--accent-200);
+}
+
+.date-range-day--edge,
+.date-range-day--edge:hover:not(:disabled) {
+  border-radius: 10px;
+  color: #ffffff;
+  background: var(--ink);
+}
+
+.date-range-footer {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 14px;
+  border-top: 1px solid var(--neutral-200);
+  padding-top: 14px;
+}
+
+.date-range-apply {
+  flex: 1;
+  border: none;
+  border-radius: 999px;
+  padding: 10px 14px;
+  color: #ffffff;
+  background: var(--accent);
+  cursor: pointer;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  transition: background-color 160ms ease;
+}
+
+.date-range-apply:hover {
+  background: var(--accent-600);
+}
+
+.date-range-apply[aria-disabled='true'] {
+  background: var(--neutral-400);
+  cursor: default;
+}
+
+.date-range-reset,
+.date-range-cancel {
+  flex-shrink: 0;
+  border: none;
+  background: none;
+  padding: 0 4px;
+  cursor: pointer;
+  font-size: 0.8125rem;
+  font-weight: 700;
+}
+
+.date-range-reset {
+  color: var(--ink-soft);
+}
+
+.date-range-reset:hover {
+  color: var(--ink);
+}
+
+.date-range-cancel {
+  color: var(--accent-dark);
+}
+
+.date-range-cancel:hover {
+  color: var(--accent-900);
 }
 
 /* Filters button */
@@ -1654,6 +1976,11 @@ mark.search-hit {
 .filter-panel-apply:focus-visible,
 .filter-panel-cancel:focus-visible,
 .filter-active-chip:focus-visible,
+.date-chip:focus-visible,
+.date-filter-tune:focus-visible,
+.date-range-apply:focus-visible,
+.date-range-reset:focus-visible,
+.date-range-cancel:focus-visible,
 .discover-chip:focus-visible,
 .discover-scroll:focus-visible,
 .discover-see-all:focus-visible,
@@ -1667,7 +1994,10 @@ mark.search-hit {
 .filter-panel-group-toggle:focus-visible,
 .filter-panel-group-action:focus-visible,
 .filter-panel-row-toggle:focus-visible,
-.filter-panel-exclude:focus-visible {
+.filter-panel-exclude:focus-visible,
+.date-range-field:focus-visible,
+.date-range-nav button:focus-visible,
+.date-range-day:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
 }

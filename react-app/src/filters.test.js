@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'vitest';
 import {
+  EMPTY_DATE_RANGE,
   EMPTY_FILTER,
   MAX_QUERY_LENGTH,
   articleSearchText,
@@ -239,6 +240,7 @@ describe('URL serialization', () => {
       sources: ['nvidia'],
       tags: { in: ['security', 'new-exploits'], not: [] },
       query: '',
+      dateRange: EMPTY_DATE_RANGE,
     });
   });
 

@@ -5,25 +5,32 @@ import {
 import { createPortal } from 'react-dom';
 import axios from 'axios';
 import FilterPanel from './FilterPanel.jsx';
+import DateFilterBar, { rangeChipLabel as dateRangeChipLabel } from './DateFilterBar.jsx';
 import { ChevronLeftIcon, ChevronRightIcon, CloseIcon, SearchIcon } from './icons.jsx';
 import {
+  EMPTY_DATE_RANGE,
   EMPTY_FILTER,
   FACET_ROW_CAP,
   MAX_QUERY_LENGTH,
   TAG_ROW_CAP,
   articleTagSlugs,
+  articleTimestamp,
   buildTagRail,
   buildVocabulary,
   computeFacetRows,
   countFilterValues,
+  datePredicate,
   filterArticles,
   filtersToSearchParams,
+  hasDateRange,
   hasQuery,
   isFilterEmpty,
   labelFromTagSlug,
+  parseDateTimestamp,
   pickDiverseTop,
   queryTerms,
   readFiltersFromSearch,
+  resolveDateRange,
   sanitizeQueryInput,
   sortFacetRows,
 } from './filters';
@@ -68,44 +75,11 @@ const safeHttpUrl = (url) => {
   }
 };
 
-// Matches an explicit time-of-day (e.g. "14:47" or "T09:00"). Date-only strings
-// (no time component) are ambiguous: JS parses them as the viewer's local time,
-// which makes ordering depend on each visitor's timezone rather than the
-// article's actual date. Pin those to UTC midnight so sorting is deterministic.
-const HAS_TIME_COMPONENT = /\d{1,2}:\d{2}/;
-
-// Mirrors lib/articles.js: "July 15th, 2026" (Zero Day Initiative) is NaN to Date.parse.
-const ORDINAL_SUFFIX = /(?<=\d)(?:st|nd|rd|th)\b/gi;
-
-const parseDateTimestamp = (dateValue) => {
-  if (!dateValue) {
-    return 0;
-  }
-
-  const normalizedDate = String(dateValue).trim()
-    .replace(/^Published\s+/i, '')
-    .replace(ORDINAL_SUFFIX, '');
-  if (!normalizedDate) {
-    return 0;
-  }
-
-  const candidates = HAS_TIME_COMPONENT.test(normalizedDate)
-    ? [normalizedDate, `${normalizedDate} UTC`]
-    : [`${normalizedDate} UTC`, normalizedDate];
-
-  for (const candidate of candidates) {
-    const timestamp = Date.parse(candidate);
-    if (!Number.isNaN(timestamp)) {
-      return timestamp;
-    }
-  }
-
-  return 0;
-};
-
-const getArticleTimestamp = (article) => {
-  return parseDateTimestamp(article.published_at);
-};
+// Both of these now come from filters.js, which is where the date predicate lives:
+// a range boundary and a sort key read off the same free-form string must never be
+// derived two different ways, or an article can sort into a day the filter then
+// refuses to show it in.
+const getArticleTimestamp = (article) => articleTimestamp(article);
 
 const sortArticlesNewestFirst = (articles) => (
   [...articles].sort((a, b) => {
@@ -281,6 +255,14 @@ const buildSearchUrl = (filters) => {
     params.set('site', sources);
   }
   params.delete('source');
+
+  // published_at is free-form text no SQL predicate can bracket, so the date range
+  // is applied to the response instead (see archiveExtras). Sending it would be
+  // worse than useless: the endpoint ignores unknown keys, so the page would show
+  // an unfiltered archive under a filtered edition and look like a bug.
+  params.delete('date');
+  params.delete('from');
+  params.delete('to');
 
   params.set('limit', String(ARCHIVE_RESULT_LIMIT));
   return `${API_BASE_URL}/api/search?${params.toString()}`;
@@ -994,8 +976,12 @@ function App() {
     setDraft((current) => ({ ...current, tags: { in: [], not: [] } }));
   };
 
+  // The date range is not one of the panel's groups — it has its own control in
+  // the masthead — so Reset carries it through rather than silently clearing a
+  // selection the panel never showed. "Clear all" in the active bar, which does
+  // show the range as a chip, is the control that drops it.
   const resetDraft = () => {
-    setDraft(EMPTY_FILTER);
+    setDraft((current) => ({ ...EMPTY_FILTER, dateRange: current.dateRange }));
     setPanelQuery('');
   };
 
@@ -1027,6 +1013,25 @@ function App() {
     handleQueryChange('');
     headerSearchRef.current?.focus();
   };
+
+  // The range goes through the same applied/draft pair as the query, for the same
+  // reason: the panel's counts and its Apply label are computed from the draft, so
+  // a range that only reached `applied` would make both of them lie.
+  const handleDateRangeChange = (dateRange) => {
+    removeApplied((current) => ({ ...current, dateRange }));
+    setVisibleCount(pageSize);
+  };
+
+  const clearDateRange = () => handleDateRangeChange(EMPTY_DATE_RANGE);
+
+  // Every chip in the date bar counts the working set through the whole applied
+  // filter with only its own range swapped in, so a chip's number is exactly what
+  // the edition becomes when it is clicked — never a day's raw total that the
+  // tags and sources already applied would cut down.
+  const countForDateRange = useCallback(
+    (dateRange) => filterArticles(articles, { ...applied, dateRange }).length,
+    [articles, appliedKey], // eslint-disable-line react-hooks/exhaustive-deps
+  );
 
   const toggleGroup = (group) => setOpenGroup((current) => (current === group ? null : group));
 
@@ -1183,33 +1188,27 @@ function App() {
     : everythingElseVisible;
   const hasMoreArticles = visibleCount < everythingElseVisible.length;
 
-  const sourceCounts = useMemo(() => {
-    const counts = new Map();
-    sortedArticles.forEach((article) => {
-      const key = article.site || 'unknown';
-      counts.set(key, (counts.get(key) || 0) + 1);
+  // The masthead names the day the reader is looking at, so it follows the date
+  // filter: an applied range retitles the edition instead of leaving "today" over
+  // a week of briefs. Day keys are UTC, like every other date on the page.
+  const editionDateLabel = useMemo(() => {
+    const range = resolveDateRange(applied.dateRange);
+    const dayFormat = new Intl.DateTimeFormat('en', {
+      weekday: 'long', month: 'long', day: 'numeric', timeZone: 'UTC',
     });
-    return [...counts.entries()].sort((a, b) => b[1] - a[1]);
-  }, [sortedArticles]);
+    const spanFormat = new Intl.DateTimeFormat('en', {
+      month: 'long', day: 'numeric', timeZone: 'UTC',
+    });
+    const asDate = (key) => new Date(`${key}T00:00:00.000Z`);
 
-  const lastScrapeTimestamp = useMemo(
-    () => sortedArticles.reduce((max, article) => Math.max(max, parseDateTimestamp(article.fetched_at)), 0),
-    [sortedArticles]
-  );
-  const lastScrapeLabel = lastScrapeTimestamp
-    ? new Intl.DateTimeFormat('en', { hour: 'numeric', minute: '2-digit' }).format(new Date(lastScrapeTimestamp))
-    : null;
+    if (!range) {
+      return dayFormat.format(new Date());
+    }
 
-  const editionDateLabel = useMemo(
-    () => new Intl.DateTimeFormat('en', { weekday: 'long', month: 'long', day: 'numeric' }).format(new Date()),
-    []
-  );
-
-  const sourceCountForMeta = sourceCounts.length;
-  const metaLine = [
-    `${sortedArticles.length} item${sortedArticles.length === 1 ? '' : 's'} from ${sourceCountForMeta} source${sourceCountForMeta === 1 ? '' : 's'}`,
-    lastScrapeLabel ? `last scrape ${lastScrapeLabel}` : null,
-  ].filter(Boolean).join(' · ');
+    return range.from === range.to
+      ? dayFormat.format(asDate(range.from))
+      : `${spanFormat.format(asDate(range.from))} – ${spanFormat.format(asDate(range.to))}`;
+  }, [applied.dateRange]);
 
   // Anything the edition already showed is dropped rather than repeated lower down
   // the page. The two searches overlap but neither contains the other — the local
@@ -1221,8 +1220,13 @@ function App() {
     }
 
     const shown = new Set(sortedArticles.map((item) => item.url));
-    return archive.items.filter((item) => !shown.has(item.url));
-  }, [archive, sortedArticles, applied.query]);
+    // The date range is the one filter the endpoint could not apply for us, so it
+    // is applied here — otherwise a range that narrows the edition to one day
+    // would still list the whole archive underneath it.
+    return archive.items.filter(
+      (item) => !shown.has(item.url) && datePredicate(item, applied.dateRange),
+    );
+  }, [archive, sortedArticles, applied.query, applied.dateRange]);
 
   const handleShowMore = () => {
     setVisibleCount((currentCount) => currentCount + pageSize);
@@ -1400,9 +1404,16 @@ function App() {
         </div>
       </header>
 
-      {(appliedCount > 0 || isSearching) && (
+      {(appliedCount > 0 || isSearching || hasDateRange(applied)) && (
         <div className="filter-active-bar">
           <span className="filter-active-label">Filtering by</span>
+          {hasDateRange(applied) && (
+            <FilterChip
+              label={dateRangeChipLabel(applied.dateRange)}
+              removeLabel={`Clear date filter: ${dateRangeChipLabel(applied.dateRange)}`}
+              onRemove={clearDateRange}
+            />
+          )}
           {isSearching && (
             <FilterChip
               label={`“${applied.query.trim()}”`}
@@ -1453,18 +1464,30 @@ function App() {
         </div>
       )}
 
-      {sortedArticles.length > 0 ? (
+      {/* Outside the results branch on purpose: the date bar is the control that
+          can empty the list, so it has to survive doing so. A masthead over an
+          empty state is the reader's way back; a date filter that deleted itself
+          the moment it matched nothing would be a trap. */}
+      {articles.length > 0 && (
         <>
           <section className="masthead" aria-labelledby="masthead-title">
             <div className="masthead-head">
               <p className="masthead-kicker">Daily tech brief</p>
               <h1 id="masthead-title" className="masthead-date">{editionDateLabel}</h1>
-              <p className="masthead-meta">{metaLine}</p>
+              <DateFilterBar
+                range={applied.dateRange}
+                countFor={countForDateRange}
+                onChange={handleDateRangeChange}
+              />
             </div>
           </section>
 
           <div className="section-divider" aria-hidden="true"></div>
+        </>
+      )}
 
+      {sortedArticles.length > 0 ? (
+        <>
           <div className="edition-main">
             {leadArticle && (
               <article className="lead-story">
@@ -1596,12 +1619,16 @@ function App() {
                 Clear search
               </button>
             </>
-          ) : appliedCount > 0 ? (
+          ) : !isFilterEmpty(applied) ? (
             <>
               {/* Never a blank region: the combination is what came up empty, and
                   the panel still opens and still lists every facet, most at 0. */}
               <p className="state-kicker">No matches</p>
-              <h2>Nothing matches this combination today.</h2>
+              <h2>
+                {appliedCount > 0
+                  ? 'Nothing matches this combination.'
+                  : 'No briefs were published in that range.'}
+              </h2>
               <button type="button" className="empty-state-back" onClick={handleClearFilters}>
                 Clear filters
               </button>

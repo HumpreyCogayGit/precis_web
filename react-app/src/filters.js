@@ -13,8 +13,12 @@
 import { formatSiteName } from './sources';
 
 export const EMPTY_TAG_FILTER = { in: [], not: [] };
+// `all` is the absence of a date constraint, not a range covering everything —
+// the working set is one page of the corpus, so a literal "everything" range
+// would be a claim the loaded rows cannot back.
+export const EMPTY_DATE_RANGE = { preset: 'all', from: null, to: null };
 export const EMPTY_FILTER = {
-  sources: [], topics: [], tags: EMPTY_TAG_FILTER, query: '',
+  sources: [], topics: [], tags: EMPTY_TAG_FILTER, query: '', dateRange: EMPTY_DATE_RANGE,
 };
 
 export const TAG_ROW_CAP = 8;
@@ -157,6 +161,212 @@ export const queryPredicate = (article, query) => {
   return terms.every((term) => haystack.includes(term));
 };
 
+// --- Dates --------------------------------------------------------------------
+
+// published_at is free-form text — every source dates its posts differently — so
+// the API cannot sort or filter on it in SQL (see lib/articles.js). The date
+// filter therefore runs here, over the same working set every other group
+// filters, which is also what lets the preset chips carry an exact count.
+//
+// Every boundary in this section is UTC. parseDateTimestamp pins a date-only
+// string to UTC midnight and the cards render their dates in UTC
+// (formatShortDate in App.jsx), so computing days in the viewer's local zone
+// would put an article in a different day than the one printed on its own row.
+
+// Matches an explicit time-of-day (e.g. "14:47" or "T09:00"). Date-only strings
+// are ambiguous: JS parses them as local time, which makes ordering depend on
+// each visitor's timezone rather than the article's actual date.
+const HAS_TIME_COMPONENT = /\d{1,2}:\d{2}/;
+
+// Mirrors lib/articles.js: "July 15th, 2026" (Zero Day Initiative) is NaN to Date.parse.
+const ORDINAL_SUFFIX = /(?<=\d)(?:st|nd|rd|th)\b/gi;
+
+export const parseDateTimestamp = (dateValue) => {
+  if (!dateValue) {
+    return 0;
+  }
+
+  const normalizedDate = String(dateValue).trim()
+    .replace(/^Published\s+/i, '')
+    .replace(ORDINAL_SUFFIX, '');
+  if (!normalizedDate) {
+    return 0;
+  }
+
+  const candidates = HAS_TIME_COMPONENT.test(normalizedDate)
+    ? [normalizedDate, `${normalizedDate} UTC`]
+    : [`${normalizedDate} UTC`, normalizedDate];
+
+  for (const candidate of candidates) {
+    const timestamp = Date.parse(candidate);
+    if (!Number.isNaN(timestamp)) {
+      return timestamp;
+    }
+  }
+
+  return 0;
+};
+
+// The date bar counts the working set once per chip on every render, so parsing
+// each article's date on every pass would mean thousands of Date.parse calls for
+// a bar nobody touched. Cached the same way articleTagSlugs and articleSearchText
+// are: a WeakMap keyed by the article, which the wholesale replacement of the
+// article objects on each fetch empties for us.
+const timestampCache = new WeakMap();
+
+export const articleTimestamp = (article) => {
+  if (!article || typeof article !== 'object') {
+    return 0;
+  }
+
+  const cached = timestampCache.get(article);
+  if (cached !== undefined) {
+    return cached;
+  }
+
+  const timestamp = parseDateTimestamp(article.published_at);
+  timestampCache.set(article, timestamp);
+  return timestamp;
+};
+
+export const DAY_MS = 86_400_000;
+
+// A day key is the calendar day itself ("2026-09-08"), never an instant: it is
+// what the URL carries and what the calendar grid compares, so it stays free of
+// any time component that a timezone could shift.
+const DATE_KEY_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
+
+export const isDateKey = (value) => (
+  typeof value === 'string'
+  && DATE_KEY_PATTERN.test(value)
+  && !Number.isNaN(Date.parse(`${value}T00:00:00.000Z`))
+);
+
+export const toDateKey = (timestamp) => new Date(timestamp).toISOString().slice(0, 10);
+
+export const dateKeyOf = (year, monthIndex, day) => toDateKey(Date.UTC(year, monthIndex, day));
+
+export const startOfDay = (key) => Date.parse(`${key}T00:00:00.000Z`);
+export const endOfDay = (key) => Date.parse(`${key}T23:59:59.999Z`);
+
+export const todayKey = (now = Date.now()) => toDateKey(now);
+
+// The chips, in the order the bar renders them. `all` is the default and has no
+// row here because it is the absence of a range, not one of them.
+export const DATE_PRESETS = ['today', 'week', 'month'];
+
+export const DATE_PRESET_LABELS = {
+  all: 'All',
+  today: 'Today',
+  week: 'This week',
+  month: 'This month',
+  custom: 'Custom',
+};
+
+/**
+ * Calendar boundaries for a preset, as day keys.
+ *
+ * "This week" is the Monday-to-Sunday week the current day falls in and "this
+ * month" the whole calendar month — not a rolling 7 or 30 days. That is what the
+ * reader means by the words, and it is what makes two people opening the same
+ * link on the same day see the same edition. Both therefore run to the end of the
+ * period, which is usually in the future; nothing is published there, so the
+ * range costs nothing and stays honest about the period it names.
+ */
+export const presetRange = (preset, now = Date.now()) => {
+  const today = new Date(now);
+  const year = today.getUTCFullYear();
+  const month = today.getUTCMonth();
+  const day = today.getUTCDate();
+
+  if (preset === 'today') {
+    const key = dateKeyOf(year, month, day);
+    return { from: key, to: key };
+  }
+
+  if (preset === 'week') {
+    // getUTCDay is Sunday-based; the site's weeks start on Monday.
+    const startOfWeek = Date.UTC(year, month, day);
+    const offset = (new Date(startOfWeek).getUTCDay() + 6) % 7;
+    return {
+      from: toDateKey(startOfWeek - offset * DAY_MS),
+      to: toDateKey(startOfWeek + (6 - offset) * DAY_MS),
+    };
+  }
+
+  if (preset === 'month') {
+    // Day 0 of the next month is the last day of this one.
+    return { from: dateKeyOf(year, month, 1), to: dateKeyOf(year, month + 1, 0) };
+  }
+
+  return null;
+};
+
+// filterArticles runs once per facet row inside computeFacetRows, so resolving
+// the range per article would mean thousands of Date.parse calls per keystroke.
+// The memo is keyed on the range object — replaced whenever the filter changes —
+// plus the UTC day number, which is pure arithmetic and expires a resolution that
+// a page left open across midnight would otherwise keep serving.
+let lastRangeInput;
+let lastRangeDay;
+let lastResolvedRange = null;
+
+/**
+ * A range in its final form: two day keys plus the instants they bracket, or
+ * null for "no date constraint". A custom range missing or malforming either end
+ * resolves to null rather than to half a range — a URL with only `from` filters
+ * nothing instead of silently truncating the edition.
+ */
+export const resolveDateRange = (range, now = Date.now()) => {
+  const day = Math.floor(now / DAY_MS);
+  if (range === lastRangeInput && day === lastRangeDay) {
+    return lastResolvedRange;
+  }
+
+  const bounds = (() => {
+    if (!range || !range.preset || range.preset === 'all') {
+      return null;
+    }
+
+    if (range.preset === 'custom') {
+      return isDateKey(range.from) && isDateKey(range.to)
+        ? { from: range.from, to: range.to }
+        : null;
+    }
+
+    return presetRange(range.preset, now);
+  })();
+
+  // Day keys sort lexically, so a backwards pair is caught without parsing. It is
+  // a slip (a hand-edited link, a picker click out of order), not an empty range.
+  const resolved = bounds
+    ? (() => {
+      const [from, to] = bounds.from <= bounds.to ? [bounds.from, bounds.to] : [bounds.to, bounds.from];
+      return { from, to, start: startOfDay(from), end: endOfDay(to) };
+    })()
+    : null;
+
+  lastRangeInput = range;
+  lastRangeDay = day;
+  lastResolvedRange = resolved;
+  return resolved;
+};
+
+export const hasDateRange = (filter) => resolveDateRange(filter?.dateRange) !== null;
+
+// An article whose date never parsed has no day to be in, so it stays out of
+// every range rather than leaking into all of them. Unfiltered, it still shows —
+// this is the one predicate that can drop it.
+export const datePredicate = (article, range) => {
+  const resolved = resolveDateRange(range);
+  if (!resolved) {
+    return true;
+  }
+
+  const timestamp = articleTimestamp(article);
+  return timestamp > 0 && timestamp >= resolved.start && timestamp <= resolved.end;
+};
+
 // --- Predicate ----------------------------------------------------------------
 
 // An empty group is no constraint at all — never "match nothing".
@@ -194,6 +404,7 @@ export const passesFilter = (article, filter) => (
   groupOr(article.site, filter.sources)
   && groupOverlap(articleTopics(article), filter.topics)
   && tagPredicate(articleTagSlugs(article), filter.tags)
+  && datePredicate(article, filter.dateRange)
   && queryPredicate(article, filter.query)
 );
 
@@ -206,9 +417,11 @@ export const countFilterValues = (filter) => (
   filter.sources.length + filter.topics.length + filter.tags.in.length + filter.tags.not.length
 );
 
-// Reset and "Clear all" do have to account for it: a filter carrying only a query
-// is not empty.
-export const isFilterEmpty = (filter) => countFilterValues(filter) === 0 && !hasQuery(filter);
+// Reset and "Clear all" do have to account for both: a filter carrying only a
+// query, or only a date range, is not empty.
+export const isFilterEmpty = (filter) => (
+  countFilterValues(filter) === 0 && !hasQuery(filter) && !hasDateRange(filter)
+);
 
 // --- Front page ---------------------------------------------------------------
 
@@ -384,6 +597,26 @@ const parseCommaList = (value) => (
   value ? [...new Set(value.split(',').map((entry) => entry.trim()).filter(Boolean))] : []
 );
 
+// A preset travels as `date=week` and a custom range as `from`/`to`, so a shared
+// "this week" link still means this week when it is opened next month, while a
+// hand-picked range stays the exact days it was picked as.
+export const readDateRangeFromParams = (params) => {
+  const preset = params.get('date');
+  if (DATE_PRESETS.includes(preset)) {
+    return { preset, from: null, to: null };
+  }
+
+  const from = params.get('from');
+  const to = params.get('to');
+  if (isDateKey(from) && isDateKey(to)) {
+    return from <= to
+      ? { preset: 'custom', from, to }
+      : { preset: 'custom', from: to, to: from };
+  }
+
+  return EMPTY_DATE_RANGE;
+};
+
 export const readFiltersFromSearch = (search, defaultTopics = []) => {
   const params = new URLSearchParams(search);
   const excluded = parseCommaList(params.get('not_tags')).filter(isTagSlug);
@@ -393,6 +626,7 @@ export const readFiltersFromSearch = (search, defaultTopics = []) => {
     topics: params.has('topic') ? parseCommaList(params.get('topic')) : [...defaultTopics],
     sources: parseCommaList(params.get('source')),
     query: sanitizeQueryInput(params.get('q')),
+    dateRange: readDateRangeFromParams(params),
     tags: {
       // A slug named in both lists resolves to excluded — the panel has no state
       // for a tag that is included and excluded at once.
@@ -420,6 +654,21 @@ export const filtersToSearchParams = (filter, search = '') => {
     params.set('q', trimmedQuery);
   } else {
     params.delete('q');
+  }
+
+  // Rewritten from scratch every time: a preset and a custom pair are mutually
+  // exclusive, so leaving a stale `from` beside a fresh `date` would produce a
+  // link that reads back as neither.
+  params.delete('date');
+  params.delete('from');
+  params.delete('to');
+
+  const range = filter.dateRange;
+  if (range && DATE_PRESETS.includes(range.preset)) {
+    params.set('date', range.preset);
+  } else if (range?.preset === 'custom' && isDateKey(range.from) && isDateKey(range.to)) {
+    params.set('from', range.from);
+    params.set('to', range.to);
   }
 
   write('source', filter.sources);
