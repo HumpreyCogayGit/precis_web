@@ -1,5 +1,6 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
+import { Analytics } from '@vercel/analytics/react';
 import './index.css';
 import { BrowserRouter, Route, Routes } from 'react-router-dom';
 import App from './App.jsx';
@@ -27,6 +28,7 @@ root.render(
       </Routes>
       <CookieConsent />
     </BrowserRouter>
+    <Analytics />
   </React.StrictMode>
 );
 
