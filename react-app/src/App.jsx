@@ -1322,7 +1322,7 @@ function App() {
     <div className="app">
       <header className="site-header" id="top">
         <a className="brand" href="#top" aria-label="Precis home">
-          <span>PRECIS</span>
+          <span>PRÉCIS</span>
         </a>
         <nav className="site-nav" aria-label="Primary">
           <a href="#top" className="site-nav-link active">Today</a>
