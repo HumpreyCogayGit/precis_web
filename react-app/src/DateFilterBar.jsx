@@ -96,7 +96,6 @@ const PresetChip = ({ label, count, active, onClick }) => (
     aria-pressed={active}
     onClick={onClick}
   >
-    {active && <span className="date-chip-dot" aria-hidden="true" />}
     <span className="date-chip-label">{label}</span>
     {/* Only the selected chip carries its number. On every other chip it would be
         a count for a list the reader is not looking at. */}

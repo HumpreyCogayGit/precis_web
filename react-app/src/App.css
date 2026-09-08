@@ -312,13 +312,15 @@ mark.search-hit {
 /* Date filter
    ---------------------------------------------------------------------------
    Sits under the masthead date, where the payload read-out ("600 items from 54
-   sources") used to. Pills rather than the app's usual 2px corners: this is a
-   control strip, and rounding it is what stops four buttons reading as four more
-   headings in a page built out of hard rules. */
+   sources") used to. Chips, counts and the selected state are the Discover
+   rail's, deliberately: both are horizontal rows of counted, one-of-many
+   narrowings, and giving them two visual languages would imply a difference in
+   kind that isn't there. The popover borrows the filter panel's frame for the
+   same reason. */
 
 .date-filter {
   position: relative;
-  margin-top: 4px;
+  margin-top: 10px;
 }
 
 .date-filter-chips {
@@ -330,107 +332,110 @@ mark.search-hit {
 
 .date-chip {
   display: inline-flex;
+  flex: none;
   align-items: center;
-  gap: 8px;
-  border: none;
-  border-radius: 999px;
-  padding: 9px 16px;
-  color: var(--ink-soft);
-  background: var(--surface);
+  gap: 6px;
+  border: 1px solid var(--accent);
+  border-radius: var(--radius);
+  padding: 5px 10px;
+  color: var(--accent-dark);
+  background: transparent;
   cursor: pointer;
-  font-size: 0.8125rem;
-  font-weight: 600;
+  font-size: 0.75rem;
+  font-weight: 700;
   white-space: nowrap;
-  transition: background-color 160ms ease, color 160ms ease;
 }
 
 .date-chip:hover {
-  color: var(--ink);
-  background: var(--surface-strong);
+  background: var(--accent-100);
 }
 
-.date-chip--active,
-.date-chip--active:hover {
+.date-chip--active {
   color: #ffffff;
-  background: var(--ink);
-}
-
-.date-chip-dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
   background: var(--accent);
 }
 
 /* The count rides inside the chip rather than after it, so the selection and the
    number it produced can never wrap apart from each other. */
 .date-chip-count {
-  border-radius: 999px;
-  padding: 2px 7px;
-  color: #ffffff;
-  background: rgba(255, 255, 255, 0.18);
+  border-radius: var(--radius);
+  padding: 0 5px;
+  color: var(--accent-dark);
+  background: var(--accent-100);
   font-size: 0.6875rem;
-  font-weight: 700;
+  font-weight: 800;
   font-variant-numeric: tabular-nums;
 }
 
+.date-chip--active .date-chip-count {
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.28);
+}
+
+/* Square with the chips it sits beside, so the row reads as one control rather
+   than as chips plus a button. */
 .date-filter-tune {
   display: inline-flex;
+  flex: none;
   align-items: center;
   justify-content: center;
-  width: 38px;
-  height: 36px;
-  border: none;
-  border-radius: 12px;
-  color: var(--ink-soft);
-  background: var(--surface);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius);
+  /* Padded rather than sized, so it tracks the chips' height instead of drifting
+     a pixel off it whenever their font or padding changes. */
+  padding: 5px 8px;
+  color: var(--accent-dark);
+  background: transparent;
   cursor: pointer;
-  transition: background-color 160ms ease, color 160ms ease;
+  line-height: 0;
 }
 
-.date-filter-tune:hover,
+.date-filter-tune:hover {
+  background: var(--accent-100);
+}
+
 .date-filter-tune--open {
-  color: var(--ink);
-  background: var(--surface-strong);
+  color: #ffffff;
+  background: var(--accent);
 }
 
-/* Custom range popover */
+/* Custom range popover — the filter panel's frame, anchored to the bar instead
+   of to the header. */
 
 .date-range-popover {
   position: absolute;
-  z-index: 40;
-  top: calc(100% + 10px);
+  z-index: 20;
+  top: calc(100% + 8px);
   left: 0;
-  width: min(360px, calc(100vw - 32px));
-  border: 1px solid var(--neutral-200);
-  border-radius: 18px;
+  width: min(348px, calc(100vw - 32px));
+  border: 1px solid var(--subtle);
   padding: 14px;
-  background: var(--paper);
-  box-shadow: 0 18px 44px rgba(29, 31, 32, 0.16);
+  background: var(--surface);
+  box-shadow: 0 12px 32px rgba(43, 43, 45, 0.22);
+  animation: filter-panel-in 120ms ease-out;
 }
 
 .date-range-fields {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
+  gap: 8px;
 }
 
 .date-range-field {
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  border: 1px solid transparent;
-  border-radius: 12px;
-  padding: 12px;
+  gap: 3px;
+  border: 1px solid var(--neutral-300);
+  border-radius: var(--radius);
+  padding: 10px;
   text-align: left;
-  background: var(--surface);
+  background: var(--paper);
   cursor: pointer;
-  transition: border-color 160ms ease, background-color 160ms ease;
+  transition: border-color 120ms ease;
 }
 
 .date-range-field--active {
-  border-color: var(--ink);
-  background: var(--paper);
+  border-color: var(--accent);
 }
 
 .date-range-field-head {
@@ -442,7 +447,7 @@ mark.search-hit {
 }
 
 .date-range-field--active .date-range-field-head {
-  color: var(--ink);
+  color: var(--accent-dark);
 }
 
 .date-range-field-side {
@@ -454,18 +459,18 @@ mark.search-hit {
 
 .date-range-field-value {
   color: var(--ink);
-  font-size: 1rem;
+  font-size: 0.9375rem;
   font-weight: 800;
   letter-spacing: -0.01em;
 }
 
 .date-range-field-edition {
   color: var(--muted);
-  font-size: 0.75rem;
+  font-size: 0.6875rem;
 }
 
 .date-range-calendar {
-  margin-top: 16px;
+  margin-top: 14px;
 }
 
 .date-range-calendar-head {
@@ -473,12 +478,12 @@ mark.search-hit {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  margin-bottom: 10px;
+  margin-bottom: 8px;
 }
 
 .date-range-month {
   margin: 0;
-  font-size: 1.125rem;
+  font-size: 1rem;
   font-weight: 800;
   letter-spacing: -0.02em;
 }
@@ -496,18 +501,20 @@ mark.search-hit {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 30px;
-  height: 28px;
-  border: none;
-  border-radius: 8px;
+  width: 26px;
+  height: 24px;
+  border: 1px solid var(--neutral-300);
+  border-radius: var(--radius);
+  padding: 0;
   color: var(--ink-soft);
-  background: var(--surface);
+  background: var(--paper);
   cursor: pointer;
 }
 
 .date-range-nav button:hover {
-  color: var(--ink);
-  background: var(--surface-strong);
+  border-color: var(--accent);
+  color: var(--accent-dark);
+  background: var(--accent-100);
 }
 
 .date-range-weekdays,
@@ -517,37 +524,39 @@ mark.search-hit {
 }
 
 .date-range-weekdays {
-  margin-bottom: 6px;
+  margin-bottom: 4px;
 }
 
 .date-range-weekdays span {
-  color: var(--ink);
-  font-size: 0.75rem;
-  font-weight: 700;
+  color: var(--muted);
+  font-size: 0.6875rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
   text-align: center;
+  text-transform: uppercase;
 }
 
 /* No column gap: the in-range days form one continuous band, so any horizontal
    gutter would break it into seven stripes a week. */
 .date-range-grid {
-  row-gap: 4px;
+  row-gap: 2px;
 }
 
 .date-range-day {
-  height: 36px;
+  height: 32px;
   border: none;
   border-radius: 0;
   padding: 0;
   color: var(--ink);
   background: none;
   cursor: pointer;
-  font-size: 0.8125rem;
-  font-weight: 600;
+  font-size: 0.75rem;
+  font-weight: 700;
   font-variant-numeric: tabular-nums;
 }
 
 .date-range-day:hover:not(:disabled) {
-  background: var(--surface);
+  background: var(--accent-100);
 }
 
 .date-range-day--outside {
@@ -568,15 +577,15 @@ mark.search-hit {
 
 .date-range-day--inside,
 .date-range-day--inside:hover:not(:disabled) {
-  color: var(--accent-800);
-  background: var(--accent-200);
+  color: var(--accent-dark);
+  background: var(--accent-100);
 }
 
 .date-range-day--edge,
 .date-range-day--edge:hover:not(:disabled) {
-  border-radius: 10px;
+  border-radius: var(--radius);
   color: #ffffff;
-  background: var(--ink);
+  background: var(--accent);
 }
 
 .date-range-footer {
@@ -584,14 +593,14 @@ mark.search-hit {
   align-items: center;
   gap: 10px;
   margin-top: 14px;
-  border-top: 1px solid var(--neutral-200);
+  border-top: 1px solid var(--neutral-400);
   padding-top: 14px;
 }
 
 .date-range-apply {
   flex: 1;
   border: none;
-  border-radius: 999px;
+  border-radius: var(--radius);
   padding: 10px 14px;
   color: #ffffff;
   background: var(--accent);
