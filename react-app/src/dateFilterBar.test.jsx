@@ -10,7 +10,7 @@ import App from './App.jsx';
 // it: without this the suite would mean something different every day it ran.
 const WEDNESDAY = '2026-09-09T12:00:00.000Z';
 
-const item = (n, published_at) => ({
+const item = (n, published_at, tags = ['AI']) => ({
   url: `https://example.com/${n}`,
   site: 'nvidia',
   topic: 'AI',
@@ -22,13 +22,17 @@ const item = (n, published_at) => ({
   summary: `Summary ${n}.`,
   excerpt: `Summary ${n}.`,
   fetched_at: published_at,
-  tags: [],
+  tags,
 });
 
 const TODAY = item('today', '2026-09-09T09:00:00Z');
 const MONDAY = item('monday', '2026-09-07T09:00:00Z');
 const LAST_WEEK = item('last-week', '2026-09-02T09:00:00Z');
 const LAST_MONTH = item('last-month', '2026-08-20T09:00:00Z');
+const OLDER = item('older', '2026-08-19T09:00:00Z');
+const OLDEST = item('oldest', '2026-08-18T09:00:00Z');
+const ANCIENT = item('ancient', '2026-08-17T09:00:00Z');
+const ARCHAIC = item('archaic', '2026-08-16T09:00:00Z', ['Security']);
 
 const ITEMS = [TODAY, MONDAY, LAST_WEEK, LAST_MONTH];
 
@@ -59,19 +63,39 @@ afterEach(() => {
 });
 
 describe('date filter bar', () => {
-  test('replaces the payload read-out under the masthead', async () => {
+  test('renders below the tag filter on its own controls row', async () => {
+    axios.get.mockImplementationOnce(() => Promise.resolve({ data: { items: [...ITEMS, OLDER, OLDEST, ANCIENT, ARCHAIC] } }));
     render(<App />);
 
-    expect(await screen.findByRole('group', { name: 'Filter briefs by date' })).toBeInTheDocument();
+    const dateFilter = await screen.findByRole('group', { name: 'Filter briefs by date' });
+    const dateControls = dateFilter.closest('.edition-controls');
+    const masthead = document.querySelector('.masthead');
+    const tagFilter = screen.getByRole('group', { name: 'Discover by tag' });
+    const results = document.querySelector('.edition-main');
+    const cards = document.querySelector('.everything-grid');
+
+    expect(dateFilter).toBeInTheDocument();
+    expect(dateControls).toContainElement(dateFilter);
+    expect(dateControls).toContainElement(screen.getByText('Date'));
+    expect(screen.queryByText(/briefs? in the working set/)).not.toBeInTheDocument();
+    expect(screen.queryByText('Filtering by')).not.toBeInTheDocument();
+    expect(masthead).not.toContainElement(dateFilter);
+    expect(results).toContainElement(dateFilter);
+    expect(tagFilter.compareDocumentPosition(dateControls) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(dateControls.compareDocumentPosition(cards) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(screen.queryByText(/items from .* sources/)).not.toBeInTheDocument();
   });
 
-  test('opens on All, showing every brief and its count', async () => {
+  test('opens on All, showing date counts without a right-side working-set count', async () => {
     render(<App />);
 
     const all = await screen.findByRole('button', { name: /^All/ });
     expect(all).toHaveAttribute('aria-pressed', 'true');
-    expect(within(all).getByText('4')).toBeInTheDocument();
+    expect(within(all).queryByText('4')).not.toBeInTheDocument();
+    expect(within(chip('Today')).getByText('1')).toBeInTheDocument();
+    expect(within(chip('This week')).getByText('2')).toBeInTheDocument();
+    expect(within(chip('This month')).getByText('3')).toBeInTheDocument();
+    expect(screen.queryByText(/briefs? in the working set/)).not.toBeInTheDocument();
     expect(storyTitles()).toHaveLength(4);
   });
 
@@ -92,27 +116,40 @@ describe('date filter bar', () => {
     expect(storyTitles().sort()).toEqual(['Story last-week', 'Story monday', 'Story today']);
   });
 
-  // The number on the chip is what the edition becomes when it is clicked, so it
-  // has to be counted through the same predicate as the list.
-  test('the selected chip carries the count the list actually renders', async () => {
-    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
-    render(<App />);
-    await screen.findByRole('group', { name: 'Filter briefs by date' });
-
-    await user.click(chip('This week'));
-    expect(within(chip('This week')).getByText('2')).toBeInTheDocument();
-    expect(storyTitles()).toHaveLength(2);
-  });
-
-  test('an applied range is chipped in the active bar and clearable from it', async () => {
+  test('date-only filtering does not render an active-filter area', async () => {
     const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
     render(<App />);
     await screen.findByRole('group', { name: 'Filter briefs by date' });
 
     await user.click(chip('Today'));
-    const remove = screen.getByRole('button', { name: 'Clear date filter: Today' });
 
-    await user.click(remove);
+    expect(screen.queryByText('Filtering by')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Clear date filter: Today' })).not.toBeInTheDocument();
+    expect(screen.queryByText(/briefs? in Today/)).not.toBeInTheDocument();
+    expect(storyTitles()).toEqual(['Story today']);
+  });
+
+  // The number on the chip is what the edition becomes when it is clicked, so it
+  // has to be counted through the same predicate as the list even before selection.
+  test('each date chip carries the count the list will render before it is clicked', async () => {
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    render(<App />);
+    await screen.findByRole('group', { name: 'Filter briefs by date' });
+
+    expect(within(chip('This week')).getByText('2')).toBeInTheDocument();
+    await user.click(chip('This week'));
+    expect(within(chip('This week')).getByText('2')).toBeInTheDocument();
+    expect(storyTitles()).toHaveLength(2);
+  });
+
+  test('clearing the date range from the date row returns the All chip to active', async () => {
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    render(<App />);
+    await screen.findByRole('group', { name: 'Filter briefs by date' });
+
+    await user.click(chip('Today'));
+    await user.click(screen.getByRole('button', { name: /^All/ }));
+
     expect(storyTitles()).toHaveLength(4);
     expect(screen.getByRole('button', { name: /^All/ })).toHaveAttribute('aria-pressed', 'true');
   });
@@ -136,12 +173,17 @@ describe('date filter bar', () => {
   });
 
   // The bar is the control that can empty the list, so it has to survive doing so.
-  test('the masthead and the bar stay put when a range matches nothing', async () => {
+  test('the masthead and the bar stay available when a range matches nothing', async () => {
     window.history.replaceState(null, '', '/?from=2020-01-01&to=2020-01-02');
     render(<App />);
 
     expect(await screen.findByText('No briefs were published in that range.')).toBeInTheDocument();
-    expect(screen.getByRole('group', { name: 'Filter briefs by date' })).toBeInTheDocument();
+    const dateFilter = screen.getByRole('group', { name: 'Filter briefs by date' });
+    const masthead = document.querySelector('.masthead');
+    const emptyState = document.querySelector('.empty-state');
+
+    expect(masthead).not.toContainElement(dateFilter);
+    expect(dateFilter.closest('.edition-controls').compareDocumentPosition(emptyState) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(storyTitles()).toHaveLength(0);
   });
 

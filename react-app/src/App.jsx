@@ -664,19 +664,6 @@ const formatFacetLabel = (group, row) => (
   group === 'sources' ? formatSiteName(row.slug) : row.label
 );
 
-const FilterChip = ({ label, onRemove, removeLabel, excluded = false }) => (
-  <button
-    type="button"
-    className={`filter-active-chip${excluded ? ' filter-active-chip--excluded' : ''}`}
-    onClick={onRemove}
-    aria-label={removeLabel}
-  >
-    {excluded && <span className="filter-active-chip-minus" aria-hidden="true">&minus;</span>}
-    <span>{label}</span>
-    <span className="filter-active-chip-remove" aria-hidden="true"><CloseIcon /></span>
-  </button>
-);
-
 function App() {
   const [articles, setArticles] = useState([]);
   // The day's totals for all three groups, as returned alongside the items. Every
@@ -994,15 +981,6 @@ function App() {
     setDraft(updater);
   };
 
-  const removeAppliedFacet = (group, slug) => removeApplied(
-    (current) => ({ ...current, [group]: withoutSlug(current[group], slug) }),
-  );
-
-  const removeAppliedTag = (list, slug) => removeApplied((current) => ({
-    ...current,
-    tags: { ...current.tags, [list]: withoutSlug(current.tags[list], slug) },
-  }));
-
   const handleClearFilters = () => removeApplied(EMPTY_FILTER);
 
   // The query lives in the filter model, so it goes through the same applied/draft
@@ -1025,8 +1003,6 @@ function App() {
     removeApplied((current) => ({ ...current, dateRange }));
     setVisibleCount(pageSize);
   };
-
-  const clearDateRange = () => handleDateRangeChange(EMPTY_DATE_RANGE);
 
   // Every chip in the date bar counts the working set through the whole applied
   // filter with only its own range swapped in, so a chip's number is exactly what
@@ -1213,6 +1189,20 @@ function App() {
       ? dayFormat.format(asDate(range.from))
       : `${spanFormat.format(asDate(range.from))} – ${spanFormat.format(asDate(range.to))}`;
   }, [applied.dateRange]);
+
+  const editionControls = articles.length > 0 ? (
+    <div
+      className={`edition-controls${sortedArticles.length > 0 ? '' : ' edition-controls--standalone'}`}
+      aria-label="Edition controls"
+    >
+      <span className="edition-controls-label">Date</span>
+      <DateFilterBar
+        range={applied.dateRange}
+        countFor={countForDateRange}
+        onChange={handleDateRangeChange}
+      />
+    </div>
+  ) : null;
 
   // Anything the edition already showed is dropped rather than repeated lower down
   // the page. The two searches overlap but neither contains the other — the local
@@ -1409,81 +1399,16 @@ function App() {
         </div>
       </header>
 
-      {(appliedCount > 0 || isSearching || hasDateRange(applied)) && (
-        <div className="filter-active-bar">
-          <span className="filter-active-label">Filtering by</span>
-          {hasDateRange(applied) && (
-            <FilterChip
-              label={dateRangeChipLabel(applied.dateRange)}
-              removeLabel={`Clear date filter: ${dateRangeChipLabel(applied.dateRange)}`}
-              onRemove={clearDateRange}
-            />
-          )}
-          {isSearching && (
-            <FilterChip
-              label={`“${applied.query.trim()}”`}
-              removeLabel={`Clear search: ${applied.query.trim()}`}
-              onRemove={clearQuery}
-            />
-          )}
-          {applied.topics.map((topic) => (
-            <FilterChip
-              key={`topic-${topic}`}
-              label={topic}
-              removeLabel={`Remove filter: ${topic}`}
-              onRemove={() => removeAppliedFacet('topics', topic)}
-            />
-          ))}
-          {applied.sources.map((source) => (
-            <FilterChip
-              key={`source-${source}`}
-              label={formatSiteName(source)}
-              removeLabel={`Remove filter: ${formatSiteName(source)}`}
-              onRemove={() => removeAppliedFacet('sources', source)}
-            />
-          ))}
-          {applied.tags.in.map((slug) => {
-            const label = vocabulary.tags.get(slug)?.label ?? labelFromTagSlug(slug);
-            return (
-              <FilterChip
-                key={`tag-${slug}`}
-                label={label}
-                removeLabel={`Remove filter: ${label}`}
-                onRemove={() => removeAppliedTag('in', slug)}
-              />
-            );
-          })}
-          {applied.tags.not.map((slug) => {
-            const label = vocabulary.tags.get(slug)?.label ?? labelFromTagSlug(slug);
-            return (
-              <FilterChip
-                key={`not-tag-${slug}`}
-                label={label}
-                excluded
-                removeLabel={`Stop excluding: ${label}`}
-                onRemove={() => removeAppliedTag('not', slug)}
-              />
-            );
-          })}
-          <button type="button" className="filter-active-clear" onClick={handleClearFilters}>Clear all</button>
-        </div>
-      )}
-
-      {/* Outside the results branch on purpose: the date bar is the control that
-          can empty the list, so it has to survive doing so. A masthead over an
-          empty state is the reader's way back; a date filter that deleted itself
-          the moment it matched nothing would be a trap. */}
+      {/* Outside the results branch on purpose: the masthead stays visible even
+          when filters empty the list, so readers still know which edition they
+          are changing. The date filter itself is rendered with the tag controls
+          below, where the filtering controls live. */}
       {articles.length > 0 && (
         <>
           <section className="masthead" aria-labelledby="masthead-title">
             <div className="masthead-head">
               <p className="masthead-kicker">Daily tech brief</p>
               <h1 id="masthead-title" className="masthead-date">{editionDateLabel}</h1>
-              <DateFilterBar
-                range={applied.dateRange}
-                countFor={countForDateRange}
-                onChange={handleDateRangeChange}
-              />
             </div>
           </section>
 
@@ -1562,6 +1487,7 @@ function App() {
                   onToggleExpanded={() => setDiscoverExpanded((current) => !current)}
                 />
               )}
+              {editionControls}
               {everythingElseAll.length > 0 ? (
                 <>
                   {everythingViewMode === 'cards' && (
@@ -1606,6 +1532,7 @@ function App() {
         </>
       ) : (
         <>
+          {editionControls}
         <section className="empty-state">
           {isSearching ? (
             <>

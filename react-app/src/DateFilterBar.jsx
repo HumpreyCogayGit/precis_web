@@ -11,8 +11,9 @@ import {
   todayKey,
 } from './filters';
 
-// The masthead's date control. It replaces the old "N items from M sources" line,
-// which described the payload rather than offering anything to do with it.
+// The edition date control. It sits with the results it changes, replacing the
+// old "N items from M sources" line that described the payload rather than
+// offering anything to do with it.
 //
 // The chips are presets, the sliders button opens a two-ended calendar. Both write
 // the same `dateRange` object into the filter model, so a range narrows the edition
@@ -97,9 +98,7 @@ const PresetChip = ({ label, count, active, onClick }) => (
     onClick={onClick}
   >
     <span className="date-chip-label">{label}</span>
-    {/* Only the selected chip carries its number. On every other chip it would be
-        a count for a list the reader is not looking at. */}
-    {active && Number.isFinite(count) && <span className="date-chip-count">{count}</span>}
+    {Number.isFinite(count) && <span className="date-chip-count">{count}</span>}
   </button>
 );
 
@@ -312,7 +311,6 @@ const DateFilterBar = ({ range, countFor, onChange }) => {
   // selection moves on a click and a number that arrived a render late would show
   // the previous chip's total under the new one's label.
   const counts = useMemo(() => ({
-    all: countFor(EMPTY_DATE_RANGE),
     today: countFor({ preset: 'today', from: null, to: null }),
     week: countFor({ preset: 'week', from: null, to: null }),
     month: countFor({ preset: 'month', from: null, to: null }),
@@ -363,7 +361,6 @@ const DateFilterBar = ({ range, countFor, onChange }) => {
       <div className="date-filter-chips" role="group" aria-label="Filter briefs by date">
         <PresetChip
           label={DATE_PRESET_LABELS.all}
-          count={counts.all}
           active={applied.preset === 'all'}
           onClick={() => select('all')}
         />

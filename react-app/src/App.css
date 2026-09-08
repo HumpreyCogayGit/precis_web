@@ -149,8 +149,8 @@ select {
 
 .site-header,
 .masthead,
-.filter-active-bar,
 .section-divider,
+.edition-controls--standalone,
 .edition-main,
 .empty-state {
   width: min(var(--max-width), calc(100% - clamp(32px, 6vw, 80px)));
@@ -361,7 +361,7 @@ mark.search-hit {
   flex-wrap: wrap;
   align-items: flex-end;
   justify-content: space-between;
-  gap: 20px;
+  gap: 18px 28px;
   padding: clamp(20px, 3vw, 34px) 0 20px;
 }
 
@@ -386,12 +386,11 @@ mark.search-hit {
 
 /* Date filter
    ---------------------------------------------------------------------------
-   Sits under the masthead date, where the payload read-out ("600 items from 54
-   sources") used to. Chips, counts and the selected state are the Discover
-   rail's, deliberately: both are horizontal rows of counted, one-of-many
-   narrowings, and giving them two visual languages would imply a difference in
-   kind that isn't there. The popover borrows the filter panel's frame for the
-   same reason. */
+   Shared chip styling for the results controls row. Chips, counts and the
+   selected state are the Discover rail's, deliberately: both are horizontal rows
+   of counted, one-of-many narrowings, and giving them two visual languages would
+   imply a difference in kind that isn't there. The popover borrows the filter
+   panel's frame for the same reason. */
 
 .date-filter {
   position: relative;
@@ -1171,83 +1170,41 @@ mark.search-hit {
   color: var(--accent-900);
 }
 
-/* Active-filter chip bar */
-
-.filter-active-bar {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px;
-  border-bottom: 1px solid var(--neutral-300);
-  padding: 11px 0;
+.section-divider {
+  border-top: 1px solid var(--line-dark);
+  margin-bottom: 0;
 }
 
-.filter-active-label {
+/* Date filtering sits with the other narrowing controls, directly below the tag rail. */
+.edition-controls {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 14px 24px;
+  border-bottom: 1px solid var(--line);
+  margin-top: 0;
+  margin-bottom: 18px;
+  padding: 10px 0;
+  background: var(--paper);
+}
+
+.everything-else .discover-rail + .edition-controls {
+  margin-top: -18px;
+}
+
+.edition-controls .date-filter {
+  flex: 1 1 auto;
+  min-width: 0;
+  margin-top: 0;
+}
+
+.edition-controls-label {
+  flex: none;
   color: var(--muted);
   font-size: 0.6875rem;
   font-weight: 800;
   letter-spacing: 0.12em;
   text-transform: uppercase;
-}
-
-.filter-active-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  border: 1px solid var(--accent);
-  border-radius: var(--radius);
-  padding: 5px 8px;
-  color: var(--accent-dark);
-  background: var(--accent-100);
-  cursor: pointer;
-  font-size: 0.75rem;
-  font-weight: 700;
-}
-
-/* An excluded tag reads as the negative of an included one: dashed frame, no
-   accent fill, the label struck through. */
-.filter-active-chip--excluded {
-  border-style: dashed;
-  border-color: var(--subtle);
-  color: var(--muted);
-  background: transparent;
-}
-
-.filter-active-chip--excluded span:not(.filter-active-chip-minus):not(.filter-active-chip-remove) {
-  text-decoration: line-through;
-}
-
-.filter-active-chip-minus {
-  line-height: 1;
-}
-
-.filter-active-chip-remove {
-  display: inline-flex;
-  opacity: 0.7;
-}
-
-.filter-active-chip:hover .filter-active-chip-remove {
-  opacity: 1;
-}
-
-.filter-active-clear {
-  border: none;
-  background: none;
-  padding: 0;
-  margin-left: 4px;
-  color: var(--accent-dark);
-  cursor: pointer;
-  font-size: 0.8125rem;
-  font-weight: 700;
-}
-
-.filter-active-clear:hover {
-  color: var(--accent-900);
-}
-
-.section-divider {
-  border-top: 1px solid var(--line-dark);
-  margin-bottom: 0;
 }
 
 .tier-empty {
@@ -1259,7 +1216,7 @@ mark.search-hit {
   min-width: 0;
   border-top: 2px solid var(--line-dark);
   margin-bottom: 40px;
-  padding: 32px 0;
+  padding: 28px 0 32px;
 }
 
 .lead-story {
@@ -2060,7 +2017,6 @@ mark.search-hit {
 .filter-panel-show-all:focus-visible,
 .filter-panel-apply:focus-visible,
 .filter-panel-cancel:focus-visible,
-.filter-active-chip:focus-visible,
 .date-chip:focus-visible,
 .date-filter-tune:focus-visible,
 .date-range-apply:focus-visible,
@@ -2068,8 +2024,7 @@ mark.search-hit {
 .date-range-cancel:focus-visible,
 .discover-chip:focus-visible,
 .discover-scroll:focus-visible,
-.discover-see-all:focus-visible,
-.filter-active-clear:focus-visible {
+.discover-see-all:focus-visible {
   outline: 3px solid var(--accent);
   outline-offset: 4px;
 }
@@ -2115,8 +2070,8 @@ mark.search-hit {
 @media (max-width: 760px) {
   .site-header,
   .masthead,
-  .filter-active-bar,
   .section-divider,
+  .edition-controls--standalone,
   .edition-main,
   .empty-state {
     width: min(100% - 28px, var(--max-width));
@@ -2146,6 +2101,23 @@ mark.search-hit {
 
   .masthead {
     align-items: flex-start;
+  }
+
+  .edition-controls {
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: 8px 10px;
+  }
+
+  .edition-controls .date-filter,
+  .edition-controls .date-filter-chips {
+    width: 100%;
+  }
+
+  .edition-controls .date-filter-chips {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    padding-bottom: 2px;
+    -webkit-overflow-scrolling: touch;
   }
 
   .brief-row {
