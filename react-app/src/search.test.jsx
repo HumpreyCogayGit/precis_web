@@ -30,6 +30,21 @@ const ITEMS = [
   item(4, 'x_ai_news', 'Grok gains vision', 'Multimodal input arrives.', []),
 ];
 
+const ZERTO = {
+  url: 'https://aws.amazon.com/blogs/machine-learning/how-hpe-zerto-built-an-agentic-troubleshooting-system-with-amazon-bedrock',
+  site: 'aws_ml_blog',
+  topic: 'AI',
+  topics: ['AI'],
+  title: 'How HPE Zerto built an agentic troubleshooting system with Amazon Bedrock | Amazon Web Services',
+  author: 'Snir Cohen',
+  published_at: '2026-09-08T08:15:23-08:00',
+  image_url: '',
+  summary: 'This post was co-written by AWS and the HPE Zerto team.',
+  excerpt: 'This post was co-written by AWS and the HPE Zerto team.',
+  fetched_at: '2026-09-08T16:37:08.872Z',
+  tags: ['Agentic AI', 'Enterprise AI Adoption', 'AI Cloud Platforms'],
+};
+
 const toFacetArray = (map) => [...map.values()]
   .sort((a, b) => b.count - a.count || a.label.localeCompare(b.label));
 const vocabulary = buildVocabulary(ITEMS);
@@ -190,6 +205,39 @@ describe('header search', () => {
 
     expect(searchBox()).toHaveValue('');
     expect(headlines().length).toBeGreaterThan(2);
+  });
+
+  test('a date chip makes a hidden search result visible again when removed', async () => {
+    const items = [...ITEMS, ZERTO];
+    const customVocabulary = buildVocabulary(items);
+    axios.get.mockImplementation((url) => {
+      if (url.includes('/api/search')) {
+        return Promise.resolve({ data: { query: 'zerto', items: [ZERTO], total: 1 } });
+      }
+
+      return Promise.resolve({
+        data: {
+          items,
+          facets: {
+            tags: toFacetArray(customVocabulary.tags),
+            sources: toFacetArray(customVocabulary.sources),
+            topics: toFacetArray(customVocabulary.topics),
+          },
+        },
+      });
+    });
+    window.history.replaceState(null, '', '/?from=2026-09-09&to=2026-09-09');
+
+    const user = await renderApp();
+    await user.type(searchBox(), 'Zerto');
+
+    expect(screen.getByText('Nothing in today’s edition mentions “Zerto”.')).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: /HPE Zerto/ })).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Clear date: Sep 9' }));
+
+    expect(await screen.findByRole('heading', { name: /HPE Zerto/ })).toBeInTheDocument();
+    expect(searchBox()).toHaveValue('Zerto');
   });
 
   test('Escape in the box clears the search', async () => {

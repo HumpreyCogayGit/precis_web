@@ -361,6 +361,18 @@ const PageSizeSelect = ({ value, onChange }) => (
   </label>
 );
 
+const ActiveFilterChip = ({ label, onRemove }) => (
+  <button
+    type="button"
+    className="active-filter-chip"
+    aria-label={`Clear ${label}`}
+    onClick={onRemove}
+  >
+    <span>{label}</span>
+    <CloseIcon />
+  </button>
+);
+
 // How far one press of a rail arrow travels. A fixed step rather than a full
 // page: the chip that was at the edge stays visible, so nothing is skipped over.
 const DISCOVER_SCROLL_STEP = 240;
@@ -983,6 +995,30 @@ function App() {
 
   const handleClearFilters = () => removeApplied(EMPTY_FILTER);
 
+  const clearDateRange = () => {
+    handleDateRangeChange(EMPTY_DATE_RANGE);
+  };
+
+  const removeSource = (slug) => removeApplied((current) => ({
+    ...current,
+    sources: withoutSlug(current.sources, slug),
+  }));
+
+  const removeTopic = (slug) => removeApplied((current) => ({
+    ...current,
+    topics: withoutSlug(current.topics, slug),
+  }));
+
+  const removeIncludedTag = (slug) => removeApplied((current) => ({
+    ...current,
+    tags: { ...current.tags, in: withoutSlug(current.tags.in, slug) },
+  }));
+
+  const removeExcludedTag = (slug) => removeApplied((current) => ({
+    ...current,
+    tags: { ...current.tags, not: withoutSlug(current.tags.not, slug) },
+  }));
+
   // The query lives in the filter model, so it goes through the same applied/draft
   // pair as everything else — otherwise reopening the panel would silently drop it.
   // The section below the fold is a different length now, so paging starts over.
@@ -1190,6 +1226,34 @@ function App() {
       : `${spanFormat.format(asDate(range.from))} – ${spanFormat.format(asDate(range.to))}`;
   }, [applied.dateRange]);
 
+  const activeFilterChips = [];
+  if (hasQuery(applied)) {
+    activeFilterChips.push({ key: 'query', label: `search: ${applied.query.trim()}`, onRemove: clearQuery });
+  }
+  if (hasDateRange(applied)) {
+    activeFilterChips.push({ key: 'date', label: `date: ${dateRangeChipLabel(applied.dateRange)}`, onRemove: clearDateRange });
+  }
+  for (const slug of applied.sources) {
+    activeFilterChips.push({ key: `source:${slug}`, label: `source: ${formatSiteName(slug)}`, onRemove: () => removeSource(slug) });
+  }
+  for (const slug of applied.topics) {
+    activeFilterChips.push({ key: `topic:${slug}`, label: `topic: ${slug}`, onRemove: () => removeTopic(slug) });
+  }
+  for (const slug of applied.tags.in) {
+    activeFilterChips.push({
+      key: `tag:${slug}`,
+      label: `tag: ${vocabulary.tags.get(slug)?.label ?? labelFromTagSlug(slug)}`,
+      onRemove: () => removeIncludedTag(slug),
+    });
+  }
+  for (const slug of applied.tags.not) {
+    activeFilterChips.push({
+      key: `not-tag:${slug}`,
+      label: `not tag: ${vocabulary.tags.get(slug)?.label ?? labelFromTagSlug(slug)}`,
+      onRemove: () => removeExcludedTag(slug),
+    });
+  }
+
   const editionControls = articles.length > 0 ? (
     <div
       className={`edition-controls${sortedArticles.length > 0 ? '' : ' edition-controls--standalone'}`}
@@ -1201,6 +1265,19 @@ function App() {
         countFor={countForDateRange}
         onChange={handleDateRangeChange}
       />
+      {activeFilterChips.length > 0 && (
+        <div className="active-filter-row" aria-label="Active filters">
+          <span className="active-filter-row-label">Filtering by</span>
+          <div className="active-filter-chips">
+            {activeFilterChips.map((chip) => (
+              <ActiveFilterChip key={chip.key} label={chip.label} onRemove={chip.onRemove} />
+            ))}
+          </div>
+          <button type="button" className="active-filter-clear" onClick={handleClearFilters}>
+            Clear all
+          </button>
+        </div>
+      )}
     </div>
   ) : null;
 

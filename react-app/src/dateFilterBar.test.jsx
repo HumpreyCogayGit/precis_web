@@ -116,17 +116,23 @@ describe('date filter bar', () => {
     expect(storyTitles().sort()).toEqual(['Story last-week', 'Story monday', 'Story today']);
   });
 
-  test('date-only filtering does not render an active-filter area', async () => {
+  test('date-only filtering renders a removable active chip', async () => {
     const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
     render(<App />);
     await screen.findByRole('group', { name: 'Filter briefs by date' });
 
     await user.click(chip('Today'));
 
-    expect(screen.queryByText('Filtering by')).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Clear date filter: Today' })).not.toBeInTheDocument();
+    expect(screen.getByText('Filtering by')).toBeInTheDocument();
+    const activeDate = screen.getByRole('button', { name: 'Clear date: Today' });
+    expect(activeDate).toBeInTheDocument();
     expect(screen.queryByText(/briefs? in Today/)).not.toBeInTheDocument();
     expect(storyTitles()).toEqual(['Story today']);
+
+    await user.click(activeDate);
+
+    expect(storyTitles()).toHaveLength(4);
+    expect(screen.getByRole('button', { name: /^All/ })).toHaveAttribute('aria-pressed', 'true');
   });
 
   // The number on the chip is what the edition becomes when it is clicked, so it
