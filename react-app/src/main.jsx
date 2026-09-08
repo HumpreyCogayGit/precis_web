@@ -4,9 +4,12 @@ import './index.css';
 import { BrowserRouter, Route, Routes } from 'react-router-dom';
 import App from './App.jsx';
 import CookieConsent from './components/CookieConsent.jsx';
+import { initTheme } from './components/ThemeToggle.jsx';
 import TrendingPage from './pages/TrendingPage.jsx';
 import { PrivacyPolicyPage, TermsPage } from './pages/LegalPages.jsx';
 import reportWebVitals from './reportWebVitals';
+
+initTheme();
 
 // The router lives here rather than inside App so that `/` renders the existing
 // App component verbatim -- no new provider, state or wrapper reaches the home

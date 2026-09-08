@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
 
 import SiteFooter from '../components/SiteFooter.jsx';
+import ThemeToggle from '../components/ThemeToggle.jsx';
 
 const today = new Intl.DateTimeFormat('en', { year: 'numeric', month: 'long', day: 'numeric' }).format(new Date());
 
@@ -15,6 +16,9 @@ const LegalHeader = ({ current }) => (
       <Link to="/privacy" className={`site-nav-link${current === 'privacy' ? ' active' : ''}`} aria-current={current === 'privacy' ? 'page' : undefined}>Privacy</Link>
       <Link to="/terms" className={`site-nav-link${current === 'terms' ? ' active' : ''}`} aria-current={current === 'terms' ? 'page' : undefined}>Terms</Link>
     </nav>
+    <div className="site-header-actions">
+      <ThemeToggle />
+    </div>
   </header>
 );
 

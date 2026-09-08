@@ -6,6 +6,7 @@ import { createPortal } from 'react-dom';
 import axios from 'axios';
 import FilterPanel from './FilterPanel.jsx';
 import SiteFooter from './components/SiteFooter.jsx';
+import ThemeToggle from './components/ThemeToggle.jsx';
 import DateFilterBar, { rangeChipLabel as dateRangeChipLabel } from './DateFilterBar.jsx';
 import { ChevronLeftIcon, ChevronRightIcon, CloseIcon, SearchIcon } from './icons.jsx';
 import {
@@ -1340,6 +1341,7 @@ function App() {
           <span className="site-nav-link site-nav-link--soon" aria-disabled="true">Saved</span>
         </nav>
         <div className="site-header-actions">
+          <ThemeToggle />
           <label className="header-search">
             <SearchIcon />
             <input

@@ -5,6 +5,7 @@ import axios from 'axios';
 
 import FilterPanel from '../FilterPanel.jsx';
 import SiteFooter from '../components/SiteFooter.jsx';
+import ThemeToggle from '../components/ThemeToggle.jsx';
 import { formatRelativeTime } from '../App.jsx';
 import { formatSiteName } from '../sources';
 import {
@@ -357,6 +358,7 @@ const TrendingPage = () => {
           <span className="site-nav-link active" aria-current="page">Trending</span>
         </nav>
         <div className="site-header-actions">
+          <ThemeToggle />
           <button
             type="button"
             ref={filtersButtonRef}
