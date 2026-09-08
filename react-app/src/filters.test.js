@@ -2,6 +2,8 @@ import { describe, expect, test } from 'vitest';
 import {
   EMPTY_FILTER,
   MAX_QUERY_LENGTH,
+  articleSearchText,
+  articleTopics,
   buildTagRail,
   buildVocabulary,
   computeFacetRows,
@@ -407,5 +409,48 @@ describe('the query in the URL', () => {
     expect(filtersToSearchParams(withFilter({ query: 'codex ' })).get('q')).toBe('codex');
     expect(filtersToSearchParams(withFilter({ query: '   ' })).get('q')).toBe(null);
     expect(filtersToSearchParams(EMPTY_FILTER, '?q=stale').get('q')).toBe(null);
+  });
+});
+
+// --- Multi-valued topics ------------------------------------------------------
+// public_articles returns `topics` (the full rollup, used for filtering) alongside
+// `topic` (the primary label shown on a card). An article that is genuinely both AI
+// and Cyber Security must be reachable under either, which the old scalar `includes`
+// could never do — it compared an array against strings and dropped every article.
+describe('multi-valued topics', () => {
+  const both = { url: 'u1', site: 'alibaba', topic: 'Cyber Security', topics: ['AI', 'Cyber Security'], tags: ['AI Security'] };
+  const aiOnly = { url: 'u2', site: 'open_ai', topic: 'AI', topics: ['AI'], tags: ['LLM Release'] };
+  const none = { url: 'u3', site: 'alibaba', topic: null, topics: [], tags: ['GENERAL'] };
+
+  it('finds an article under every topic it carries, not just the one it leads with', () => {
+    expect(passesFilter(both, { ...EMPTY_FILTER, topics: ['AI'] })).toBe(true);
+    expect(passesFilter(both, { ...EMPTY_FILTER, topics: ['Cyber Security'] })).toBe(true);
+  });
+
+  it('still excludes an article that carries none of the selected topics', () => {
+    expect(passesFilter(aiOnly, { ...EMPTY_FILTER, topics: ['Cyber Security'] })).toBe(false);
+  });
+
+  it('treats an empty rollup as belonging to no topic rather than to all of them', () => {
+    expect(passesFilter(none, { ...EMPTY_FILTER, topics: ['AI'] })).toBe(false);
+    // ...but an empty filter is no constraint, so it is still part of the edition.
+    expect(passesFilter(none, EMPTY_FILTER)).toBe(true);
+  });
+
+  it('counts an article toward each of its topics in the vocabulary', () => {
+    const vocab = buildVocabulary([both, aiOnly, none]);
+    expect(vocab.topics.get('AI').count).toBe(2);
+    expect(vocab.topics.get('Cyber Security').count).toBe(1);
+  });
+
+  it('falls back to the scalar so a payload predating the rollup still filters', () => {
+    const legacy = { url: 'u4', site: 'x', topic: 'AI', tags: [] };
+    expect(articleTopics(legacy)).toEqual(['AI']);
+    expect(passesFilter(legacy, { ...EMPTY_FILTER, topics: ['AI'] })).toBe(true);
+  });
+
+  it('makes every topic an article carries searchable, not only the primary', () => {
+    expect(articleSearchText(both)).toContain('cyber security');
+    expect(articleSearchText(both)).toContain('ai');
   });
 });

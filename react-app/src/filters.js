@@ -137,7 +137,7 @@ export const articleSearchText = (article) => {
     article.title,
     article.summary,
     ...(Array.isArray(article.tags) ? article.tags : []),
-    article.topic,
+    ...articleTopics(article),
     article.site,
     formatSiteName(article.site),
   ].filter(Boolean).join(' ').toLowerCase().replace(/\s+/g, ' ');
@@ -162,6 +162,24 @@ export const queryPredicate = (article, query) => {
 // An empty group is no constraint at all — never "match nothing".
 export const groupOr = (value, list) => list.length === 0 || list.includes(value);
 
+// The same rule for a group whose value on the article is a list, not a scalar.
+// An article carries every topic its tags roll up to, so "is this article in the
+// AI topic" is an overlap question. Passing article.topics to groupOr instead
+// would compare an array against strings and quietly fail for every article.
+export const groupOverlap = (values, list) => (
+  list.length === 0 || (Array.isArray(values) && values.some((value) => list.includes(value)))
+);
+
+// public_articles exposes both: `topics` is the full rollup used for filtering and
+// facets, `topic` the primary label shown on a card. Fall back to the scalar so a
+// row from an older payload still filters correctly rather than vanishing.
+export const articleTopics = (article) => {
+  if (Array.isArray(article?.topics)) {
+    return article.topics;
+  }
+  return article?.topic ? [article.topic] : [];
+};
+
 // Exclusion is evaluated first and wins: a tag in `not` removes the article even
 // when a tag in `in` matched it.
 export const tagPredicate = (slugs, { in: included = [], not: excluded = [] } = {}) => {
@@ -174,7 +192,7 @@ export const tagPredicate = (slugs, { in: included = [], not: excluded = [] } = 
 
 export const passesFilter = (article, filter) => (
   groupOr(article.site, filter.sources)
-  && groupOr(article.topic, filter.topics)
+  && groupOverlap(articleTopics(article), filter.topics)
   && tagPredicate(articleTagSlugs(article), filter.tags)
   && queryPredicate(article, filter.query)
 );
@@ -282,7 +300,7 @@ export const buildVocabulary = (articles) => ({
     articleTagSlugs(article).map((slug, index) => ({ slug, label: article.tags[index] }))
   )),
   sources: tally(articles, (article) => (article.site ? [{ slug: article.site, label: article.site }] : [])),
-  topics: tally(articles, (article) => (article.topic ? [{ slug: article.topic, label: article.topic }] : [])),
+  topics: tally(articles, (article) => articleTopics(article).map((topic) => ({ slug: topic, label: topic }))),
 });
 
 // The Discover rail's chips. Counted over the exact slice the rail will filter,

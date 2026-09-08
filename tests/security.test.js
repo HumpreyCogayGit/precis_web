@@ -218,15 +218,19 @@ test('article list queries use the public view and expose only public fields', (
   assert.doesNotMatch(built.text, /FROM\s+(?:public\.)?articles\b/i);
   assert.doesNotMatch(built.text, /body_text|content_hash|matched_strategy|flag_reason|raw_html_path|needs_review/i);
   assert.match(built.text, /\bexcerpt\b/i);
-  assert.deepEqual(built.params, ['nvidia', 'AI', WORKING_SET_LIMIT]);
+  // Topic is an array overlap, so even one value binds as a one-element array.
+  assert.deepEqual(built.params, ['nvidia', ['AI'], WORKING_SET_LIMIT]);
 });
 
-test('multi-value site/topic filters build an ANY() clause with one array param', () => {
+test('multi-value site/topic filters build one array param per group', () => {
   const built = buildFetchArticlesQuery({ site: 'nvidia,openai', topic: 'AI' });
 
   assert.match(built.text, /site = ANY\(\$1::text\[\]\)/);
-  assert.match(built.text, /topic = \$2\b/);
-  assert.deepEqual(built.params, [['nvidia', 'openai'], 'AI', WORKING_SET_LIMIT]);
+  // Topics overlap rather than compare: an article carrying both AI and Cyber
+  // Security must be found under either, which `topic = $2` could never do.
+  assert.match(built.text, /topics && \$2::text\[\]/);
+  assert.doesNotMatch(built.text, /\btopic = \$/);
+  assert.deepEqual(built.params, [['nvidia', 'openai'], ['AI'], WORKING_SET_LIMIT]);
 });
 
 test('tag slugs never carry a display label into the query string', () => {
@@ -280,16 +284,22 @@ test('an empty tag filter constrains nothing, and tag length and mode are valida
 
 test('facets are tallied from the returned items so a count cannot outrun its rows', () => {
   const facets = buildFacets([
-    { site: 'nvidia', topic: 'AI', tags: ['LLM Release', 'Agentic AI'] },
-    { site: 'nvidia', topic: 'AI', tags: ['LLM Release'] },
-    { site: 'open_ai', topic: 'AI', tags: [] },
+    { site: 'nvidia', topics: ['AI', 'Cyber Security'], tags: ['AI Security'] },
+    { site: 'nvidia', topics: ['AI'], tags: ['LLM Release'] },
+    { site: 'open_ai', topics: ['AI'], tags: [] },
   ]);
 
   assert.deepEqual(facets.tags, [
-    { slug: 'llm-release', label: 'LLM Release', count: 2 },
-    { slug: 'agentic-ai', label: 'Agentic AI', count: 1 },
+    { slug: 'ai-security', label: 'AI Security', count: 1 },
+    { slug: 'llm-release', label: 'LLM Release', count: 1 },
   ]);
-  assert.deepEqual(facets.topics, [{ slug: 'AI', label: 'AI', count: 3 }]);
+  // The AI Security article counts toward BOTH topics, so the totals exceed the
+  // article count. That is correct: each number matches what selecting that topic
+  // returns, which is the guarantee this test exists to protect.
+  assert.deepEqual(facets.topics, [
+    { slug: 'AI', label: 'AI', count: 3 },
+    { slug: 'Cyber Security', label: 'Cyber Security', count: 1 },
+  ]);
   assert.equal(facets.sources[0].slug, 'nvidia');
 });
 
@@ -300,10 +310,15 @@ test('public articles view withholds review-held records and truncates body text
   );
 
   assert.match(viewSql, /CREATE OR REPLACE VIEW public\.public_articles/i);
-  assert.match(viewSql, /WHERE\s+COALESCE\(needs_review,\s*FALSE\)\s*=\s*FALSE/i);
+  // The alias is optional: the view gained `FROM public.articles a` when the topic
+  // rollup needed to reference a.tags, but the review-held guard itself must not move.
+  assert.match(viewSql, /WHERE\s+COALESCE\((?:a\.)?needs_review,\s*FALSE\)\s*=\s*FALSE/i);
   assert.match(viewSql, /left\(regexp_replace\(body_text, '\\s\+', ' ', 'g'\), 360\) \|\| '…'/i);
   assert.doesNotMatch(viewSql, /\bcontent_hash\b|\bmatched_strategy\b|\bflag_reason\b|\braw_html_path\b/i);
-  assert.match(viewSql, /^\s*tags\b/im);
+  assert.match(viewSql, /^\s*tags,/im);
+  // The derived rollup, appended last so CREATE OR REPLACE keeps the view's grants.
+  assert.match(viewSql, /\bAS topics\b/);
+  assert.match(viewSql, /public\.tag_topics\b/);
 });
 
 test('search validates the query the same way every other filter is validated', () => {

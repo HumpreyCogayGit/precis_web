@@ -96,7 +96,26 @@ AS $$
       -- A NULL array means "no constraint on this group", matching the empty-group
       -- rule the filter panel and lib/articles.js both use.
       AND (sites IS NULL OR a.site = ANY(sites))
-      AND (topics IS NULL OR a.topic = ANY(topics))
+      -- Topic is the rollup of the article's own tags through tag_topics, matched by
+      -- overlap because an article can carry several. Resolved here rather than read
+      -- from a column for the same reason the tag predicate below is: there is no
+      -- stored topic to read. a.topic is only the source prior, used when nothing
+      -- rolls up — matching on it alone would hide every multi-topic article from all
+      -- but one of its topics.
+      AND (
+        topics IS NULL
+        OR EXISTS (
+          SELECT 1 FROM public.tag_topics tt
+           WHERE tt.tag = ANY(COALESCE(a.tags, '{}'::text[])) AND tt.topic = ANY(topics)
+        )
+        OR (
+          a.topic = ANY(topics)
+          AND NOT EXISTS (
+            SELECT 1 FROM public.tag_topics tt
+             WHERE tt.tag = ANY(COALESCE(a.tags, '{}'::text[]))
+          )
+        )
+      )
       -- Slugs are resolved against the row's own tags array rather than the tags
       -- table, and the expression is the SQL twin of slugifyTag in
       -- web/lib/articles.js and react-app/src/filters.js. All three must agree.
@@ -126,7 +145,20 @@ AS $$
   SELECT
     a.url,
     a.site,
-    a.topic,
+    -- The primary topic, character-for-character the expression in
+    -- public.public_articles. A reader who arrives via search must see the same label
+    -- on the card as one who arrives through the edition; returning a.topic here would
+    -- show the source prior instead of what the article's own tags say.
+    COALESCE(
+      (
+        SELECT tt.topic
+          FROM unnest(a.tags) WITH ORDINALITY AS u(tag, ord)
+          JOIN public.tag_topics tt ON tt.tag = u.tag
+         ORDER BY u.ord, tt.position
+         LIMIT 1
+      ),
+      a.topic
+    ) AS topic,
     a.title,
     a.author,
     a.published_at,
