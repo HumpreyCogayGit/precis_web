@@ -5,6 +5,7 @@ import {
 import { createPortal } from 'react-dom';
 import axios from 'axios';
 import FilterPanel from './FilterPanel.jsx';
+import SiteFooter from './components/SiteFooter.jsx';
 import DateFilterBar, { rangeChipLabel as dateRangeChipLabel } from './DateFilterBar.jsx';
 import { ChevronLeftIcon, ChevronRightIcon, CloseIcon, SearchIcon } from './icons.jsx';
 import {
@@ -105,7 +106,9 @@ const formatShortDate = (dateValue) => {
   return new Intl.DateTimeFormat('en', { month: 'short', day: 'numeric', timeZone: 'UTC' }).format(new Date(timestamp));
 };
 
-const formatRelativeTime = (dateValue) => {
+// Exported for pages/TrendingPage.jsx. Export keyword only — no behaviour change,
+// and the existing suite is the guard.
+export const formatRelativeTime = (dateValue) => {
   const timestamp = parseDateTimestamp(dateValue);
 
   if (!timestamp) {
@@ -604,7 +607,7 @@ const BriefRow = ({ article, index }) => {
         <h4><SafeArticleTitle article={article} /></h4>
         {summaryText && <p><Highlight text={summaryText} /></p>}
         <div className="brief-meta">
-          <span>{formatSiteName(article.site)}</span>
+          <span>Source: {formatSiteName(article.site)}</span>
           <span aria-hidden="true">&middot;</span>
           <span>{formatRelativeTime(article.published_at)}</span>
         </div>
@@ -630,7 +633,7 @@ const EverythingCard = ({ article }) => {
       )}
       <div className="everything-card-body">
         <div className="everything-card-meta">
-          <span className="everything-card-site">{formatSiteName(article.site)}</span>
+          <span className="everything-card-site">Source: {formatSiteName(article.site)}</span>
           {article.topic && <span className="everything-card-topic">{article.topic}</span>}
           <span className="everything-card-date">{formatShortDate(article.published_at)}</span>
         </div>
@@ -645,7 +648,7 @@ const SmallListRow = ({ article }) => (
   <li className="small-list-row">
     <h4><SafeArticleTitle article={article} /></h4>
     <span className="small-list-meta">
-      <span>{formatSiteName(article.site)}</span>
+      <span>Source: {formatSiteName(article.site)}</span>
       <span aria-hidden="true">&middot;</span>
       <span>{formatRelativeTime(article.published_at)}</span>
     </span>
@@ -1502,7 +1505,7 @@ function App() {
                 </div>
                 <div className="lead-copy">
                   <div className="lead-meta">                   
-                    <span className="lead-byline">{formatSiteName(leadArticle.site)} &middot; {formatRelativeTime(leadArticle.published_at)}</span>
+                    <span className="lead-byline">Source: {formatSiteName(leadArticle.site)} &middot; {formatRelativeTime(leadArticle.published_at)}</span>
                   </div>
                   <h2 className="lead-headline"><SafeArticleTitle article={leadArticle} /></h2>
                   {getLeadSummaryText(leadArticle) && (
@@ -1644,6 +1647,7 @@ function App() {
         {archiveSection && <div className="edition-main">{archiveSection}</div>}
         </>
       )}
+      <SiteFooter />
     </div>
     </SearchHighlightContext.Provider>
   );

@@ -2,6 +2,34 @@
 // be rotated, or analytics switched off for an environment, without a code edit.
 // Vite reads .env from this directory (react-app/), not from precis_web/.
 const GA_MEASUREMENT_ID = import.meta.env.VITE_GA_MEASUREMENT_ID ?? 'G-SHZYRCMXJ8';
+export const COOKIE_CONSENT_STORAGE_KEY = 'precis_cookie_consent_v1';
+export const COOKIE_CONSENT_ACCEPTED = 'accepted';
+export const COOKIE_CONSENT_DECLINED = 'declined';
+
+export function getStoredCookieConsent() {
+  if (typeof window === 'undefined') {
+    return null;
+  }
+
+  try {
+    const value = window.localStorage.getItem(COOKIE_CONSENT_STORAGE_KEY);
+    return [COOKIE_CONSENT_ACCEPTED, COOKIE_CONSENT_DECLINED].includes(value) ? value : null;
+  } catch (err) {
+    return null;
+  }
+}
+
+export function storeCookieConsent(value) {
+  if (typeof window === 'undefined') {
+    return;
+  }
+
+  try {
+    window.localStorage.setItem(COOKIE_CONSENT_STORAGE_KEY, value);
+  } catch (err) {
+    // If storage is unavailable, keep the choice in-memory for this page only.
+  }
+}
 
 // Loaded as a bundled module rather than an inline <script> in index.html, so the
 // CSP only has to allowlist the Google hosts — no 'unsafe-inline' in script-src,
@@ -11,7 +39,7 @@ export function initAnalytics() {
   // disables analytics (?? passes '' through, so this falsy check is the switch).
   // Preview deploys are PROD builds, so set the var empty there to keep preview
   // traffic out of the property.
-  if (!GA_MEASUREMENT_ID || !import.meta.env.PROD) {
+  if (!GA_MEASUREMENT_ID || !import.meta.env.PROD || getStoredCookieConsent() !== COOKIE_CONSENT_ACCEPTED) {
     return;
   }
 
