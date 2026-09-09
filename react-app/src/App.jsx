@@ -41,14 +41,10 @@ import { formatSiteName } from './sources';
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || (import.meta.env.DEV ? 'http://localhost:5000' : '');
 const INITIAL_ARTICLE_COUNT = 24;
 // One working set per load. Filtering happens in the browser over this array, so
-// it has to hold every row any draft could reach — not just the rows matching the
-// filter that is applied right now, and not just the rows the header search box
-// would match.
-//
-// Must not exceed MAX_LIMIT in lib/articles.js, which is 600: the API rejects a
-// larger limit with a 400 rather than quietly returning fewer rows, so raising this
-// alone breaks the page load outright.
-const API_ARTICLE_LIMIT = 600;
+// it has to hold every row any draft could reach. Must not exceed MAX_LIMIT in
+// lib/articles.js: the API rejects a larger limit with a 400 rather than quietly
+// returning fewer rows.
+const API_ARTICLE_LIMIT = 5000;
 const BRIEF_COUNT = 5;
 // One page of archive results. The count line reports the true total separately,
 // so this caps what is rendered, not what was found.
@@ -713,6 +709,7 @@ function App() {
 
   const filtersButtonRef = useRef(null);
   const panelRef = useRef(null);
+  const initialLoadRef = useRef(true);
   // The panel's own facet-name box. The header search box is headerSearchRef.
   const searchInputRef = useRef(null);
   const headerSearchRef = useRef(null);
@@ -725,7 +722,9 @@ function App() {
 
   const fetchArticles = useCallback(async () => {
     try {
-      setLoading(true);
+      if (initialLoadRef.current) {
+        setLoading(true);
+      }
       const response = await axios.get(buildArticleUrl());
       // The endpoint returns { items, facets }; tolerate a bare array so a stale
       // edge cache or an older deployment of the API still renders.
@@ -742,6 +741,7 @@ function App() {
         : 'Failed to fetch articles. Check the deployment environment variables and database connection');
       console.error('Error fetching articles:', err);
     } finally {
+      initialLoadRef.current = false;
       setLoading(false);
     }
   }, [pageSize]);

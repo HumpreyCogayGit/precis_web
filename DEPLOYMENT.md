@@ -80,6 +80,14 @@ The role script includes `sql/create-public-articles-view.sql`, which creates or
 psql "$ADMIN_DATABASE_URL" -f sql/create-public-articles-view.sql
 ```
 
+When raising the web working-set limit, apply the matching search-function clamp
+to hosted databases as well. The application rejects over-limit article requests
+itself, but `public.search_public_articles` also has a defensive SQL-side clamp:
+
+```bash
+psql "$ADMIN_DATABASE_URL" -f sql/2026-09-09_search_articles_limit_5000.sql
+```
+
 Build the Vercel `DATABASE_URL` or `POSTGRES_URL` from that `precis_web_readonly` role and password. Keep the local scraper on its separate write-capable `BLOGSCRAPER_DATABASE_URL` credential. The scraper/admin credential remains responsible for writing `articles`, reviewing held records, and rerunning failed extractions.
 
 Validate the read-only role before using it in production:
