@@ -58,9 +58,9 @@ export const PrivacyPolicyPage = () => (
       <section>
         <h2>Cookie choices</h2>
         <p>
-          On your first visit, we ask whether you accept analytics cookies. If you decline, we do
-          not initialize Google Analytics for this browser. We store your choice in local storage so
-          the banner does not reappear on every page load. You can change your choice by clearing
+          Analytics cookies are disabled unless this browser has already stored an explicit
+          analytics consent choice. If analytics are declined or no choice is stored, we do not
+          initialize Google Analytics for this browser. You can reset any stored choice by clearing
           this site&rsquo;s local storage/cookies in your browser settings.
         </p>
       </section>

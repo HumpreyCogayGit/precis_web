@@ -357,11 +357,11 @@ const PageSizeSelect = ({ value, onChange }) => (
   </label>
 );
 
-const ActiveFilterChip = ({ label, onRemove }) => (
+const ActiveFilterChip = ({ label, removeLabel, onRemove }) => (
   <button
     type="button"
     className="active-filter-chip"
-    aria-label={`Clear ${label}`}
+    aria-label={removeLabel ?? `Clear ${label}`}
     onClick={onRemove}
   >
     <span>{label}</span>
@@ -1228,28 +1228,51 @@ function App() {
 
   const activeFilterChips = [];
   if (hasQuery(applied)) {
-    activeFilterChips.push({ key: 'query', label: `search: ${applied.query.trim()}`, onRemove: clearQuery });
+    const queryLabel = applied.query.trim();
+    activeFilterChips.push({
+      key: 'query',
+      label: `search: ${queryLabel}`,
+      onRemove: clearQuery,
+    });
   }
   if (hasDateRange(applied)) {
-    activeFilterChips.push({ key: 'date', label: `date: ${dateRangeChipLabel(applied.dateRange)}`, onRemove: clearDateRange });
+    const rangeLabel = dateRangeChipLabel(applied.dateRange);
+    activeFilterChips.push({
+      key: 'date',
+      label: `date: ${rangeLabel}`,
+      onRemove: clearDateRange,
+    });
   }
   for (const slug of applied.sources) {
-    activeFilterChips.push({ key: `source:${slug}`, label: `source: ${formatSiteName(slug)}`, onRemove: () => removeSource(slug) });
+    const sourceLabel = formatSiteName(slug);
+    activeFilterChips.push({
+      key: `source:${slug}`,
+      label: `source: ${sourceLabel}`,
+      onRemove: () => removeSource(slug),
+    });
   }
   for (const slug of applied.topics) {
-    activeFilterChips.push({ key: `topic:${slug}`, label: `topic: ${slug}`, onRemove: () => removeTopic(slug) });
+    activeFilterChips.push({
+      key: `topic:${slug}`,
+      label: `topic: ${slug}`,
+      onRemove: () => removeTopic(slug),
+    });
   }
   for (const slug of applied.tags.in) {
+    const tagLabel = vocabulary.tags.get(slug)?.label ?? labelFromTagSlug(slug);
     activeFilterChips.push({
       key: `tag:${slug}`,
-      label: `tag: ${vocabulary.tags.get(slug)?.label ?? labelFromTagSlug(slug)}`,
+      label: `tag: ${tagLabel}`,
+      removeLabel: `Remove filter: ${tagLabel}`,
       onRemove: () => removeIncludedTag(slug),
     });
   }
   for (const slug of applied.tags.not) {
+    const tagLabel = vocabulary.tags.get(slug)?.label ?? labelFromTagSlug(slug);
     activeFilterChips.push({
       key: `not-tag:${slug}`,
-      label: `not tag: ${vocabulary.tags.get(slug)?.label ?? labelFromTagSlug(slug)}`,
+      label: `not tag: ${tagLabel}`,
+      removeLabel: `Stop excluding: ${tagLabel}`,
       onRemove: () => removeExcludedTag(slug),
     });
   }
@@ -1270,7 +1293,12 @@ function App() {
           <span className="active-filter-row-label">Filtering by</span>
           <div className="active-filter-chips">
             {activeFilterChips.map((chip) => (
-              <ActiveFilterChip key={chip.key} label={chip.label} onRemove={chip.onRemove} />
+              <ActiveFilterChip
+                key={chip.key}
+                label={chip.label}
+                removeLabel={chip.removeLabel}
+                onRemove={chip.onRemove}
+              />
             ))}
           </div>
           <button type="button" className="active-filter-clear" onClick={handleClearFilters}>

@@ -9,7 +9,10 @@ import {
 } from '../analytics';
 
 const CookieConsent = () => {
-  const [choice, setChoice] = useState(() => getStoredCookieConsent());
+  // Treat a missing stored choice as declined so first-time visitors do not see
+  // the banner, while keeping the consent UI available if this component is
+  // re-enabled for explicit choices later.
+  const [choice, setChoice] = useState(() => getStoredCookieConsent() ?? COOKIE_CONSENT_DECLINED);
 
   useEffect(() => {
     if (choice === COOKIE_CONSENT_ACCEPTED) {
