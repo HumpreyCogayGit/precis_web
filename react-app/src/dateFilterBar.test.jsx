@@ -64,7 +64,7 @@ afterEach(() => {
 
 describe('date filter bar', () => {
   test('renders below the tag filter on its own controls row', async () => {
-    axios.get.mockImplementationOnce(() => Promise.resolve({ data: { items: [...ITEMS, OLDER, OLDEST, ANCIENT, ARCHAIC] } }));
+    axios.get.mockImplementation(() => Promise.resolve({ data: { items: [...ITEMS, OLDER, OLDEST, ANCIENT, ARCHAIC] } }));
     render(<App />);
 
     const dateFilter = await screen.findByRole('group', { name: 'Filter briefs by date' });

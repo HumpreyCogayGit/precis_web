@@ -108,13 +108,6 @@ app.get('/api/topics', rateLimitMiddleware(RATE_LIMITS.articles), async (req, re
   }
 });
 
-// No web/api/trending.js twin, unlike every other route here. That is deliberate,
-// not an oversight: the entity_candidate_* tables live in the local precis_stage
-// database and are not replicated to Neon (NEON_DATABASE_URL is commented out and
-// SCRAPER_SYNC_ENABLED=0), so a Vercel function would find no tables to read. When
-// the sync is armed, this needs three things together -- the narrow
-// web/sql/create-public-trending-view.sql read model, a GRANT to precis_web_readonly,
-// and the Vercel handler.
 app.get('/api/trending', rateLimitMiddleware(RATE_LIMITS.articles), async (req, res) => {
   try {
     res.json(await fetchTrending({ limit: req.query.limit }));

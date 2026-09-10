@@ -407,11 +407,6 @@ const TrendingPage = () => {
         <section className="trend-masthead">
           <p className="masthead-kicker">Most talked about</p>
           <h1 className="trend-title">Trending</h1>
-          <p className="trend-standfirst">
-            Entities named across the feed, ranked by how much more they are being
-            discussed now than in their own recent past, fused with how loud they are
-            elsewhere on the internet. Open one to see the pages behind it.
-          </p>
         </section>
 
         <div className="trend-controls">

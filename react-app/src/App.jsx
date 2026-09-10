@@ -45,6 +45,14 @@ const INITIAL_ARTICLE_COUNT = 24;
 // lib/articles.js: the API rejects a larger limit with a 400 rather than quietly
 // returning fewer rows.
 const API_ARTICLE_LIMIT = 5000;
+// The first request on mount asks for only this many rows, so the page can paint
+// before the full working set is in. The server still has to scan/sort the same
+// WORKING_SET_LIMIT rows either way (see lib/articles.js) — this only shrinks what
+// gets serialized, sent over the wire and parsed before first render. The rest of
+// the working set is fetched right behind it (see fetchArticles) and merged in
+// once it lands, so facets and diverse-top selection settle onto the full set a
+// moment later rather than blocking on it.
+const FIRST_PAINT_ARTICLE_LIMIT = 200;
 const BRIEF_COUNT = 5;
 // One page of archive results. The count line reports the true total separately,
 // so this caps what is rendered, not what was found.
@@ -236,8 +244,8 @@ const writeFiltersToUrl = (filters) => {
 // the database to do the filtering, but the panel needs every reachable row in
 // the browser — a facet count that disagreed with the list behind it would be
 // worse than a slow one.
-const buildArticleUrl = () => (
-  `${API_BASE_URL}/api/articles?limit=${API_ARTICLE_LIMIT}&offset=0`
+const buildArticleUrl = (limit = API_ARTICLE_LIMIT) => (
+  `${API_BASE_URL}/api/articles?limit=${limit}&offset=0`
 );
 
 // The archive request. filtersToSearchParams gives the page's own query string, so
@@ -697,6 +705,11 @@ function App() {
   const [discoverTag, setDiscoverTag] = useState(null);
   const [discoverExpanded, setDiscoverExpanded] = useState(false);
   const [loading, setLoading] = useState(true);
+  // True between first paint (the small FIRST_PAINT_ARTICLE_LIMIT fetch resolving)
+  // and the full working set landing. Purely informational — nothing reads it to
+  // decide what to render, since every view already works off whatever is
+  // currently in `articles`.
+  const [backgroundLoading, setBackgroundLoading] = useState(false);
   const [error, setError] = useState(null);
   // The archive escalation. The header box searches the loaded working set
   // instantly; this is the other ~90% of the corpus, which only the server can
@@ -720,19 +733,31 @@ function App() {
   // Apply differently from a keystroke in the search box.
   const appliedFacetsKey = JSON.stringify({ ...applied, query: '' });
 
+  // Applies one /api/articles response to state. Shared by both phases below —
+  // the shape (tolerating a bare array for a stale edge cache or older API
+  // deployment) and the fields touched are identical either way.
+  const applyArticlesResponse = (response) => {
+    const payload = response.data;
+    const items = Array.isArray(payload) ? payload : (payload?.items ?? []);
+
+    setArticles(items);
+    setDayFacets(Array.isArray(payload) ? null : (payload?.facets ?? null));
+  };
+
+  // Two requests, not one. The first asks for a small FIRST_PAINT_ARTICLE_LIMIT
+  // slice so the page can clear `loading` and paint quickly; the second asks for
+  // the full working set right behind it and replaces state again once it lands.
+  // Facets and diverse-top selection (which run over `articles`) briefly reflect
+  // only the first slice, then settle onto the full set — the same place they'd
+  // end up with one blocking request, just not blocking first paint on it.
   const fetchArticles = useCallback(async () => {
     try {
       if (initialLoadRef.current) {
         setLoading(true);
       }
-      const response = await axios.get(buildArticleUrl());
-      // The endpoint returns { items, facets }; tolerate a bare array so a stale
-      // edge cache or an older deployment of the API still renders.
-      const payload = response.data;
-      const items = Array.isArray(payload) ? payload : (payload?.items ?? []);
 
-      setArticles(items);
-      setDayFacets(Array.isArray(payload) ? null : (payload?.facets ?? null));
+      const firstPaint = await axios.get(buildArticleUrl(FIRST_PAINT_ARTICLE_LIMIT));
+      applyArticlesResponse(firstPaint);
       setVisibleCount(pageSize);
       setError(null);
     } catch (err) {
@@ -740,9 +765,25 @@ function App() {
         ? 'Failed to fetch articles. Start the Precis web server, then refresh this page'
         : 'Failed to fetch articles. Check the deployment environment variables and database connection');
       console.error('Error fetching articles:', err);
-    } finally {
       initialLoadRef.current = false;
       setLoading(false);
+      return;
+    }
+
+    initialLoadRef.current = false;
+    setLoading(false);
+
+    // Best-effort: the reader already has the first-paint slice on screen, so a
+    // failure here is not worth the error page — just leave that slice in place
+    // and let a manual refresh try again.
+    setBackgroundLoading(true);
+    try {
+      const fullSet = await axios.get(buildArticleUrl(API_ARTICLE_LIMIT));
+      applyArticlesResponse(fullSet);
+    } catch (err) {
+      console.error('Error fetching the full article working set:', err);
+    } finally {
+      setBackgroundLoading(false);
     }
   }, [pageSize]);
 
@@ -1425,15 +1466,7 @@ function App() {
         </a>
         <nav className="site-nav" aria-label="Primary">
           <a href="#top" className="site-nav-link active">Today</a>
-          <a
-            href="#filters"
-            className="site-nav-link"
-            onClick={(event) => { event.preventDefault(); openPanel(); }}
-          >
-            Sources
-          </a>
-          <span className="site-nav-link site-nav-link--soon" aria-disabled="true">Archive</span>
-          <span className="site-nav-link site-nav-link--soon" aria-disabled="true">Saved</span>
+          <a href="/trending" className="site-nav-link">Trending</a>
         </nav>
         <div className="site-header-actions">
           <ThemeToggle />
@@ -1623,6 +1656,7 @@ function App() {
                       </button>
                       <p className="article-count">
                         Showing {visibleEverythingElse.length} of {everythingElseVisible.length} items
+                        {backgroundLoading ? ' — more loading…' : ''}
                       </p>
                     </div>
                   )}
