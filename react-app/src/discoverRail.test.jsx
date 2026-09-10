@@ -20,14 +20,13 @@ const item = (n, tags) => ({
   tags,
 });
 
-// Newest first, so story 1 is the lead, 2-6 are "Previous stories", and 7-32 are
-// the twenty-six that land in Everything else — two past the 24 that fit on a
-// page, so the paging line has to track the rail too.
+// Newest first, so story 1 is the lead and 2-32 are the thirty-one that land in
+// Everything else — seven past the 24 that fit on a page, so the paging line has
+// to track the rail too.
 //
-// Story 1 carries LLM Release and stories 2-6 carry Ransomware on purpose: both
-// tags exist above the section, and the rail must count only what is inside it.
-// Stories 20-32 are untagged padding that pushes the section past one page
-// without touching any chip's count.
+// Story 1 carries LLM Release on purpose: that tag exists above the section, and
+// the rail must count only what is inside it. Stories 20-32 are untagged padding
+// that pushes the section past one page without touching any chip's count.
 const ITEMS = [
   item(1, ['LLM Release']),
   ...[2, 3, 4, 5, 6].map((n) => item(n, ['Ransomware'])),
@@ -41,16 +40,22 @@ const toFacetArray = (map) => [...map.values()].sort((a, b) => b.count - a.count
 
 const respondWith = (items) => {
   const vocabulary = buildVocabulary(items);
-  axios.get.mockImplementation(() => Promise.resolve({
-    data: {
-      items,
-      facets: {
-        tags: toFacetArray(vocabulary.tags),
-        sources: toFacetArray(vocabulary.sources),
-        topics: toFacetArray(vocabulary.topics),
+  axios.get.mockImplementation((url) => {
+    if (url.includes('/api/trending')) {
+      return Promise.resolve({ data: [] });
+    }
+
+    return Promise.resolve({
+      data: {
+        items,
+        facets: {
+          tags: toFacetArray(vocabulary.tags),
+          sources: toFacetArray(vocabulary.sources),
+          topics: toFacetArray(vocabulary.topics),
+        },
       },
-    },
-  }));
+    });
+  });
 };
 
 vi.mock('axios', () => ({
@@ -80,7 +85,7 @@ describe('discover rail', () => {
 
     const labels = [...rail().querySelectorAll('.discover-chip')].map((node) => node.textContent);
     // LLM Release reads 1, not 2: story 1 is the lead and is not in this section.
-    expect(labels).toEqual(['All', 'Agentic AI8', 'Ransomware4', 'LLM Release1']);
+    expect(labels).toEqual(['All', 'Ransomware9', 'Agentic AI8', 'LLM Release1']);
     expect(chip('All')).toHaveAttribute('aria-pressed', 'true');
   });
 
@@ -91,12 +96,12 @@ describe('discover rail', () => {
 
     await user.click(chip('Ransomware'));
 
-    expect(cards()).toHaveLength(4);
-    expect(tierCount()).toBe('4 items');
+    expect(cards()).toHaveLength(9);
+    expect(tierCount()).toBe('9 items');
     expect(screen.getByText('Story 15')).toBeInTheDocument();
     expect(screen.queryByText('Story 7')).not.toBeInTheDocument();
 
-    // The lead and the briefs above the section do not move.
+    // The lead does not move.
     expect(screen.getByText('Story 1')).toBeInTheDocument();
     expect(screen.getByText('Story 3')).toBeInTheDocument();
     expect(chip('Ransomware')).toHaveAttribute('aria-pressed', 'true');
@@ -111,12 +116,12 @@ describe('discover rail', () => {
     expect(cards()).toHaveLength(8);
 
     await user.click(chip('Agentic AI'));
-    expect(tierCount()).toBe('26 items');
+    expect(tierCount()).toBe('31 items');
     expect(chip('All')).toHaveAttribute('aria-pressed', 'true');
 
     await user.click(chip('Agentic AI'));
     await user.click(chip('All'));
-    expect(tierCount()).toBe('26 items');
+    expect(tierCount()).toBe('31 items');
   });
 
   test('paging tracks the selection and starts over on each chip', async () => {
@@ -124,10 +129,10 @@ describe('discover rail', () => {
     render(<App />);
     await screen.findByText('Story 1');
 
-    // Twenty-six items, twenty-four to a page.
-    expect(screen.getByText('Showing 24 of 26 items')).toBeInTheDocument();
-    await user.click(screen.getByRole('button', { name: /Show 2 more/ }));
-    expect(cards()).toHaveLength(26);
+    // Thirty-one items, twenty-four to a page.
+    expect(screen.getByText('Showing 24 of 31 items')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: /Show 7 more/ }));
+    expect(cards()).toHaveLength(31);
 
     await user.click(chip('Agentic AI'));
     expect(cards()).toHaveLength(8);
@@ -151,7 +156,7 @@ describe('discover rail', () => {
     await screen.findByText('Story 1');
 
     await user.click(chip('Ransomware'));
-    expect(cards()).toHaveLength(4);
+    expect(cards()).toHaveLength(9);
 
     // Exclude the tag from the edition entirely, out from under the rail.
     await user.click(screen.getByRole('button', { name: /^Filters/ }));
@@ -161,11 +166,11 @@ describe('discover rail', () => {
 
     expect(within(rail()).queryByRole('button', { name: /^Ransomware/ })).not.toBeInTheDocument();
     expect(chip('All')).toHaveAttribute('aria-pressed', 'true');
-    // Nine ransomware stories leave the edition, so twenty-three remain: a lead,
-    // five briefs, and seventeen in the section. The point is that it re-forms
-    // full rather than holding a selection nothing can satisfy.
-    expect(tierCount()).toBe('17 items');
-    expect(cards()).toHaveLength(17);
+    // Nine ransomware stories leave the edition, so twenty-three remain: a lead
+    // and twenty-two in the section. The point is that it re-forms full rather
+    // than holding a selection nothing can satisfy.
+    expect(tierCount()).toBe('22 items');
+    expect(cards()).toHaveLength(22);
   });
 
   test('See all unwraps the rail in place and See fewer collapses it', async () => {

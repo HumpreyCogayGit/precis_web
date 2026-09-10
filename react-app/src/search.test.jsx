@@ -90,6 +90,12 @@ beforeEach(() => {
       return Promise.resolve({ data: archiveResponse });
     }
 
+    if (url.includes('/api/trending')) {
+      return Promise.resolve({
+        data: [{ candidate_key: 'top-1', entity: 'Codex', rank: 1, articles: [{ ...ITEMS[0], is_representative: true }] }],
+      });
+    }
+
     return Promise.resolve({
       data: {
         items: ITEMS,
@@ -136,13 +142,13 @@ describe('header search', () => {
     const user = await renderApp();
 
     expect(leadHeadline()).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: 'Previous stories' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Top Stories' })).toBeInTheDocument();
 
     await user.type(searchBox(), 'codex');
 
-    // No hero, no "Previous stories" — a search is not an edition.
+    // No hero, no "Top Stories" — a search is not an edition.
     expect(leadHeadline()).not.toBeInTheDocument();
-    expect(screen.queryByRole('heading', { name: 'Previous stories' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Top Stories' })).not.toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Results' })).toBeInTheDocument();
     expect(screen.getByText('2 briefs mention “codex”')).toBeInTheDocument();
   });

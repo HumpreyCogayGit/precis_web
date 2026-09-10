@@ -1,5 +1,5 @@
 import { render, screen } from '@testing-library/react';
-import { afterEach, describe, expect, test, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import App from './App.jsx';
 
 const hoursAgo = (hours) => new Date(Date.now() - hours * 3_600_000).toISOString();
@@ -65,6 +65,59 @@ const articles = [
     excerpt: 'This story has a malformed URL and should not crash the app.',
     fetched_at: hoursAgo(5),
   },
+  {
+    url: 'https://example.com/cyber-article',
+    site: 'krebs_on_security',
+    topic: 'Cyber Security',
+    title: 'A Cyber Security Precis story',
+    author: 'Precis',
+    published_at: hoursAgo(6),
+    image_url: '',
+    summary: 'A concise summary for a Cyber Security topic article.',
+    excerpt: 'A concise summary for a Cyber Security topic article.',
+    fetched_at: hoursAgo(6),
+  },
+];
+
+const trendingEntities = [
+  {
+    candidate_key: 'top-1',
+    entity: 'Top trending entity',
+    rank: 1,
+    articles: [{
+      url: 'https://example.com/trending-story',
+      site: 'nvidia',
+      topic: 'AI',
+      topics: ['AI'],
+      title: 'A trending Precis story',
+      author: 'Precis',
+      published_at: hoursAgo(1),
+      image_url: '',
+      summary: 'A concise one-sentence summary for the trending smoke test.',
+      excerpt: 'A concise article summary for the trending smoke test.',
+      fetched_at: hoursAgo(1),
+      is_representative: true,
+    }],
+  },
+  {
+    candidate_key: 'top-2',
+    entity: 'Second trending entity',
+    rank: 2,
+    articles: [{
+      url: 'https://example.com/trending-cyber-story',
+      site: 'krebs_on_security',
+      topic: 'Cyber Security',
+      topics: ['Cyber Security'],
+      title: 'A trending Cyber Security story',
+      author: 'Precis',
+      published_at: hoursAgo(2),
+      image_url: '',
+      summary: 'A concise summary for the Cyber Security trending smoke test.',
+      excerpt: 'A concise summary for the Cyber Security trending smoke test.',
+      fetched_at: hoursAgo(2),
+      is_representative: true,
+    }],
+  },
 ];
 
 vi.mock('axios', () => ({
@@ -82,10 +135,18 @@ vi.mock('axios', () => ({
         return Promise.resolve({ data: { count: articles.length } });
       }
 
+      if (url.includes('/api/trending')) {
+        return Promise.resolve({ data: trendingEntities });
+      }
+
       return Promise.resolve({ data: articles });
     }),
   },
 }));
+
+beforeEach(() => {
+  window.history.replaceState(null, '', '/');
+});
 
 afterEach(() => {
   vi.clearAllMocks();
@@ -137,11 +198,23 @@ describe('App', () => {
     expect(screen.getAllByText('News Brief').length).toBeGreaterThan(0);
   });
 
-  test('splits items into a lead story and a "Previous stories" tier instead of duplicating cards', async () => {
+  test('splits items into a lead story and a "Top Stories" tier fed by the trending entities', async () => {
     render(<App />);
 
-    expect(await screen.findByText('Previous stories')).toBeInTheDocument();
+    expect(await screen.findByText('Top Stories')).toBeInTheDocument();
+    expect(await screen.findByText('A trending Precis story')).toBeInTheDocument();
+    expect(screen.getByText('A trending Cyber Security story')).toBeInTheDocument();
     expect(screen.queryByText('Editors Picks')).not.toBeInTheDocument();
     expect(screen.queryByText('Also today')).not.toBeInTheDocument();
+    expect(screen.queryByText('Previous stories')).not.toBeInTheDocument();
+  });
+
+  test('Top Stories narrows to match an applied Topics filter, same as the rest of the edition', async () => {
+    window.history.replaceState(null, '', '/?topic=Cyber+Security');
+    render(<App />);
+
+    expect(await screen.findByText('Top Stories')).toBeInTheDocument();
+    expect(screen.getByText('A trending Cyber Security story')).toBeInTheDocument();
+    expect(screen.queryByText('A trending Precis story')).not.toBeInTheDocument();
   });
 });

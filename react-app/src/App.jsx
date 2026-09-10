@@ -29,7 +29,6 @@ import {
   isFilterEmpty,
   labelFromTagSlug,
   parseDateTimestamp,
-  pickDiverseTop,
   queryTerms,
   readFiltersFromSearch,
   resolveDateRange,
@@ -53,7 +52,11 @@ const API_ARTICLE_LIMIT = 5000;
 // once it lands, so facets and diverse-top selection settle onto the full set a
 // moment later rather than blocking on it.
 const FIRST_PAINT_ARTICLE_LIMIT = 200;
-const BRIEF_COUNT = 5;
+const TOP_STORIES_COUNT = 5;
+// The trending endpoint's own default depth (see DEFAULT_LIMIT in lib/trending.js)
+// — deep enough that filtering the pool down to one topic still leaves plenty of
+// ranked candidates to fill Top Stories from.
+const TOP_STORIES_POOL_LIMIT = 60;
 // One page of archive results. The count line reports the true total separately,
 // so this caps what is rendered, not what was found.
 const ARCHIVE_RESULT_LIMIT = 24;
@@ -719,6 +722,13 @@ function App() {
   // summary — so folding them into one count would put a number on screen that
   // neither half can account for.
   const [archive, setArchive] = useState(EMPTY_ARCHIVE);
+  // Top Stories: the representative article of each trending entity, fetched
+  // separately from the day's edition — trending rank comes from
+  // entity_candidates' heat, not from anything derivable off `articles`. The pool
+  // is fetched deeper than TOP_STORIES_COUNT so that a topic filter (AI vs Cyber
+  // Security, say) still has enough ranked candidates to fill five slots from,
+  // rather than being applied on top of an already-trimmed top five.
+  const [topStoriesPool, setTopStoriesPool] = useState([]);
 
   const filtersButtonRef = useRef(null);
   const panelRef = useRef(null);
@@ -793,6 +803,33 @@ function App() {
   useEffect(() => {
     fetchArticles();
     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Top Stories: one fetch of the trending entity pool, each reduced to its
+  // representative (top) article. Best-effort — a failure here just leaves the
+  // section empty rather than blocking the edition.
+  useEffect(() => {
+    let cancelled = false;
+
+    (async () => {
+      try {
+        const response = await axios.get(`${API_BASE_URL}/api/trending?limit=${TOP_STORIES_POOL_LIMIT}`);
+        const entities = Array.isArray(response.data) ? response.data : (response.data?.items ?? []);
+        const stories = entities
+          .map((entity) => (entity.articles || []).find((a) => a.is_representative) || entity.articles?.[0])
+          .filter(Boolean);
+
+        if (!cancelled) {
+          setTopStoriesPool(stories);
+        }
+      } catch (err) {
+        console.error('Error fetching top stories:', err);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   // Facet changes are discrete and deliberate (an Apply, a chip removal), so the
@@ -1204,19 +1241,19 @@ function App() {
     expanded: Boolean(expandedGroups[group.key]),
   }));
 
-  // The tier above the fold is one source per slot where the day allows it, so a
-  // single publisher's burst can't own the whole edition. Keyed on the byline the
-  // reader actually sees, since two stored sites can share one masthead. See
-  // pickDiverseTop.
+  // Only the lead gets pulled above the fold now; everything else — including the
+  // five briefs that used to run under "Previous stories" — flows straight into
+  // Everything else. A single slot has no diversity to preserve, so this is a
+  // plain split rather than a pickDiverseTop call.
   //
   // A search is not an edition, so it does not get a front page: promoting one hit
-  // to a hero and burying the rest under "Previous stories" would be the app making
-  // an editorial claim about a list the reader assembled. Under an active query the
-  // split collapses and every result goes into one flat, ranked-by-recency list.
+  // to a hero would be the app making an editorial claim about a list the reader
+  // assembled. Under an active query the split collapses and every result goes
+  // into one flat, ranked-by-recency list.
   const { top: frontPageArticles, rest: everythingElseAll } = useMemo(
     () => (isSearching
       ? { top: [], rest: sortedArticles }
-      : pickDiverseTop(sortedArticles, 1 + BRIEF_COUNT, { keyOf: (article) => formatSiteName(article.site) })),
+      : { top: sortedArticles.slice(0, 1), rest: sortedArticles.slice(1) }),
     [sortedArticles, isSearching],
   );
 
@@ -1224,7 +1261,14 @@ function App() {
   const leadArticleUrl = safeHttpUrl(leadArticle?.url);
   const leadImage = <ArticleImage key={leadArticle?.url} article={leadArticle} />;
 
-  const alsoTodayArticles = frontPageArticles.slice(1);
+  // Top Stories respects the same active filter as the rest of the edition — a
+  // Topics selection (AI vs Cyber Security, say) narrows it exactly like it
+  // narrows Everything else — so it is derived, not fetched, per filter change.
+  // Rank order survives the filter since topStoriesPool is already ranked.
+  const topStories = useMemo(
+    () => filterArticles(topStoriesPool, applied).slice(0, TOP_STORIES_COUNT),
+    [topStoriesPool, applied],
+  );
 
   // Chips come from the section itself, not from the day's facets, so the rail
   // only ever offers tags that are actually down there to be found.
@@ -1588,13 +1632,13 @@ function App() {
               </article>
             )}
 
-            {alsoTodayArticles.length > 0 && (
+            {!isSearching && topStories.length > 0 && (
               <section className="also-today" aria-labelledby="also-today-title">
                 <div className="tier-heading">
-                  <h3 id="also-today-title">Previous stories</h3>
+                  <h3 id="also-today-title">Top Stories</h3>
                 </div>
                 <div className="brief-list">
-                  {alsoTodayArticles.map((article, index) => (
+                  {topStories.map((article, index) => (
                     <BriefRow key={article.url} article={article} index={index} />
                   ))}
                 </div>
