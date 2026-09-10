@@ -2194,6 +2194,21 @@ mark.search-hit {
     -webkit-overflow-scrolling: touch;
   }
 
+  /* The tune button can sit anywhere along a scrolled chip row, so a popover
+     anchored to it with `left: 0` can land off the right edge of the screen.
+     Below this width, anchor to the viewport instead and let the popover's
+     own content scroll rather than push its footer off the bottom. */
+  .date-range-popover {
+    position: fixed;
+    top: auto;
+    right: 16px;
+    bottom: 16px;
+    left: 16px;
+    width: auto;
+    max-height: calc(100vh - 32px);
+    overflow-y: auto;
+  }
+
   .brief-row {
     grid-template-columns: 26px minmax(0, 1fr);
   }
