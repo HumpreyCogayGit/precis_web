@@ -8,6 +8,7 @@ import App from './App.jsx';
 import CookieConsent from './components/CookieConsent.jsx';
 import { initTheme } from './components/ThemeToggle.jsx';
 import TrendingPage from './pages/TrendingPage.jsx';
+import TldrPage from './pages/TldrPage.jsx';
 import { PrivacyPolicyPage, TermsPage } from './pages/LegalPages.jsx';
 import reportWebVitals from './reportWebVitals';
 
@@ -24,6 +25,10 @@ root.render(
       <Routes>
         <Route path="/" element={<App />} />
         <Route path="/trending" element={<TrendingPage />} />
+        {/* No nav link to this yet -- reachable only by direct URL while
+            generation quality and the verification gate are still being
+            validated. See the TLDR button plan. */}
+        <Route path="/tldr" element={<TldrPage />} />
         <Route path="/privacy" element={<PrivacyPolicyPage />} />
         <Route path="/terms" element={<TermsPage />} />
       </Routes>

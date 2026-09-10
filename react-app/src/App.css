@@ -97,6 +97,7 @@ select {
 
 .app,
 .trending-page,
+.tldr-page,
 .legal-page {
   min-height: 100vh;
   overflow-x: hidden;
@@ -2456,6 +2457,84 @@ mark.search-hit {
 
 .trend-note--error {
   color: #a33;
+}
+
+/* --- TLDR page --- */
+
+.tldr-section {
+  border-bottom: 1px solid var(--line);
+  padding: 28px 0;
+}
+
+.tldr-section:last-child {
+  border-bottom: none;
+}
+
+.tldr-section-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.tldr-section-head h2 {
+  margin: 0;
+  font-size: 1.375rem;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+}
+
+.tldr-generated-at {
+  color: var(--muted);
+  font-size: 0.8125rem;
+}
+
+.tldr-note {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.9375rem;
+}
+
+.tldr-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.tldr-item {
+  border-bottom: 1px solid var(--line);
+  padding-bottom: 16px;
+}
+
+.tldr-item:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.tldr-item-text {
+  margin: 0 0 6px;
+  color: var(--ink);
+  font-size: 1rem;
+  line-height: 1.5;
+}
+
+.tldr-item-meta {
+  margin: 0;
+  color: var(--ink-soft);
+  font-size: 0.8125rem;
+}
+
+.tldr-item-meta a {
+  color: var(--ink-soft);
+  text-decoration: underline;
+}
+
+.tldr-item-meta a:hover {
+  color: var(--ink);
 }
 
 /* --- The ranked list --- */

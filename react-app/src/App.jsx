@@ -71,7 +71,7 @@ const proxiedImageUrl = (imageUrl) => (
   imageUrl ? `${API_BASE_URL}/api/image-proxy?url=${encodeURIComponent(imageUrl)}` : ''
 );
 
-const safeHttpUrl = (url) => {
+export const safeHttpUrl = (url) => {
   if (!url) {
     return '';
   }
