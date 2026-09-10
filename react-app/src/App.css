@@ -2304,6 +2304,13 @@ mark.search-hit {
     font-size: 1.3125rem;
   }
 
+  /* Below 16px, focusing this field makes iOS Safari zoom the whole page in
+     and it doesn't zoom back out on its own — the reader is stuck pinching
+     out by hand to use the rest of the sheet. */
+  .filter-panel-search input {
+    font-size: 16px;
+  }
+
   .filter-panel-row {
     min-height: 44px;
     border-bottom: 1px solid var(--neutral-300);
