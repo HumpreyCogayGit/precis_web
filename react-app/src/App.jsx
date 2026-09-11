@@ -53,6 +53,9 @@ const API_ARTICLE_LIMIT = 5000;
 // moment later rather than blocking on it.
 const FIRST_PAINT_ARTICLE_LIMIT = 200;
 const TOP_STORIES_COUNT = 5;
+// Matches blogscraper/taxonomy.py TOPICS -- the only two subjects a digest exists
+// for. Order here decides the order the masthead topic pills render in.
+const TOPIC_SLUGS = ['AI', 'Cyber Security'];
 // The trending endpoint's own default depth (see DEFAULT_LIMIT in lib/trending.js)
 // — deep enough that filtering the pool down to one topic still leaves plenty of
 // ranked candidates to fill Top Stories from.
@@ -1087,6 +1090,28 @@ function App() {
     topics: withoutSlug(current.topics, slug),
   }));
 
+  // Both topic pills read as "on" when applied.topics is empty (see groupOverlap
+  // in filters.js: an empty list is no constraint, not "match nothing"), so
+  // turning one off has to spell out the other rather than toggling from an
+  // empty list. Turning off the last remaining pill is a no-op instead of
+  // silently reopening both, since an explicit empty selection would otherwise
+  // read right back as "show everything".
+  const toggleTopic = (slug) => removeApplied((current) => {
+    const activeSlugs = current.topics.length > 0 ? current.topics : TOPIC_SLUGS;
+    const next = activeSlugs.includes(slug)
+      ? activeSlugs.filter((entry) => entry !== slug)
+      : [...activeSlugs, slug];
+
+    if (next.length === 0) {
+      return current;
+    }
+
+    return {
+      ...current,
+      topics: next.length === TOPIC_SLUGS.length ? [] : next,
+    };
+  });
+
   const removeIncludedTag = (slug) => removeApplied((current) => ({
     ...current,
     tags: { ...current.tags, in: withoutSlug(current.tags.in, slug) },
@@ -1310,6 +1335,12 @@ function App() {
       ? dayFormat.format(asDate(range.from))
       : `${spanFormat.format(asDate(range.from))} – ${spanFormat.format(asDate(range.to))}`;
   }, [applied.dateRange]);
+
+  const editionTopicChips = TOPIC_SLUGS.map((slug) => ({
+    slug,
+    count: vocabulary.topics.get(slug)?.count ?? 0,
+    active: applied.topics.length === 0 || applied.topics.includes(slug),
+  }));
 
   const activeFilterChips = [];
   if (hasQuery(applied)) {
@@ -1591,6 +1622,20 @@ function App() {
             <div className="masthead-head">
               <p className="masthead-kicker">Daily tech brief</p>
               <h1 id="masthead-title" className="masthead-date">{editionDateLabel}</h1>
+              <div className="masthead-topics" role="group" aria-label="Filter by topic">
+                {editionTopicChips.map(({ slug, count, active }) => (
+                  <button
+                    key={slug}
+                    type="button"
+                    className={`date-chip${active ? ' date-chip--active' : ''}`}
+                    aria-pressed={active}
+                    onClick={() => toggleTopic(slug)}
+                  >
+                    {slug}
+                    <span className="date-chip-count">{count}</span>
+                  </button>
+                ))}
+              </div>
             </div>
           </section>
 

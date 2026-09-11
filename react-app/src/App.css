@@ -385,6 +385,17 @@ mark.search-hit {
   letter-spacing: -0.02em;
 }
 
+/* Topic pills, directly under the date. Reuses .date-chip/.date-chip-count
+   (see "Date filter" below) rather than a parallel style, since both are the
+   same shape: a counted, toggleable narrowing of the edition. */
+.masthead-topics {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 4px;
+}
+
 /* Date filter
    ---------------------------------------------------------------------------
    Shared chip styling for the results controls row. Chips, counts and the
