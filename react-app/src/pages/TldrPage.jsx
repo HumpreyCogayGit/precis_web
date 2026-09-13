@@ -93,6 +93,7 @@ const TldrPage = () => {
         </Link>
         <nav className="site-nav" aria-label="Primary">
           <Link to="/" className="site-nav-link">Today</Link>
+          <span className="site-nav-link active" aria-current="page">TL;DR</span>
           <Link to="/trending" className="site-nav-link">Trending</Link>
         </nav>
         <div className="site-header-actions">

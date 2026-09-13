@@ -1583,6 +1583,7 @@ function App() {
         </a>
         <nav className="site-nav" aria-label="Primary">
           <a href="#top" className="site-nav-link active">Today</a>
+          <a href="/tldr" className="site-nav-link">TL;DR</a>
           <a href="/trending" className="site-nav-link">Trending</a>
         </nav>
         <div className="site-header-actions">

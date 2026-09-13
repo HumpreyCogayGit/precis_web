@@ -359,6 +359,7 @@ const TrendingPage = () => {
         </Link>
         <nav className="site-nav" aria-label="Primary">
           <Link to="/" className="site-nav-link">Today</Link>
+          <Link to="/tldr" className="site-nav-link">TL;DR</Link>
           <span className="site-nav-link active" aria-current="page">Trending</span>
         </nav>
         <div className="site-header-actions">
