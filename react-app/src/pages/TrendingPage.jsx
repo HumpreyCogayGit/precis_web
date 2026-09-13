@@ -17,13 +17,11 @@ import {
 } from '../filters';
 import {
   DEFAULT_MIN_SOURCES,
-  MAX_MIN_SOURCES,
   buildEntityVocabulary,
   computeEntityFacetRows,
   countTrendFilterValues,
   filterEntities,
   hasExternalScore,
-  minSourcesOf,
   readTrendFilterFromSearch,
   trendFilterToSearchParams,
 } from '../trendFilters';
@@ -319,8 +317,6 @@ const TrendingPage = () => {
     filtersButtonRef.current?.focus();
   };
 
-  const setMinSources = (value) => setApplied((current) => ({ ...current, minSources: value }));
-
   const clearAll = () => {
     const cleared = {
       ...applied, sources: [], topics: [], tags: { in: [], not: [] }, minSources: DEFAULT_MIN_SOURCES,
@@ -339,7 +335,6 @@ const TrendingPage = () => {
 
   const appliedCount = countTrendFilterValues(applied);
   const draftCount = countTrendFilterValues(draft);
-  const minSources = minSourcesOf(applied);
 
   const panelGroups = [
     { key: 'topics', title: 'Topics', rows: orderRows('topics'), cap: FACET_ROW_CAP },
@@ -414,27 +409,14 @@ const TrendingPage = () => {
           <h1 className="trend-title">Trending</h1>
         </section>
 
-        <div className="trend-controls">
-          <label className="trend-slider">
-            <span className="trend-slider-label">
-              Covered by at least <strong>{minSources}</strong> {minSources === 1 ? 'outlet' : 'outlets'}
-            </span>
-            <input
-              type="range"
-              min="1"
-              max={MAX_MIN_SOURCES}
-              step="1"
-              value={minSources}
-              onChange={(event) => setMinSources(Number(event.target.value))}
-            />
-          </label>
-          <span className="trend-count">
-            {visible.length} of {entities.length} shown
-          </span>
-          {appliedCount > 0 && (
+        {/* The outlet-count slider and the "N of M shown" line were removed from the
+            page; a min_sources value arriving in a shared link still applies, and Clear
+            all resets it along with everything else. */}
+        {appliedCount > 0 && (
+          <div className="trend-controls">
             <button type="button" className="trend-clear" onClick={clearAll}>Clear all</button>
-          )}
-        </div>
+          </div>
+        )}
 
         {status === 'loading' && <p className="trend-note">Loading trending entities&hellip;</p>}
         {status === 'error' && (

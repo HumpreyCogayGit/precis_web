@@ -89,7 +89,9 @@ describe('date filter bar', () => {
   test('opens on All, showing date counts without a right-side working-set count', async () => {
     render(<App />);
 
-    const all = await screen.findByRole('button', { name: /^All/ });
+    // Scoped to the date row: the masthead's topic tabs have an All button too.
+    await screen.findByRole('group', { name: 'Filter briefs by date' });
+    const all = chip('All');
     expect(all).toHaveAttribute('aria-pressed', 'true');
     expect(within(all).queryByText('4')).not.toBeInTheDocument();
     expect(within(chip('Today')).getByText('1')).toBeInTheDocument();
@@ -132,7 +134,7 @@ describe('date filter bar', () => {
     await user.click(activeDate);
 
     expect(storyTitles()).toHaveLength(4);
-    expect(screen.getByRole('button', { name: /^All/ })).toHaveAttribute('aria-pressed', 'true');
+    expect(chip('All')).toHaveAttribute('aria-pressed', 'true');
   });
 
   // The number on the chip is what the edition becomes when it is clicked, so it
@@ -154,10 +156,10 @@ describe('date filter bar', () => {
     await screen.findByRole('group', { name: 'Filter briefs by date' });
 
     await user.click(chip('Today'));
-    await user.click(screen.getByRole('button', { name: /^All/ }));
+    await user.click(chip('All'));
 
     expect(storyTitles()).toHaveLength(4);
-    expect(screen.getByRole('button', { name: /^All/ })).toHaveAttribute('aria-pressed', 'true');
+    expect(chip('All')).toHaveAttribute('aria-pressed', 'true');
   });
 
   test('a preset travels in the URL by name, so the link keeps meaning "this week"', async () => {

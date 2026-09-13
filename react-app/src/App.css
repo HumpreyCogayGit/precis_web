@@ -385,17 +385,6 @@ mark.search-hit {
   letter-spacing: -0.02em;
 }
 
-/* Topic pills, directly under the date. Reuses .date-chip/.date-chip-count
-   (see "Date filter" below) rather than a parallel style, since both are the
-   same shape: a counted, toggleable narrowing of the edition. */
-.masthead-topics {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px;
-  margin-top: 4px;
-}
-
 /* Date filter
    ---------------------------------------------------------------------------
    Shared chip styling for the results controls row. Chips, counts and the
@@ -2420,30 +2409,6 @@ mark.search-hit {
   padding: 16px 0;
 }
 
-.trend-slider {
-  display: inline-flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.trend-slider-label {
-  color: var(--ink-soft);
-  font-size: 0.8125rem;
-  white-space: nowrap;
-}
-
-.trend-slider input[type='range'] {
-  width: 132px;
-  accent-color: var(--accent);
-}
-
-.trend-count {
-  margin-left: auto;
-  color: var(--muted);
-  font-size: 0.8125rem;
-  font-variant-numeric: tabular-nums;
-}
-
 .trend-clear {
   border: 1px solid var(--line);
   border-radius: var(--radius);
@@ -2472,31 +2437,104 @@ mark.search-hit {
 
 /* --- TLDR page --- */
 
-.tldr-section {
-  border-bottom: 1px solid var(--line);
-  padding: 28px 0;
+/* Segmented tabs: AI / Cyber Security, shared by the TLDR page (real tabs,
+   aria-selected) and the home masthead (topic filter buttons, aria-pressed). The
+   options sit in one tinted, bordered track; the current one is a filled accent
+   button and the rest look like buttons waiting to be pressed (visible text, hover
+   fill, pointer). An underline alone read as a heading, not as something to click. */
+.segmented-tabs {
+  display: inline-flex;
+  gap: 2px;
+  /* Hug the tabs even inside a stretching flex/grid parent like the masthead. */
+  width: fit-content;
+  max-width: 100%;
+  margin-top: 16px;
+  border: 1px solid var(--line);
+  border-radius: 0;
+  padding: 2px;
+  background: var(--surface);
+  overflow-x: auto;
+  scrollbar-width: none;
 }
 
-.tldr-section:last-child {
-  border-bottom: none;
-}
-
-.tldr-section-head {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: 10px;
-  margin-bottom: 14px;
-}
-
-.tldr-section-head h2 {
-  margin: 0;
-  font-size: 1.375rem;
-  font-weight: 800;
+.segmented-tab {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: 1px solid transparent;
+  border-radius: 0;
+  padding: 6px 12px;
+  color: var(--ink-soft);
+  background: transparent;
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.9375rem;
+  font-weight: 700;
   letter-spacing: -0.01em;
+  white-space: nowrap;
+  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
 }
 
+.segmented-tab:hover {
+  border-color: var(--line);
+  color: var(--ink);
+  background: var(--control-bg);
+}
+
+.segmented-tab[aria-selected="true"],
+.segmented-tab[aria-selected="true"]:hover,
+.segmented-tab[aria-pressed="true"],
+.segmented-tab[aria-pressed="true"]:hover {
+  border-color: var(--accent);
+  color: var(--on-accent);
+  background: var(--accent);
+  box-shadow: 0 1px 3px var(--shadow-elevated);
+}
+
+.segmented-tab:focus-visible {
+  outline: 2px solid var(--accent-dark);
+  outline-offset: 2px;
+}
+
+.segmented-tab-count {
+  min-width: 1.5em;
+  border-radius: 0;
+  padding: 1px 6px;
+  color: var(--ink-soft);
+  background: var(--neutral-200);
+  font-size: 0.6875rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+
+.segmented-tab[aria-selected="true"] .segmented-tab-count,
+.segmented-tab[aria-pressed="true"] .segmented-tab-count {
+  color: var(--accent-dark);
+  background: var(--paper);
+}
+
+/* On a phone the control spans the column and the tabs split it evenly, so each
+   is a comfortable thumb target rather than a word-sized one. */
+@media (max-width: 480px) {
+  .segmented-tabs {
+    display: flex;
+    width: 100%;
+  }
+
+  .segmented-tab {
+    flex: 1 1 0;
+    padding: 7px 10px;
+  }
+}
+
+.tldr-section {
+  padding: 24px 0 28px;
+}
 .tldr-generated-at {
+  margin: 0 0 14px;
   color: var(--muted);
   font-size: 0.8125rem;
 }
@@ -2762,10 +2800,6 @@ mark.search-hit {
 
   .trend-detail {
     padding-left: 0;
-  }
-
-  .trend-count {
-    margin-left: 0;
   }
 }
 
