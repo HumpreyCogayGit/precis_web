@@ -39,19 +39,17 @@ import { formatSiteName } from './sources';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || (import.meta.env.DEV ? 'http://localhost:5000' : '');
 const INITIAL_ARTICLE_COUNT = 24;
-// One working set per load. Filtering happens in the browser over this array, so
-// it has to hold every row any draft could reach. Must not exceed MAX_LIMIT in
-// lib/articles.js: the API rejects a larger limit with a 400 rather than quietly
-// returning fewer rows.
-const API_ARTICLE_LIMIT = 5000;
-// The first request on mount asks for only this many rows, so the page can paint
-// before the full working set is in. The server still has to scan/sort the same
-// WORKING_SET_LIMIT rows either way (see lib/articles.js) — this only shrinks what
-// gets serialized, sent over the wire and parsed before first render. The rest of
-// the working set is fetched right behind it (see fetchArticles) and merged in
-// once it lands, so facets and diverse-top selection settle onto the full set a
-// moment later rather than blocking on it.
-const FIRST_PAINT_ARTICLE_LIMIT = 200;
+// The working set arrives in pages (see fetchArticles). The first is small so the
+// edition paints fast — two screens of the default page size. The server builds
+// each row's excerpt only for the page it returns, so a page's cost scales with its
+// size, not with the archive. Both must not exceed MAX_LIMIT in lib/articles.js: the
+// API rejects a larger limit with a 400 rather than quietly returning fewer rows.
+const FIRST_PAGE_ARTICLE_LIMIT = 48;
+// Every page after the first, fetched one after another in the background until the
+// working set is complete. Sized so each request stays a few hundred milliseconds
+// (~0.5 ms of excerpt work per row) and a full load is a handful of requests, well
+// inside RATE_LIMITS.articles.
+const BACKGROUND_PAGE_ARTICLE_LIMIT = 500;
 const TOP_STORIES_COUNT = 5;
 // Matches blogscraper/taxonomy.py TOPICS -- the only two subjects a digest exists
 // for. Order here decides the order the masthead topic pills render in.
@@ -250,9 +248,11 @@ const writeFiltersToUrl = (filters) => {
 // the database to do the filtering, but the panel needs every reachable row in
 // the browser — a facet count that disagreed with the list behind it would be
 // worse than a slow one.
-const buildArticleUrl = (limit = API_ARTICLE_LIMIT) => (
-  `${API_BASE_URL}/api/articles?limit=${limit}&offset=0`
+const buildArticleUrl = (limit, offset = 0) => (
+  `${API_BASE_URL}/api/articles?limit=${limit}&offset=${offset}`
 );
+
+const articleKey = (article) => `${article.site} ${article.url}`;
 
 // The archive request. filtersToSearchParams gives the page's own query string, so
 // the panel's selections narrow the archive the same way they narrow the edition —
@@ -711,8 +711,8 @@ function App() {
   const [discoverTag, setDiscoverTag] = useState(null);
   const [discoverExpanded, setDiscoverExpanded] = useState(false);
   const [loading, setLoading] = useState(true);
-  // True between first paint (the small FIRST_PAINT_ARTICLE_LIMIT fetch resolving)
-  // and the full working set landing. Purely informational — nothing reads it to
+  // True between first paint (the first page resolving) and the last background
+  // page landing. Purely informational — nothing reads it to
   // decide what to render, since every view already works off whatever is
   // currently in `articles`.
   const [backgroundLoading, setBackgroundLoading] = useState(false);
@@ -746,34 +746,45 @@ function App() {
   // Apply differently from a keystroke in the search box.
   const appliedFacetsKey = JSON.stringify({ ...applied, query: '' });
 
-  // Applies one /api/articles response to state. Shared by both phases below —
-  // the shape (tolerating a bare array for a stale edge cache or older API
-  // deployment) and the fields touched are identical either way.
-  const applyArticlesResponse = (response) => {
-    const payload = response.data;
-    const items = Array.isArray(payload) ? payload : (payload?.items ?? []);
+  // The working set, a page at a time. The first page (FIRST_PAGE_ARTICLE_LIMIT)
+  // clears `loading` so the edition paints; the rest follow in the background, one
+  // BACKGROUND_PAGE_ARTICLE_LIMIT request after another, each appended as it lands.
+  // "Show more" therefore reveals rows that are already in memory rather than
+  // waiting on a request.
+  //
+  // The filter panel's facets come with the first page and already describe the
+  // whole working set (see fetchArticles in lib/articles.js), so its counts are
+  // right from first paint. Filtered lists, diverse-top selection and the date chips
+  // run over `articles`, and settle as pages arrive.
+  //
+  // Sequential rather than parallel on purpose: a Vercel function holds one database
+  // connection, and each page request after the first reuses that instance's cached
+  // index. A response without `next_offset` (an older API, a test fixture) is
+  // treated as the whole working set.
+  const fetchArticles = useCallback(async (isCancelled) => {
+    let nextOffset = null;
 
-    setArticles(items);
-    setDayFacets(Array.isArray(payload) ? null : (payload?.facets ?? null));
-  };
-
-  // Two requests, not one. The first asks for a small FIRST_PAINT_ARTICLE_LIMIT
-  // slice so the page can clear `loading` and paint quickly; the second asks for
-  // the full working set right behind it and replaces state again once it lands.
-  // Facets and diverse-top selection (which run over `articles`) briefly reflect
-  // only the first slice, then settle onto the full set — the same place they'd
-  // end up with one blocking request, just not blocking first paint on it.
-  const fetchArticles = useCallback(async () => {
     try {
       if (initialLoadRef.current) {
         setLoading(true);
       }
 
-      const firstPaint = await axios.get(buildArticleUrl(FIRST_PAINT_ARTICLE_LIMIT));
-      applyArticlesResponse(firstPaint);
+      const response = await axios.get(buildArticleUrl(FIRST_PAGE_ARTICLE_LIMIT));
+      if (isCancelled()) {
+        return;
+      }
+
+      const payload = response.data;
+      // Tolerates a bare array for a stale edge cache or older API deployment.
+      setArticles(Array.isArray(payload) ? payload : (payload?.items ?? []));
+      setDayFacets(Array.isArray(payload) ? null : (payload?.facets ?? null));
+      nextOffset = Array.isArray(payload) ? null : (payload?.next_offset ?? null);
       setVisibleCount(pageSize);
       setError(null);
     } catch (err) {
+      if (isCancelled()) {
+        return;
+      }
       setError(import.meta.env.DEV
         ? 'Failed to fetch articles. Start the Precis web server, then refresh this page'
         : 'Failed to fetch articles. Check the deployment environment variables and database connection');
@@ -786,25 +797,52 @@ function App() {
     initialLoadRef.current = false;
     setLoading(false);
 
-    // Best-effort: the reader already has the first-paint slice on screen, so a
-    // failure here is not worth the error page — just leave that slice in place
-    // and let a manual refresh try again.
+    if (nextOffset === null) {
+      return;
+    }
+
+    // Best-effort: the reader already has the first page on screen, so a failure
+    // here is not worth the error page — keep what arrived and let a manual refresh
+    // try again.
     setBackgroundLoading(true);
     try {
-      const fullSet = await axios.get(buildArticleUrl(API_ARTICLE_LIMIT));
-      applyArticlesResponse(fullSet);
+      while (nextOffset !== null) {
+        const response = await axios.get(buildArticleUrl(BACKGROUND_PAGE_ARTICLE_LIMIT, nextOffset));
+        if (isCancelled()) {
+          return;
+        }
+
+        const items = response.data?.items ?? [];
+        const following = response.data?.next_offset ?? null;
+        // A page that makes no progress would otherwise loop forever.
+        nextOffset = following !== null && following > nextOffset ? following : null;
+
+        // Deduped on (site, url): if the edition changed between two page requests,
+        // a row can shift across a page boundary and arrive twice.
+        setArticles((current) => {
+          const seen = new Set(current.map(articleKey));
+          const added = items.filter((item) => !seen.has(articleKey(item)));
+          return added.length > 0 ? [...current, ...added] : current;
+        });
+      }
     } catch (err) {
-      console.error('Error fetching the full article working set:', err);
+      console.error('Error fetching the rest of the article working set:', err);
     } finally {
-      setBackgroundLoading(false);
+      if (!isCancelled()) {
+        setBackgroundLoading(false);
+      }
     }
   }, [pageSize]);
 
-  // One fetch per load. Filtering, faceting and the predictive Apply label all
+  // One load per mount. Filtering, faceting and the predictive Apply label all
   // run over this array, so a count and the rows behind it can never disagree,
   // and ANY/ALL, exclusion and the panel search cost nothing.
   useEffect(() => {
-    fetchArticles();
+    let cancelled = false;
+    fetchArticles(() => cancelled);
+    return () => {
+      cancelled = true;
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -816,7 +854,11 @@ function App() {
 
     (async () => {
       try {
-        const response = await axios.get(`${API_BASE_URL}/api/trending?limit=${TOP_STORIES_POOL_LIMIT}`);
+        // One article per entity is all Top Stories uses, and the API returns the
+        // representative one when asked for a single article.
+        const response = await axios.get(
+          `${API_BASE_URL}/api/trending?limit=${TOP_STORIES_POOL_LIMIT}&articles_per_entity=1`,
+        );
         const entities = Array.isArray(response.data) ? response.data : (response.data?.items ?? []);
         const stories = entities
           .map((entity) => (entity.articles || []).find((a) => a.is_representative) || entity.articles?.[0])

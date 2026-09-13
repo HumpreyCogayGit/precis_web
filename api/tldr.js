@@ -1,4 +1,5 @@
 const { fetchTldr } = require('../lib/tldr');
+const { sendTimedJson } = require('../lib/db');
 const { allowMethods, sendError } = require('../lib/http');
 const { RATE_LIMITS, checkRateLimit } = require('../lib/rateLimit');
 
@@ -16,7 +17,7 @@ module.exports = async function handler(req, res) {
     // yet), so a short edge cache is about freshness of the read, not of the
     // underlying data -- matches topics.js/trending.js's cadence.
     res.setHeader('Cache-Control', 's-maxage=300, stale-while-revalidate=600');
-    res.status(200).json(await fetchTldr({ topic: req.query.topic }));
+    await sendTimedJson(res, () => fetchTldr({ topic: req.query.topic }));
   } catch (err) {
     sendError(res, 'Failed to fetch TLDR digest', err, req);
   }

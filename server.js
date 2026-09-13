@@ -6,6 +6,7 @@ const {
   countArticles, fetchArticles, fetchSites, fetchTopics, searchArticles,
 } = require('./lib/articles');
 const { createCorsOptions } = require('./lib/cors');
+const { sendTimedJson } = require('./lib/db');
 const { log, logRequest, sendError } = require('./lib/http');
 const { proxyImage } = require('./lib/imageProxy');
 const { fetchTrending } = require('./lib/trending');
@@ -30,7 +31,7 @@ app.get('/api/health', rateLimitMiddleware(RATE_LIMITS.health), (req, res) => {
 
 app.get('/api/articles', rateLimitMiddleware(RATE_LIMITS.articles), async (req, res) => {
   try {
-    res.json(await fetchArticles({
+    await sendTimedJson(res, () => fetchArticles({
       site: req.query.site,
       topic: req.query.topic,
       tags: req.query.tags,
@@ -111,7 +112,10 @@ app.get('/api/topics', rateLimitMiddleware(RATE_LIMITS.articles), async (req, re
 
 app.get('/api/trending', rateLimitMiddleware(RATE_LIMITS.articles), async (req, res) => {
   try {
-    res.json(await fetchTrending({ limit: req.query.limit }));
+    await sendTimedJson(res, () => fetchTrending({
+      limit: req.query.limit,
+      articlesPerEntity: req.query.articles_per_entity,
+    }));
   } catch (err) {
     sendError(res, 'Failed to fetch trending entities', err, req);
   }
@@ -119,7 +123,7 @@ app.get('/api/trending', rateLimitMiddleware(RATE_LIMITS.articles), async (req, 
 
 app.get('/api/tldr', rateLimitMiddleware(RATE_LIMITS.articles), async (req, res) => {
   try {
-    res.json(await fetchTldr({ topic: req.query.topic }));
+    await sendTimedJson(res, () => fetchTldr({ topic: req.query.topic }));
   } catch (err) {
     sendError(res, 'Failed to fetch TLDR digest', err, req);
   }

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { Suspense, lazy } from 'react';
 import ReactDOM from 'react-dom/client';
 import { Analytics } from '@vercel/analytics/react';
 import { SpeedInsights } from '@vercel/speed-insights/react';
@@ -7,10 +7,15 @@ import { BrowserRouter, Route, Routes } from 'react-router-dom';
 import App from './App.jsx';
 import CookieConsent from './components/CookieConsent.jsx';
 import { initTheme } from './components/ThemeToggle.jsx';
-import TrendingPage from './pages/TrendingPage.jsx';
-import TldrPage from './pages/TldrPage.jsx';
-import { PrivacyPolicyPage, TermsPage } from './pages/LegalPages.jsx';
 import reportWebVitals from './reportWebVitals';
+
+// The home page is the common entry, so it stays in the main bundle. Every other
+// route is its own chunk, fetched on first visit, so no page downloads and parses
+// the code of pages the reader never opens.
+const TrendingPage = lazy(() => import('./pages/TrendingPage.jsx'));
+const TldrPage = lazy(() => import('./pages/TldrPage.jsx'));
+const PrivacyPolicyPage = lazy(() => import('./pages/LegalPages.jsx').then((m) => ({ default: m.PrivacyPolicyPage })));
+const TermsPage = lazy(() => import('./pages/LegalPages.jsx').then((m) => ({ default: m.TermsPage })));
 
 initTheme();
 
@@ -22,16 +27,18 @@ const root = ReactDOM.createRoot(document.getElementById('root'));
 root.render(
   <React.StrictMode>
     <BrowserRouter>
-      <Routes>
-        <Route path="/" element={<App />} />
-        <Route path="/trending" element={<TrendingPage />} />
-        {/* No nav link to this yet -- reachable only by direct URL while
-            generation quality and the verification gate are still being
-            validated. See the TLDR button plan. */}
-        <Route path="/tldr" element={<TldrPage />} />
-        <Route path="/privacy" element={<PrivacyPolicyPage />} />
-        <Route path="/terms" element={<TermsPage />} />
-      </Routes>
+      <Suspense fallback={null}>
+        <Routes>
+          <Route path="/" element={<App />} />
+          <Route path="/trending" element={<TrendingPage />} />
+          {/* No nav link to this yet -- reachable only by direct URL while
+              generation quality and the verification gate are still being
+              validated. See the TLDR button plan. */}
+          <Route path="/tldr" element={<TldrPage />} />
+          <Route path="/privacy" element={<PrivacyPolicyPage />} />
+          <Route path="/terms" element={<TermsPage />} />
+        </Routes>
+      </Suspense>
       <CookieConsent />
     </BrowserRouter>
     <Analytics />

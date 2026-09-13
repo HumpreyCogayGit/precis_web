@@ -5,6 +5,7 @@ const path = require('node:path');
 const test = require('node:test');
 
 const {
+  ARTICLE_PAGE_SQL,
   buildFacets,
   buildFetchArticlesQuery,
   slugifyTag,
@@ -213,11 +214,21 @@ test('multi-value filters split, trim, and dedupe a comma-separated value', () =
 
 test('article list queries use the public view and expose only public fields', () => {
   const built = buildFetchArticlesQuery({ site: 'nvidia', topic: 'AI' });
+  const viewRelation = new RegExp(`FROM\\s+${PUBLIC_ARTICLES_RELATION.replace('.', '\\.')}`, 'i');
+  const withheld = /body_text|content_hash|matched_strategy|flag_reason|raw_html_path|needs_review/i;
 
-  assert.match(built.text, new RegExp(`FROM\\s+${PUBLIC_ARTICLES_RELATION.replace('.', '\\.')}`, 'i'));
-  assert.doesNotMatch(built.text, /FROM\s+(?:public\.)?articles\b/i);
-  assert.doesNotMatch(built.text, /body_text|content_hash|matched_strategy|flag_reason|raw_html_path|needs_review/i);
-  assert.match(built.text, /\bexcerpt\b/i);
+  for (const text of [built.text, ARTICLE_PAGE_SQL]) {
+    assert.match(text, viewRelation);
+    assert.doesNotMatch(text, /FROM\s+(?:public\.)?articles\b/i);
+    assert.doesNotMatch(text, withheld);
+  }
+
+  // The working-set index must never reference the excerpt: selecting it makes the
+  // view build a regexp_replace for every row, which is the cost the split removes.
+  assert.doesNotMatch(built.text, /\bexcerpt\b/i);
+  assert.match(ARTICLE_PAGE_SQL, /\bexcerpt\b/i);
+  // The page query binds its URLs as one array parameter, never interpolated.
+  assert.match(ARTICLE_PAGE_SQL, /url = ANY\(\$1::text\[\]\)/);
   // Topic is an array overlap, so even one value binds as a one-element array.
   assert.deepEqual(built.params, ['nvidia', ['AI'], WORKING_SET_LIMIT]);
 });
@@ -282,7 +293,7 @@ test('an empty tag filter constrains nothing, and tag length and mode are valida
   assertValidationError(() => buildFetchArticlesQuery({ notTags: ['a', 'b'] }), 'not_tags');
 });
 
-test('facets are tallied from the returned items so a count cannot outrun its rows', () => {
+test('facets are tallied from the working-set rows so a count cannot outrun its rows', () => {
   const facets = buildFacets([
     { site: 'nvidia', topics: ['AI', 'Cyber Security'], tags: ['AI Security'] },
     { site: 'nvidia', topics: ['AI'], tags: ['LLM Release'] },
@@ -432,11 +443,13 @@ test('the working set cap is the same number in all three places that enforce it
     path.join(__dirname, '..', 'sql', 'create-search-articles-function.sql'), 'utf8',
   );
 
-  const requested = Number(appJsx.match(/const API_ARTICLE_LIMIT = (\d+)/)[1]);
   const clamp = Number(functionSql.match(/LIMIT LEAST\(GREATEST\(COALESCE\(match_limit, \d+\), 1\), (\d+)\)/)[1]);
 
-  assert.ok(requested <= MAX_LIMIT,
-    `App.jsx requests ${requested} but the API rejects anything over ${MAX_LIMIT}`);
+  for (const constant of ['FIRST_PAGE_ARTICLE_LIMIT', 'BACKGROUND_PAGE_ARTICLE_LIMIT']) {
+    const requested = Number(appJsx.match(new RegExp(`const ${constant} = (\\d+)`))[1]);
+    assert.ok(requested <= MAX_LIMIT,
+      `App.jsx ${constant} requests ${requested} but the API rejects anything over ${MAX_LIMIT}`);
+  }
   assert.equal(clamp, MAX_LIMIT,
     `the SQL clamp (${clamp}) must equal MAX_LIMIT (${MAX_LIMIT}) or it truncates silently`);
 });
