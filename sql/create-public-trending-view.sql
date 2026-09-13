@@ -34,6 +34,9 @@ WITH latest AS (
        ORDER BY s.scored_at DESC
        LIMIT 1
     ) s ON TRUE
+   -- Only candidates a recent extraction still produced; entity_candidates is never pruned.
+   -- Same filter and rationale as scoring/sql/qa-views.sql.
+   WHERE c.last_seen_at >= (SELECT max(last_seen_at) FROM entity_candidates) - interval '9 hours'
 ),
 ranked AS (
   SELECT *,

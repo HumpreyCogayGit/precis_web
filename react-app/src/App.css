@@ -2595,7 +2595,7 @@ mark.search-hit {
   min-width: 0;
 }
 
-.trend-entity {
+.trend-headline {
   color: var(--ink);
   font-size: 1.125rem;
   font-weight: 700;
@@ -2603,7 +2603,7 @@ mark.search-hit {
   line-height: 1.25;
 }
 
-.trend-headline {
+.trend-entity {
   color: var(--ink-soft);
   font-size: 0.875rem;
   line-height: 1.45;

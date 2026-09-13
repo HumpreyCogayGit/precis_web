@@ -91,9 +91,13 @@ const TrendRow = ({ entity, expanded, onToggle }) => {
       >
         <span className="trend-rank" aria-hidden="true">{entity.rank}</span>
         <span className="trend-row-main">
-          <span className="trend-entity">{entity.entity || entity.discovery_query}</span>
+          {/* The headline leads; the entity name sits under it as a label. With no
+              representative headline, the entity takes the lead line on its own. */}
+          <span className="trend-headline">
+            {entity.representative_title || entity.entity || entity.discovery_query}
+          </span>
           {entity.representative_title && (
-            <span className="trend-headline">{entity.representative_title}</span>
+            <span className="trend-entity">{entity.entity || entity.discovery_query}</span>
           )}
           <span className="trend-badges">
             <span className="trend-badge trend-badge--sources">
