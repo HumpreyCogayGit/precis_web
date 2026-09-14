@@ -224,7 +224,13 @@ export const articleTimestamp = (article) => {
     return cached;
   }
 
-  const timestamp = parseDateTimestamp(article.published_at);
+  // A post cannot be published after we fetched it. A published_at past fetched_at
+  // is a bad extraction (OpenAI's "September 14, 2026" stored on a Sep 12 fetch), and
+  // left alone it pins the story to the lead slot reading "Just now" until the
+  // calendar catches up. Clamp to the fetch instant instead.
+  const published = parseDateTimestamp(article.published_at);
+  const fetched = parseDateTimestamp(article.fetched_at);
+  const timestamp = published && fetched && published > fetched ? fetched : published;
   timestampCache.set(article, timestamp);
   return timestamp;
 };

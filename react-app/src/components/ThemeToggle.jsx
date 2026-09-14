@@ -48,11 +48,11 @@ const ThemeToggle = () => {
       type="button"
       className="theme-toggle"
       aria-label={`Switch to ${isDark ? 'light' : 'dark'} mode`}
+      title={`Switch to ${isDark ? 'light' : 'dark'} mode`}
       aria-pressed={isDark}
       onClick={() => setTheme((current) => (current === 'dark' ? 'light' : 'dark'))}
     >
       <span className="theme-toggle-icon" aria-hidden="true">{isDark ? '☾' : '☼'}</span>
-      <span className="theme-toggle-label">{isDark ? 'Dark' : 'Light'}</span>
     </button>
   );
 };

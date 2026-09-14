@@ -3,6 +3,7 @@ import {
   DATE_PRESETS,
   EMPTY_DATE_RANGE,
   EMPTY_FILTER,
+  articleTimestamp,
   datePredicate,
   filterArticles,
   filtersToSearchParams,
@@ -183,5 +184,26 @@ describe('date range URL round trip', () => {
       .toEqual({ preset: 'custom', from: '2024-10-14', to: '2024-10-20' });
     expect(readFiltersFromSearch('?date=fortnight').dateRange).toEqual(EMPTY_DATE_RANGE);
     expect(readFiltersFromSearch('?from=2024-10-14').dateRange).toEqual(EMPTY_DATE_RANGE);
+  });
+});
+
+describe('article timestamp', () => {
+  test('a published_at later than the fetch is clamped to the fetch', () => {
+    // The OpenAI row that held the lead slot for days: dated two days after it was fetched.
+    const futureDated = {
+      published_at: 'September 14, 2026',
+      fetched_at: '2026-09-12T04:01:48.909Z',
+    };
+    expect(articleTimestamp(futureDated)).toBe(Date.parse('2026-09-12T04:01:48.909Z'));
+  });
+
+  test('a normal published_at is left alone', () => {
+    const dated = { published_at: 'September 11, 2026', fetched_at: '2026-09-12T04:01:50.186Z' };
+    expect(articleTimestamp(dated)).toBe(at('2026-09-11T00:00:00.000'));
+  });
+
+  test('a missing fetched_at does not clamp, and a missing published_at stays undated', () => {
+    expect(articleTimestamp({ published_at: 'September 14, 2026' })).toBe(at('2026-09-14T00:00:00.000'));
+    expect(articleTimestamp({ published_at: null, fetched_at: '2026-09-12T04:01:48.909Z' })).toBe(0);
   });
 });

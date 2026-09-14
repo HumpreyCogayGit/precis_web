@@ -118,7 +118,7 @@ const formatShortDate = (dateValue) => {
 // Exported for pages/TrendingPage.jsx. Export keyword only — no behaviour change,
 // and the existing suite is the guard.
 export const formatRelativeTime = (dateValue) => {
-  const timestamp = parseDateTimestamp(dateValue);
+  const timestamp = typeof dateValue === 'number' ? dateValue : parseDateTimestamp(dateValue);
 
   if (!timestamp) {
     return 'Date not captured';
@@ -632,7 +632,7 @@ const BriefRow = ({ article, index }) => {
         <div className="brief-meta">
           <span>Source: {formatSiteName(article.site)}</span>
           <span aria-hidden="true">&middot;</span>
-          <span>{formatRelativeTime(article.published_at)}</span>
+          <span>{formatRelativeTime(getArticleTimestamp(article))}</span>
         </div>
       </div>
       <SaveAffordance iconOnly />
@@ -658,7 +658,7 @@ const EverythingCard = ({ article }) => {
         <div className="everything-card-meta">
           <span className="everything-card-site">Source: {formatSiteName(article.site)}</span>
           {article.topic && <span className="everything-card-topic">{article.topic}</span>}
-          <span className="everything-card-date">{formatShortDate(article.published_at)}</span>
+          <span className="everything-card-date">{formatShortDate(getArticleTimestamp(article))}</span>
         </div>
         <h4><SafeArticleTitle article={article} /></h4>
         {summaryText && <p><Highlight text={summaryText} /></p>}
@@ -673,7 +673,7 @@ const SmallListRow = ({ article }) => (
     <span className="small-list-meta">
       <span>Source: {formatSiteName(article.site)}</span>
       <span aria-hidden="true">&middot;</span>
-      <span>{formatRelativeTime(article.published_at)}</span>
+      <span>{formatRelativeTime(getArticleTimestamp(article))}</span>
     </span>
   </li>
 );
@@ -1605,10 +1605,11 @@ function App() {
               className="filters-button"
               aria-expanded={panelOpen}
               aria-controls="filters-panel"
+              aria-label={appliedCount > 0 ? `Filters, ${appliedCount} applied` : 'Filters'}
+              title="Filters"
               onClick={openPanel}
             >
               <SlidersIcon />
-              <span>Filters</span>
               {appliedCount > 0 && <span className="filters-button-count">{appliedCount}</span>}
             </button>
 
@@ -1688,7 +1689,7 @@ function App() {
                 </div>
                 <div className="lead-copy">
                   <div className="lead-meta">                   
-                    <span className="lead-byline">Source: {formatSiteName(leadArticle.site)} &middot; {formatRelativeTime(leadArticle.published_at)}</span>
+                    <span className="lead-byline">Source: {formatSiteName(leadArticle.site)} &middot; {formatRelativeTime(getArticleTimestamp(leadArticle))}</span>
                   </div>
                   <h2 className="lead-headline"><SafeArticleTitle article={leadArticle} /></h2>
                   {getLeadSummaryText(leadArticle) && (

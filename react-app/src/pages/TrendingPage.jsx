@@ -11,6 +11,7 @@ import { formatSiteName } from '../sources';
 import {
   FACET_ROW_CAP,
   TAG_ROW_CAP,
+  articleTimestamp,
   filtersToSearchParams,
   readFiltersFromSearch,
   sortFacetRows,
@@ -60,7 +61,7 @@ const TrendArticleRow = ({ article }) => (
     <span className="trend-article-meta">
       <span className="trend-article-site">Source: {formatSiteName(article.site)}</span>
       <span aria-hidden="true"> &middot; </span>
-      <span>{formatRelativeTime(article.published_at)}</span>
+      <span>{formatRelativeTime(articleTimestamp(article))}</span>
       {article.is_representative && (
         // The headline the extractor turned into the discovery query. Marking it is
         // the cheapest guard against the failure the trend_evidence view exists to
@@ -365,10 +366,11 @@ const TrendingPage = () => {
             className="filters-button"
             aria-expanded={panelOpen}
             aria-controls="filters-panel"
+            aria-label={appliedCount > 0 ? `Filters, ${appliedCount} applied` : 'Filters'}
+            title="Filters"
             onClick={openPanel}
           >
             <TuneIcon />
-            <span>Filters</span>
             {appliedCount > 0 && <span className="filters-button-count">{appliedCount}</span>}
           </button>
 
