@@ -59,10 +59,15 @@ const headlines = () => screen.queryAllByRole('heading', { level: 4 }).map((node
 // The lead story is an h2; under a search there should not be one.
 const leadHeadline = () => screen.queryByRole('heading', { level: 2, name: /Codex|chips|ransomware|Grok/ });
 
-const renderApp = async () => {
+// The header search is an icon until clicked, so most tests open it first.
+const renderApp = async ({ openSearch = true } = {}) => {
   const user = userEvent.setup();
   render(<App />);
-  await screen.findByRole('searchbox', { name: /^Search briefs/ });
+  const toggle = await screen.findByRole('button', { name: 'Open search' });
+  if (openSearch) {
+    await user.click(toggle);
+    await screen.findByRole('searchbox', { name: /^Search briefs/ });
+  }
   return user;
 };
 
@@ -254,9 +259,21 @@ describe('header search', () => {
     expect(searchBox()).toHaveValue('');
   });
 
-  test('"/" focuses the box from anywhere on the page', async () => {
+  test('the close button clears the query and hides the box', async () => {
     const user = await renderApp();
-    expect(searchBox()).not.toHaveFocus();
+    await user.type(searchBox(), 'codex');
+    await waitFor(() => expect(window.location.search).toContain('q=codex'));
+
+    await user.click(screen.getByRole('button', { name: 'Close search' }));
+
+    expect(screen.queryByRole('searchbox', { name: /^Search briefs/ })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Open search' })).toHaveFocus();
+    await waitFor(() => expect(window.location.search).not.toContain('q='));
+  });
+
+  test('"/" opens and focuses the box from anywhere on the page', async () => {
+    const user = await renderApp({ openSearch: false });
+    expect(screen.queryByRole('searchbox', { name: /^Search briefs/ })).not.toBeInTheDocument();
 
     await user.keyboard('/');
 

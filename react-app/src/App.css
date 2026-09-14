@@ -229,7 +229,9 @@ select {
   margin-left: auto;
 }
 
-.theme-toggle {
+.theme-toggle,
+.search-toggle,
+.header-search-close {
   display: inline-flex;
   flex-shrink: 0;
   align-items: center;
@@ -249,7 +251,9 @@ select {
   transition: border-color 160ms ease, background-color 160ms ease, color 160ms ease;
 }
 
-.theme-toggle:hover {
+.theme-toggle:hover,
+.search-toggle:hover,
+.header-search-close:hover {
   border-color: var(--accent);
   color: var(--ink);
   background: var(--control-bg-hover);
@@ -265,24 +269,48 @@ select {
   line-height: 1;
 }
 
-.header-search {
+.search-toggle svg {
+  color: var(--accent);
+}
+
+/* The open search covers the whole header row, the way a site-wide search sheet
+   does: an underlined box across the width and a close button at the end. The
+   sticky header is the containing block, so this lines up with its content. */
+.header-search-bar {
+  position: absolute;
+  z-index: 1;
+  inset: 0;
   display: flex;
   align-items: center;
-  gap: 8px;
-  width: 230px;
-  height: 34px;
-  padding: 0 12px;
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
+  gap: 16px;
+  background: var(--paper);
+}
+
+.header-search {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  align-items: center;
+  gap: 10px;
+  height: 42px;
+  padding: 0 2px;
+  border-bottom: 2px solid var(--ink);
   color: var(--subtle);
+}
+
+.header-search svg {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
 }
 
 .header-search input {
   width: 100%;
+  min-width: 0;
   border: none;
   background: none;
   color: var(--ink);
-  font-size: 0.8125rem;
+  font-size: 1.125rem;
   outline: none;
 }
 
@@ -291,7 +319,7 @@ select {
 }
 
 .header-search:focus-within {
-  border-color: var(--accent);
+  border-bottom-color: var(--accent);
   color: var(--ink);
 }
 
@@ -2070,6 +2098,8 @@ mark.search-hit {
 }
 
 .theme-toggle:focus-visible,
+.search-toggle:focus-visible,
+.header-search-close:focus-visible,
 .site-nav-link:focus-visible,
 .lead-image-link:focus-visible,
 .lead-headline a:focus-visible,
@@ -2165,10 +2195,6 @@ mark.search-hit {
     gap: 16px;
     overflow-x: auto;
     padding-bottom: 2px;
-  }
-
-  .header-search {
-    display: none;
   }
 
   .membership-link {

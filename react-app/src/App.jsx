@@ -695,6 +695,9 @@ function App() {
   const [applied, setApplied] = useState(() => readFiltersFromUrl());
   const [draft, setDraft] = useState(applied);
   const [panelOpen, setPanelOpen] = useState(false);
+  // The header search is an icon until asked for. A query carried in on the URL
+  // opens it, so a filtered page never hides what it is filtered by.
+  const [searchOpen, setSearchOpen] = useState(() => Boolean(applied.query));
   const [panelQuery, setPanelQuery] = useState('');
   const [openGroup, setOpenGroup] = useState('tags');
   const [expandedGroups, setExpandedGroups] = useState({});
@@ -739,6 +742,9 @@ function App() {
   // The panel's own facet-name box. The header search box is headerSearchRef.
   const searchInputRef = useRef(null);
   const headerSearchRef = useRef(null);
+  const searchToggleRef = useRef(null);
+  // Set by an explicit open, so the box a URL query opens on load does not steal focus.
+  const focusSearchOnOpenRef = useRef(false);
 
   const appliedKey = JSON.stringify(applied);
   const draftKey = JSON.stringify(draft);
@@ -1163,6 +1169,32 @@ function App() {
     headerSearchRef.current?.focus();
   };
 
+  // When the box is already mounted it is focused directly; otherwise the effect
+  // below focuses it once it renders.
+  const openSearch = useCallback(() => {
+    focusSearchOnOpenRef.current = true;
+    setSearchOpen(true);
+    headerSearchRef.current?.focus();
+    headerSearchRef.current?.select();
+  }, []);
+
+  // Closing is also clearing: a hidden box must not keep filtering the page.
+  const closeSearch = () => {
+    if (applied.query) {
+      handleQueryChange('');
+    }
+    setSearchOpen(false);
+    searchToggleRef.current?.focus();
+  };
+
+  useEffect(() => {
+    if (searchOpen && focusSearchOnOpenRef.current) {
+      focusSearchOnOpenRef.current = false;
+      headerSearchRef.current?.focus();
+      headerSearchRef.current?.select();
+    }
+  }, [searchOpen]);
+
   // The range goes through the same applied/draft pair as the query, for the same
   // reason: the panel's counts and its Apply label are computed from the draft, so
   // a range that only reached `applied` would make both of them lie.
@@ -1252,14 +1284,13 @@ function App() {
 
       if (isShortcut) {
         event.preventDefault();
-        headerSearchRef.current?.focus();
-        headerSearchRef.current?.select();
+        openSearch();
       }
     };
 
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [panelOpen]);
+  }, [panelOpen, openSearch]);
 
   const appliedCount = countFilterValues(applied);
   const isSearching = hasQuery(applied);
@@ -1574,29 +1605,59 @@ function App() {
         </nav>
         <div className="site-header-actions">
           <ThemeToggle />
-          <label className="header-search">
+          <button
+            ref={searchToggleRef}
+            type="button"
+            className="search-toggle"
+            aria-label="Open search"
+            aria-expanded={searchOpen}
+            title="Search (/)"
+            onClick={openSearch}
+          >
             <SearchIcon />
-            <input
-              ref={headerSearchRef}
-              type="search"
-              // The working set, not the filtered list: a placeholder that counted
-              // down as the reader typed would be describing its own effect.
-              placeholder={`Search ${articles.length} briefs`}
-              value={applied.query}
-              maxLength={MAX_QUERY_LENGTH}
-              enterKeyHint="search"
-              autoComplete="off"
-              spellCheck="false"
-              aria-label="Search briefs by headline, summary, tag, source or topic"
-              onChange={(event) => handleQueryChange(event.target.value)}
-              onKeyDown={(event) => {
-                if (event.key === 'Escape' && applied.query) {
-                  event.preventDefault();
-                  clearQuery();
-                }
-              }}
-            />
-          </label>
+          </button>
+          {searchOpen && (
+            <div className="header-search-bar" role="search">
+              <label className="header-search">
+                <SearchIcon />
+                <input
+                  ref={headerSearchRef}
+                  type="search"
+                  // The working set, not the filtered list: a placeholder that counted
+                  // down as the reader typed would be describing its own effect.
+                  placeholder={`Search ${articles.length} briefs`}
+                  value={applied.query}
+                  maxLength={MAX_QUERY_LENGTH}
+                  enterKeyHint="search"
+                  autoComplete="off"
+                  spellCheck="false"
+                  aria-label="Search briefs by headline, summary, tag, source or topic"
+                  onChange={(event) => handleQueryChange(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key !== 'Escape') {
+                      return;
+                    }
+                    // First Escape clears the query, the next one closes the bar.
+                    event.preventDefault();
+                    if (applied.query) {
+                      clearQuery();
+                    } else {
+                      closeSearch();
+                    }
+                  }}
+                />
+              </label>
+              <button
+                type="button"
+                className="header-search-close"
+                aria-label="Close search"
+                title="Close search"
+                onClick={closeSearch}
+              >
+                <CloseIcon />
+              </button>
+            </div>
+          )}
           <div className="filters-anchor">
             <button
               ref={filtersButtonRef}
