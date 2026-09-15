@@ -21,7 +21,7 @@ const item = (n, tags) => ({
 });
 
 // Newest first, so story 1 is the lead and 2-32 are the thirty-one that land in
-// Everything else — seven past the 24 that fit on a page, so the paging line has
+// Latest News — seven past the 24 that fit on a page, so the paging line has
 // to track the rail too.
 //
 // Story 1 carries LLM Release on purpose: that tag exists above the section, and
@@ -79,7 +79,7 @@ afterEach(() => {
 });
 
 describe('discover rail', () => {
-  test('chips come from Everything else alone, ordered by how many they return', async () => {
+  test('chips come from Latest News alone, ordered by how many they return', async () => {
     render(<App />);
     await screen.findByText('Story 1');
 
@@ -89,7 +89,7 @@ describe('discover rail', () => {
     expect(chip('All')).toHaveAttribute('aria-pressed', 'true');
   });
 
-  test('a chip narrows Everything else and leaves the rest of the edition alone', async () => {
+  test('a chip narrows Latest News and leaves the rest of the edition alone', async () => {
     const user = userEvent.setup();
     render(<App />);
     await screen.findByText('Story 1');

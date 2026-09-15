@@ -1483,7 +1483,7 @@ mark.search-hit {
   margin-left: auto;
 }
 
-/* Discover rail — the tag chips over the Everything else grid.
+/* Discover rail — the tag chips over the Latest News grid.
 
    One row, overflow-x, white-space: nowrap, flex: none on every chip: the chips
    keep their intrinsic width and the row scrolls instead of reflowing. Expanding
@@ -3434,5 +3434,32 @@ mark.search-hit {
 @media (max-width: 760px) {
   .topic-trends {
     display: none;
+  }
+}
+
+/* Phones: at its 2.35rem floor the masthead date ("Wednesday, September 30" is the
+   longest) wraps to two lines on a ~400px screen. Scale it with the viewport instead,
+   so it stays on one line down to 360px-wide phones. */
+@media (max-width: 520px) {
+  .masthead-date {
+    font-size: clamp(1.5rem, 6.5vw, 2.35rem);
+  }
+}
+
+/* Rising Now: a single panel. The topic suffix ("in AI") reads as a quieter part of
+   the title, and on wide screens the rows sit in two columns (rank order runs down
+   the first column, then the second) instead of stretching across the page. */
+.topic-trend-context {
+  color: var(--muted);
+}
+
+@media (min-width: 1040px) {
+  .topic-trends .topic-trend-list {
+    column-gap: clamp(24px, 4vw, 48px);
+    columns: 2;
+  }
+
+  .topic-trends .topic-trend-list li {
+    break-inside: avoid;
   }
 }

@@ -161,6 +161,19 @@ test('AI Security is ranked in both topics; format and fallback tags in neither'
   assert.deepEqual(windows['7d']['Cyber Security'].map((row) => row.tag), ['AI Security']);
 });
 
+test('the combined ranking lists every topic\'s tags once, AI Security included', () => {
+  const rows = [
+    ...repeat(6, () => article(['AI Security'], 2 * DAY)),
+    ...repeat(5, () => article(['Ransomware'], 2 * DAY)),
+    ...repeat(4, () => article(['Agentic AI'], 2 * DAY)),
+  ];
+  const { windows } = aggregateTopicTrends(rows, TAG_TOPICS, { now: NOW });
+
+  assert.deepEqual(Object.keys(windows['7d']), ['AI', 'Cyber Security', 'All']);
+  assert.deepEqual(windows['7d'].All.map((row) => row.tag).sort(), ['AI Security', 'Agentic AI', 'Ransomware']);
+  assert.deepEqual(windows['7d'].All.map((row) => row.rank), [1, 2, 3]);
+});
+
 test('an article carrying only non-subject tags does not count toward window totals', () => {
   const rows = [article(['Advisory'], 2 * DAY), article(['Ransomware'], 2 * DAY)];
   assert.deepEqual(aggregateTopicTrends(rows, TAG_TOPICS, { now: NOW }).totals['7d'], { now: 1, prev: 0 });

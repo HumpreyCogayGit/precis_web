@@ -7,7 +7,7 @@ import axios from 'axios';
 import FilterPanel from './FilterPanel.jsx';
 import SiteFooter from './components/SiteFooter.jsx';
 import ThemeToggle from './components/ThemeToggle.jsx';
-import TrendingSection from './components/TrendingSection.jsx';
+import TrendingSection, { ALL_TRENDS_KEY } from './components/TrendingSection.jsx';
 import useTopicTrends from './useTopicTrends.js';
 import DateFilterBar, { rangeChipLabel as dateRangeChipLabel } from './DateFilterBar.jsx';
 import { ChevronLeftIcon, ChevronRightIcon, CloseIcon, SearchIcon } from './icons.jsx';
@@ -338,7 +338,7 @@ const EVERYTHING_VIEW_OPTIONS = [
 ];
 
 const ViewModeToggle = ({ value, onChange }) => (
-  <div className="view-toggle" role="group" aria-label="Everything else layout">
+  <div className="view-toggle" role="group" aria-label="Latest News layout">
     {EVERYTHING_VIEW_OPTIONS.map(({ id, label, Icon }) => (
       <button
         key={id}
@@ -711,7 +711,7 @@ function App() {
   const [visibleCount, setVisibleCount] = useState(INITIAL_ARTICLE_COUNT);
   const [everythingViewMode, setEverythingViewMode] = useState(EVERYTHING_VIEW_MODES[0]);
   // The Discover rail's selection: a tag slug, or null for "All". Local to the
-  // Everything else section on purpose — it is not part of the filter model and
+  // Latest News section on purpose — it is not part of the filter model and
   // never reaches `applied` or the URL.
   const [discoverTag, setDiscoverTag] = useState(null);
   const [discoverExpanded, setDiscoverExpanded] = useState(false);
@@ -1315,6 +1315,11 @@ function App() {
   // A trending row narrows the edition to its tag, like a masthead topic tab: it
   // replaces the included tags, and pressing the row again clears it. Other
   // exclusions the reader set are kept; only this tag's own exclusion is lifted.
+  // Rising Now follows the topic filter: exactly one topic narrows it to that topic's
+  // categories; no topic, or both, shows the combined ranking.
+  const selectedTrendTopics = applied.topics.filter((slug) => TOPIC_SLUGS.includes(slug));
+  const risingTopic = selectedTrendTopics.length === 1 ? selectedTrendTopics[0] : ALL_TRENDS_KEY;
+
   const toggleTrendTag = (slug) => removeApplied((current) => {
     const isOnlyTag = current.tags.in.length === 1 && current.tags.in[0] === slug;
     return {
@@ -1355,7 +1360,7 @@ function App() {
 
   // Only the lead gets pulled above the fold now; everything else — including the
   // five briefs that used to run under "Previous stories" — flows straight into
-  // Everything else. A single slot has no diversity to preserve, so this is a
+  // Latest News. A single slot has no diversity to preserve, so this is a
   // plain split rather than a pickDiverseTop call.
   //
   // A search is not an edition, so it does not get a front page: promoting one hit
@@ -1375,7 +1380,7 @@ function App() {
 
   // Top Stories respects the same active filter as the rest of the edition — a
   // Topics selection (AI vs Cyber Security, say) narrows it exactly like it
-  // narrows Everything else — so it is derived, not fetched, per filter change.
+  // narrows Latest News — so it is derived, not fetched, per filter change.
   // Rank order survives the filter since topStoriesPool is already ranked.
   const topStories = useMemo(
     () => filterArticles(topStoriesPool, applied).slice(0, TOP_STORIES_COUNT),
@@ -1758,21 +1763,15 @@ function App() {
             </div>
           </section>
 
-          {/* Two separate sections, each with its own window toggle, sharing one fetch. */}
+          {/* One panel. It follows the topic filter: a single topic narrows it to that
+              topic's categories, and no topic (or both) shows the combined ranking. */}
           {!isSearching && topicTrends && (
             <div className="topic-trends">
               <TrendingSection
-                topic="AI"
-                title="Rising in AI"
-                storageKey="precis.trend.window.ai"
-                windows={topicTrends.windows}
-                activeTagSlugs={applied.tags.in}
-                onSelectTag={toggleTrendTag}
-              />
-              <TrendingSection
-                topic="Cyber Security"
-                title="Rising in Cyber Security"
-                storageKey="precis.trend.window.cyber"
+                topic={risingTopic}
+                title="Rising Now"
+                context={risingTopic === ALL_TRENDS_KEY ? undefined : `in ${risingTopic}`}
+                storageKey="precis.trend.window"
                 windows={topicTrends.windows}
                 activeTagSlugs={applied.tags.in}
                 onSelectTag={toggleTrendTag}
@@ -1833,7 +1832,7 @@ function App() {
 
             <section className="everything-else" aria-labelledby="everything-else-title">
               <div className="tier-heading">
-                <h3 id="everything-else-title">{isSearching ? 'Results' : 'Everything else'}</h3>
+                <h3 id="everything-else-title">{isSearching ? 'Results' : 'Latest News'}</h3>
                 <span className="tier-count">
                   {isSearching
                     ? `${everythingElseVisible.length} brief${everythingElseVisible.length === 1 ? ' mentions' : 's mention'} “${applied.query.trim()}”`

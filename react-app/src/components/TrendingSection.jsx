@@ -3,6 +3,8 @@ import {
 } from 'react';
 
 export const TREND_WINDOWS = ['24h', '7d', '30d'];
+// The API's combined ranking across every topic (lib/topicTrends.js ALL_TOPICS_KEY).
+export const ALL_TRENDS_KEY = 'All';
 const DEFAULT_WINDOW = '7d';
 // Rows shown before "Show all". The payload already carries every ranked category,
 // so expanding costs no request.
@@ -30,17 +32,33 @@ const writeWindow = (storageKey, value) => {
   }
 };
 
+// Direction is shown with ▲ / ▼ rather than a +/− sign.
 export const formatGrowth = (row) => {
   if (row.is_new) {
     return 'New';
   }
   if (row.growth_pct > 0) {
-    return `+${row.growth_pct}%`;
+    return `▲ ${row.growth_pct}%`;
   }
   if (row.growth_pct < 0) {
-    return `−${Math.abs(row.growth_pct)}%`;
+    return `▼ ${Math.abs(row.growth_pct)}%`;
   }
   return '0%';
+};
+
+// Screen readers announce ▲ as "black up-pointing triangle", so the row's
+// accessible name uses words instead.
+export const spokenGrowth = (row) => {
+  if (row.is_new) {
+    return 'new';
+  }
+  if (row.growth_pct > 0) {
+    return `up ${row.growth_pct}%`;
+  }
+  if (row.growth_pct < 0) {
+    return `down ${Math.abs(row.growth_pct)}%`;
+  }
+  return 'no change';
 };
 
 const growthTone = (row) => {
@@ -65,7 +83,7 @@ function TrendHelp({ span }) {
     <>
       <p className="topic-trend-help-title">How to read this</p>
       <dl>
-        <dt>%</dt>
+        <dt>▲ ▼ %</dt>
         <dd>
           <p>
             How much this category&rsquo;s share of the news increased or decreased over the
@@ -92,12 +110,12 @@ function TrendHelp({ span }) {
   );
 }
 
-// One section — "Rising in AI" or "Rising in Cyber Security" — with its own
-// 24h | 7d | 30d toggle and a ? explaining the numbers. `windows` is the whole
-// /api/topic-trends payload's windows object; each section keeps its own window, so
-// switching one leaves the other alone.
+// The home page's "Rising Now" panel: ranked categories with a 24h | 7d | 30d toggle and
+// a ? explaining the numbers. `topic` picks which ranking of the /api/topic-trends
+// payload's `windows` to show — "AI", "Cyber Security", or ALL_TRENDS_KEY for the
+// combined one — and `context` ("in AI") is shown beside the title when it narrows.
 export default function TrendingSection({
-  topic, title, storageKey, windows, activeTagSlugs = [], onSelectTag,
+  topic, title, context, storageKey, windows, activeTagSlugs = [], onSelectTag,
 }) {
   const headingId = useId();
   const helpId = useId();
@@ -141,6 +159,12 @@ export default function TrendingSection({
 
   useEffect(() => () => clearTimeout(hoverCloseTimer.current), []);
 
+  // A different topic is a different list; start it collapsed rather than carrying
+  // "Show all" over from the previous one.
+  useEffect(() => {
+    setShowAll(false);
+  }, [topic]);
+
   const hasAnyRows = TREND_WINDOWS.some((key) => (windows?.[key]?.[topic] || []).length > 0);
   if (!hasAnyRows) {
     return null;
@@ -172,7 +196,17 @@ export default function TrendingSection({
     <section className="topic-trend" aria-labelledby={headingId}>
       <div className="topic-trend-head">
         <div className="topic-trend-title">
-          <h2 id={headingId}>{title}</h2>
+          <h2 id={headingId}>
+            {title}
+            {/* The space sits outside the span: a leading space inside it is dropped from
+                the accessible name, which then reads "Rising Nowin AI". */}
+            {context && (
+              <>
+                {' '}
+                <span className="topic-trend-context">{context}</span>
+              </>
+            )}
+          </h2>
           <span
             ref={helpRef}
             className="topic-trend-help-anchor"
@@ -220,7 +254,7 @@ export default function TrendingSection({
                   type="button"
                   className="topic-trend-row"
                   aria-pressed={activeTagSlugs.includes(row.slug)}
-                  aria-label={`${row.tag}, ${growth}. ${detail}`}
+                  aria-label={`${row.tag}, ${spokenGrowth(row)}. ${detail}`}
                   title={detail}
                   onClick={() => onSelectTag?.(row.slug)}
                 >
@@ -237,7 +271,9 @@ export default function TrendingSection({
           })}
         </ol>
       ) : (
-        <p className="topic-trend-empty">Not enough {topic} coverage in the last {span} yet.</p>
+        <p className="topic-trend-empty">
+          Not enough {topic === ALL_TRENDS_KEY ? '' : `${topic} `}coverage in the last {span} yet.
+        </p>
       )}
 
       {rows.length > COLLAPSED_ROWS && (

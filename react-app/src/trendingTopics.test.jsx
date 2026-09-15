@@ -6,7 +6,7 @@ import {
   afterEach, beforeEach, describe, expect, test, vi,
 } from 'vitest';
 import App from './App.jsx';
-import TrendingSection, { formatGrowth } from './components/TrendingSection.jsx';
+import TrendingSection, { formatGrowth, spokenGrowth } from './components/TrendingSection.jsx';
 
 const row = (rank, tag, growth, { nowN = 6, prevN = 3, isNew = false } = {}) => ({
   rank,
@@ -33,6 +33,11 @@ const WINDOWS = {
   },
   '30d': { AI: [], 'Cyber Security': [row(1, 'Ransomware', 12)] },
 };
+
+// The combined ranking the home page shows when no single topic is selected.
+WINDOWS['24h'].All = [row(1, 'LLM Release', 300, { nowN: 3, prevN: 0, isNew: true }), row(2, 'Data Breach', 55)];
+WINDOWS['7d'].All = [row(1, 'Agentic AI', 42, { nowN: 12 }), row(2, 'Ransomware', 27), row(3, 'Zero-Day / Exploit', 19)];
+WINDOWS['30d'].All = [row(1, 'Ransomware', 12)];
 
 const region = (name) => screen.getByRole('region', { name });
 const windowTab = (section, label) => within(section).getByRole('button', { name: label });
@@ -172,6 +177,23 @@ describe('TrendingSection', () => {
     expect(within(ai).getAllByRole('listitem')).toHaveLength(5);
   });
 
+  test('the combined ranking shows no topic suffix, a narrowed one names its topic', () => {
+    render(
+      <>
+        <TrendingSection topic="All" title="Rising Now" storageKey="test.all" windows={WINDOWS} />
+        <TrendingSection topic="AI" title="Rising Now" context="in AI" storageKey="test.narrow" windows={WINDOWS} />
+      </>,
+    );
+
+    const combined = region('Rising Now');
+    expect(within(combined).getByText('Agentic AI')).toBeInTheDocument();
+    expect(within(combined).getByText('Ransomware')).toBeInTheDocument();
+
+    const narrowed = region('Rising Now in AI');
+    expect(within(narrowed).getByText('Open Source Models')).toBeInTheDocument();
+    expect(within(narrowed).queryByText('Ransomware')).toBeNull();
+  });
+
   test('an empty window says so instead of vanishing, and a topic with no rows anywhere hides', async () => {
     const user = userEvent.setup();
     renderBoth();
@@ -183,15 +205,20 @@ describe('TrendingSection', () => {
     expect(screen.queryByRole('region', { name: 'Quiet AI' })).toBeNull();
   });
 
-  test('shows growth as +%, −% or New, and a row reports its tag slug when pressed', async () => {
+  test('shows growth with ▲ / ▼ arrows or New, and a row reports its tag slug when pressed', async () => {
     const user = userEvent.setup();
     const onSelectTag = vi.fn();
     renderBoth({ onSelectTag, activeTagSlugs: ['ransomware'] });
 
     const ai = region('Rising in AI');
-    expect(within(trendRow(ai, 'Agentic AI')).getByText('+42%')).toBeInTheDocument();
-    expect(within(trendRow(ai, 'AI Coding Agents')).getByText('−8%')).toBeInTheDocument();
+    expect(within(trendRow(ai, 'Agentic AI')).getByText('▲ 42%')).toBeInTheDocument();
+    expect(within(trendRow(ai, 'AI Coding Agents')).getByText('▼ 8%')).toBeInTheDocument();
     expect(formatGrowth(WINDOWS['24h'].AI[0])).toBe('New');
+    expect(formatGrowth({ growth_pct: 0, is_new: false })).toBe('0%');
+    // Screen readers get words, not triangle glyphs.
+    expect(trendRow(ai, 'Agentic AI')).toHaveAccessibleName(/^Agentic AI, up 42%\./);
+    expect(trendRow(ai, 'AI Coding Agents')).toHaveAccessibleName(/^AI Coding Agents, down 8%\./);
+    expect(spokenGrowth({ growth_pct: 0, is_new: false })).toBe('no change');
 
     expect(trendRow(region('Rising in Cyber Security'), 'Ransomware')).toHaveAttribute('aria-pressed', 'true');
     expect(trendRow(ai, 'Agentic AI')).toHaveAttribute('aria-pressed', 'false');
@@ -248,22 +275,22 @@ describe('home page trending sections', () => {
     });
   };
 
-  test('renders Rising in AI and Rising in Cyber Security, and a row filters the edition to its tag', async () => {
+  test('renders one Rising Now panel, and a row filters the edition to its tag', async () => {
     mockApi();
     const user = userEvent.setup();
     render(<App />);
 
-    const ai = await screen.findByRole('region', { name: 'Rising in AI' });
-    expect(region('Rising in Cyber Security')).toBeInTheDocument();
+    const ai = await screen.findByRole('region', { name: 'Rising Now' });
+    expect(screen.getAllByRole('region', { name: /^Rising/ })).toHaveLength(1);
     expect(axios.get.mock.calls.filter(([url]) => url.includes('/api/topic-trends'))).toHaveLength(1);
 
     await user.click(trendRow(ai, 'Agentic AI'));
-    expect(trendRow(region('Rising in AI'), 'Agentic AI')).toHaveAttribute('aria-pressed', 'true');
+    expect(trendRow(region('Rising Now'), 'Agentic AI')).toHaveAttribute('aria-pressed', 'true');
     expect(shows('AI story 1')).toBe(true);
     expect(shows('Cyber Security story 2')).toBe(false);
 
-    await user.click(trendRow(region('Rising in AI'), 'Agentic AI'));
-    expect(trendRow(region('Rising in AI'), 'Agentic AI')).toHaveAttribute('aria-pressed', 'false');
+    await user.click(trendRow(region('Rising Now'), 'Agentic AI'));
+    expect(trendRow(region('Rising Now'), 'Agentic AI')).toHaveAttribute('aria-pressed', 'false');
     expect(shows('Cyber Security story 2')).toBe(true);
   });
 
@@ -294,10 +321,10 @@ describe('home page trending sections', () => {
     const titles = () => [...rows()].map((node) => node.textContent);
     expect(topStories.querySelectorAll('.brief-row')).toHaveLength(2);
 
-    await user.click(trendRow(region('Rising in AI'), 'Agentic AI'));
+    await user.click(trendRow(region('Rising Now'), 'Agentic AI'));
     expect(titles().some((text) => text.includes('Cyber Security story 2'))).toBe(false);
 
-    await user.click(trendRow(region('Rising in AI'), 'Agentic AI'));
+    await user.click(trendRow(region('Rising Now'), 'Agentic AI'));
     expect(rows()).toHaveLength(2);
     expect(titles().filter((text) => text.includes('Cyber Security story 2'))).toHaveLength(1);
     expect(titles().filter((text) => text.includes('AI story 1'))).toHaveLength(1);
@@ -306,14 +333,40 @@ describe('home page trending sections', () => {
     expect(consoleError.mock.calls.flat().join(' ')).not.toMatch(/same key/);
   });
 
-  test('a failed trends request leaves both sections out without breaking the edition', async () => {
+  test('Rising Now follows the topic filter: one topic narrows it, clearing it shows everything again', async () => {
+    mockApi();
+    const user = userEvent.setup();
+    render(<App />);
+
+    const panel = await screen.findByRole('region', { name: 'Rising Now' });
+    expect(within(panel).getByText('Agentic AI')).toBeInTheDocument();
+    expect(within(panel).getByText('Ransomware')).toBeInTheDocument();
+
+    const topicTab = (name) => within(screen.getByRole('group', { name: 'Filter by topic' }))
+      .getByRole('button', { name: new RegExp(`^${name}`) });
+
+    await user.click(topicTab('Cyber Security'));
+    const cyber = region('Rising Now in Cyber Security');
+    expect(within(cyber).getByText('Ransomware')).toBeInTheDocument();
+    expect(within(cyber).getByText('Zero-Day / Exploit')).toBeInTheDocument();
+    expect(within(cyber).queryByText('Agentic AI')).toBeNull();
+
+    await user.click(topicTab('AI'));
+    const ai = region('Rising Now in AI');
+    expect(within(ai).getByText('Open Source Models')).toBeInTheDocument();
+    expect(within(ai).queryByText('Ransomware')).toBeNull();
+
+    await user.click(topicTab('AI'));
+    expect(within(region('Rising Now')).getByText('Ransomware')).toBeInTheDocument();
+  });
+
+  test('a failed trends request leaves the panel out without breaking the edition', async () => {
     mockApi({ trendsFail: true });
     vi.spyOn(console, 'error').mockImplementation(() => {});
     render(<App />);
 
     await screen.findByRole('group', { name: 'Filter by topic' });
-    expect(screen.queryByRole('region', { name: 'Rising in AI' })).toBeNull();
-    expect(screen.queryByRole('region', { name: 'Rising in Cyber Security' })).toBeNull();
+    expect(screen.queryByRole('region', { name: /Rising Now/ })).toBeNull();
     expect(shows('AI story 1')).toBe(true);
   });
 });

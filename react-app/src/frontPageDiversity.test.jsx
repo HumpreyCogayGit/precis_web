@@ -21,7 +21,7 @@ const item = (n, site) => ({
 
 // A burst: nvidia owns the eight newest slots. The lead is still whichever item is
 // newest overall, and everything else — including the rest of the burst — lands in
-// Everything else, since only the lead is pulled above the fold now.
+// Latest News, since only the lead is pulled above the fold now.
 const ITEMS = [
   ...[1, 2, 3, 4, 5, 6, 7, 8].map((n) => item(n, 'nvidia')),
   item(9, 'open_ai'),
@@ -41,7 +41,7 @@ vi.mock('axios', () => ({
 
 const axios = (await import('axios')).default;
 
-const everythingElse = () => screen.getByRole('region', { name: 'Everything else' });
+const everythingElse = () => screen.getByRole('region', { name: 'Latest News' });
 
 beforeEach(() => {
   window.history.replaceState(null, '', '/');
@@ -78,7 +78,7 @@ describe('front page split', () => {
     expect(lead.querySelector('.lead-byline').textContent).toContain('NVIDIA');
   });
 
-  test('everything not the lead lands in Everything else, burst included', async () => {
+  test('everything not the lead lands in Latest News, burst included', async () => {
     render(<App />);
 
     expect(await screen.findByText('Daily tech brief')).toBeInTheDocument();

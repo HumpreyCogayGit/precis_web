@@ -2,8 +2,7 @@
 
 -- Lets Precis Web read the tag -> topic map behind /api/topic-trends (web/lib/topicTrends.js).
 --
--- The home page's "Rising in AI" and "Rising in Cyber Security" sections rank TAGS within a
--- topic. public.public_articles already rolls tags up into topics[] per article, but that
+-- The home page's "Rising Now" panel ranks TAGS within a topic (and across both). public.public_articles already rolls tags up into topics[] per article, but that
 -- cannot say which of an article's tags made it AI and which made it Cyber Security, so the
 -- endpoint needs the map itself. tag_topics holds only the public taxonomy (the same labels
 -- scraper/blogscraper/taxonomy.py ships), no article or reader data, so granting it does not
