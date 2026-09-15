@@ -8,6 +8,7 @@ import ThemeToggle from '../components/ThemeToggle.jsx';
 import { buildCardLayout, formatRelativeTime, safeHttpUrl } from '../App.jsx';
 import { formatSiteName } from '../sources';
 import { GridIcon, ListIcon, RowsIcon } from '../icons.jsx';
+import useRevealOnScroll from '../useRevealOnScroll.js';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL
   || (import.meta.env.DEV ? 'http://localhost:5000' : '');
@@ -106,6 +107,7 @@ const TldrItem = ({ item, topic, showArt, feature = null, trioEnd = false }) => 
 
 const TldrPanel = ({ section, digest, view }) => {
   const items = itemsOf(digest);
+  const listRef = useRevealOnScroll([view, section.slug, items.map((item) => item.article_url).join('\n')]);
 
   return (
     <section
@@ -125,7 +127,7 @@ const TldrPanel = ({ section, digest, view }) => {
         <p className="tldr-note">The last run for {section.title} produced no verified items.</p>
       )}
       {items.length > 0 && (
-        <ol className={`tldr-list tldr-list--${view}`}>
+        <ol className={`tldr-list tldr-list--${view}`} ref={listRef}>
           {view === 'grid'
             ? buildCardLayout(items, (item) => item.article_url || item.title).map(({ article: item, feature, trioEnd }) => (
               <TldrItem key={item.article_url} item={item} topic={section.topic} showArt feature={feature} trioEnd={trioEnd} />

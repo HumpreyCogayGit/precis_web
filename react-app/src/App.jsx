@@ -9,6 +9,7 @@ import SiteFooter from './components/SiteFooter.jsx';
 import ThemeToggle from './components/ThemeToggle.jsx';
 import TrendingSection, { ALL_TRENDS_KEY } from './components/TrendingSection.jsx';
 import useTopicTrends from './useTopicTrends.js';
+import useRevealOnScroll from './useRevealOnScroll.js';
 import DateFilterBar, { rangeChipLabel as dateRangeChipLabel } from './DateFilterBar.jsx';
 import { ChevronLeftIcon, ChevronRightIcon, CloseIcon, SearchIcon } from './icons.jsx';
 import {
@@ -1457,6 +1458,12 @@ function App() {
     ? everythingElseVisible.slice(0, visibleCount)
     : everythingElseVisible;
   const hasMoreArticles = visibleCount < everythingElseVisible.length;
+  // Re-scan the grid only when what it shows changes, not on every render.
+  const everythingGridRef = useRevealOnScroll([
+    everythingViewMode,
+    loading,
+    visibleEverythingElse.map((article) => article.url).join('\n'),
+  ]);
 
   // The masthead names the day the reader is looking at, so it follows the date
   // filter: an applied range retitles the edition instead of leaving "today" over
@@ -1911,7 +1918,7 @@ function App() {
               {everythingElseAll.length > 0 ? (
                 <>
                   {everythingViewMode === 'cards' && (
-                    <div className="everything-grid">
+                    <div className="everything-grid" ref={everythingGridRef}>
                       {buildCardLayout(visibleEverythingElse).map(({ article, feature, trioEnd }) => (
                         <EverythingCard key={article.url} article={article} feature={feature} trioEnd={trioEnd} />
                       ))}

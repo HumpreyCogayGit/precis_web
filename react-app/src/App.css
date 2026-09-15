@@ -1947,6 +1947,36 @@ mark.search-hit {
   font-size: 1rem;
 }
 
+/* Scroll reveal (useRevealOnScroll.js). [data-reveal] is set only when the hook can
+   actually animate, so without it nothing here hides anything. Cards rise into place;
+   on wide screens a feature slides in from the side its image sits on. */
+@media (prefers-reduced-motion: no-preference) {
+  [data-reveal] > * {
+    transition:
+      opacity 560ms cubic-bezier(0.2, 0.7, 0.2, 1) var(--reveal-delay, 0ms),
+      transform 720ms cubic-bezier(0.2, 0.7, 0.2, 1) var(--reveal-delay, 0ms);
+  }
+
+  [data-reveal] > :not([data-revealed]) {
+    opacity: 0;
+    transform: translateY(28px);
+  }
+}
+
+/* Sideways only where the page has real side margins to absorb the offset; on a
+   narrower screen it would push the page into horizontal scroll. */
+@media (prefers-reduced-motion: no-preference) and (min-width: 1100px) {
+  [data-reveal] > .everything-card--image-left:not([data-revealed]),
+  [data-reveal] > .tldr-item--image-left:not([data-revealed]) {
+    transform: translateX(-36px);
+  }
+
+  [data-reveal] > .everything-card--image-right:not([data-revealed]),
+  [data-reveal] > .tldr-item--image-right:not([data-revealed]) {
+    transform: translateX(36px);
+  }
+}
+
 .show-more-inline {
   padding-top: 16px;
 }
