@@ -10,6 +10,7 @@ const { sendTimedJson } = require('./lib/db');
 const { log, logRequest, sendError } = require('./lib/http');
 const { proxyImage } = require('./lib/imageProxy');
 const { fetchTrending } = require('./lib/trending');
+const { fetchTopicTrends } = require('./lib/topicTrends');
 const { fetchTldr } = require('./lib/tldr');
 const { RATE_LIMITS, rateLimitMiddleware } = require('./lib/rateLimit');
 const { securityHeadersMiddleware } = require('./lib/securityHeaders');
@@ -118,6 +119,14 @@ app.get('/api/trending', rateLimitMiddleware(RATE_LIMITS.articles), async (req, 
     }));
   } catch (err) {
     sendError(res, 'Failed to fetch trending entities', err, req);
+  }
+});
+
+app.get('/api/topic-trends', rateLimitMiddleware(RATE_LIMITS.articles), async (req, res) => {
+  try {
+    await sendTimedJson(res, () => fetchTopicTrends({ limit: req.query.limit }));
+  } catch (err) {
+    sendError(res, 'Failed to fetch topic trends', err, req);
   }
 });
 

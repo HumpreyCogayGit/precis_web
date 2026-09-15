@@ -3,9 +3,11 @@ import { Link, useSearchParams } from 'react-router-dom';
 import axios from 'axios';
 
 import SiteFooter from '../components/SiteFooter.jsx';
+import TldrArt from '../components/TldrArt.jsx';
 import ThemeToggle from '../components/ThemeToggle.jsx';
 import { formatRelativeTime, safeHttpUrl } from '../App.jsx';
 import { formatSiteName } from '../sources';
+import { GridIcon, ListIcon, RowsIcon } from '../icons.jsx';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL
   || (import.meta.env.DEV ? 'http://localhost:5000' : '');
@@ -21,26 +23,83 @@ const SECTIONS = [
 
 const itemsOf = (digest) => (Array.isArray(digest?.items) ? digest.items : []);
 
-const TldrItem = ({ item }) => {
+// Layout of the digest list. A reading preference rather than a place, so it lives
+// in localStorage and not in the URL like the tab does -- a shared ?topic link opens
+// in the recipient's own layout. Array order is button order only; the default is
+// named separately.
+const VIEWS = [
+  { id: 'grid', label: 'Grid view', Icon: GridIcon },
+  { id: 'list', label: 'List view', Icon: ListIcon },
+  { id: 'compact', label: 'Compact view', Icon: RowsIcon },
+];
+const DEFAULT_VIEW = 'list';
+const VIEW_STORAGE_KEY = 'precis:tldr-view';
+
+const readStoredView = () => {
+  try {
+    const stored = window.localStorage.getItem(VIEW_STORAGE_KEY);
+    return VIEWS.some((view) => view.id === stored) ? stored : DEFAULT_VIEW;
+  } catch {
+    return DEFAULT_VIEW;
+  }
+};
+
+// The source's own image goes through the same-origin proxy, as on the front page:
+// the CSP only allows img-src 'self'.
+const proxiedImageUrl = (imageUrl) => {
+  const safe = safeHttpUrl(imageUrl);
+  return safe ? `${API_BASE_URL}/api/image-proxy?url=${encodeURIComponent(safe)}` : '';
+};
+
+// The article's real image when it has one; generated art when it has none or the
+// image fails to load (dead link, host not on the proxy allowlist).
+const TldrCover = ({ item, topic }) => {
+  const [failed, setFailed] = useState(false);
+  const src = proxiedImageUrl(item.image_url);
+
+  if (!src || failed) {
+    return <TldrArt item={item} topic={topic} />;
+  }
+
+  return (
+    <div className="tldr-art tldr-art--photo">
+      <img src={src} alt="" loading="lazy" decoding="async" onError={() => setFailed(true)} />
+    </div>
+  );
+};
+
+const TldrItem = ({ item, topic, showArt }) => {
   const url = safeHttpUrl(item.article_url);
+  const art = showArt && <TldrCover item={item} topic={topic} />;
 
   return (
     <li className="tldr-item">
-      <p className="tldr-item-text">{item.tldr_text}</p>
-      <p className="tldr-item-meta">
-        {url ? (
-          <a href={url} target="_blank" rel="noopener noreferrer">{item.title}</a>
-        ) : (
-          <span>{item.title}</span>
-        )}
-        <span aria-hidden="true"> &middot; </span>
-        <span>Source: {formatSiteName(item.site)}</span>
-      </p>
+      {/* The art duplicates the title link, so it stays out of the tab order and the
+          accessibility tree rather than announcing the same link twice. */}
+      {art && (url ? (
+        <a className="tldr-item-art" href={url} target="_blank" rel="noopener noreferrer" tabIndex={-1} aria-hidden="true">
+          {art}
+        </a>
+      ) : (
+        <div className="tldr-item-art" aria-hidden="true">{art}</div>
+      ))}
+      <div className="tldr-item-body">
+        <p className="tldr-item-text">{item.tldr_text}</p>
+        <p className="tldr-item-meta">
+          {url ? (
+            <a href={url} target="_blank" rel="noopener noreferrer">{item.title}</a>
+          ) : (
+            <span>{item.title}</span>
+          )}
+          <span aria-hidden="true"> &middot; </span>
+          <span>Source: {formatSiteName(item.site)}</span>
+        </p>
+      </div>
     </li>
   );
 };
 
-const TldrPanel = ({ section, digest }) => {
+const TldrPanel = ({ section, digest, view }) => {
   const items = itemsOf(digest);
 
   return (
@@ -61,9 +120,9 @@ const TldrPanel = ({ section, digest }) => {
         <p className="tldr-note">The last run for {section.title} produced no verified items.</p>
       )}
       {items.length > 0 && (
-        <ol className="tldr-list">
+        <ol className={`tldr-list tldr-list--${view}`}>
           {items.map((item) => (
-            <TldrItem key={item.article_url} item={item} />
+            <TldrItem key={item.article_url} item={item} topic={section.topic} showArt={view !== 'compact'} />
           ))}
         </ol>
       )}
@@ -76,6 +135,16 @@ const TldrPage = () => {
   const [status, setStatus] = useState('loading');
   const [searchParams, setSearchParams] = useSearchParams();
   const tabRefs = useRef({});
+  const [view, setView] = useState(readStoredView);
+
+  const selectView = (nextView) => {
+    setView(nextView);
+    try {
+      window.localStorage.setItem(VIEW_STORAGE_KEY, nextView);
+    } catch {
+      // Storage blocked (private mode, disabled site data): the choice just won't persist.
+    }
+  };
 
   const requestedSlug = searchParams.get('topic');
   const activeSection = SECTIONS.find((section) => section.slug === requestedSlug) ?? SECTIONS[0];
@@ -148,31 +217,49 @@ const TldrPage = () => {
           <h1 className="trend-title">TLDR</h1>
         </section>
 
-        <div className="segmented-tabs" role="tablist" aria-label="Digest topic" onKeyDown={handleTabKeyDown}>
-          {SECTIONS.map((section) => {
-            const selected = section === activeSection;
-            const count = itemsOf(digests?.[section.topic]).length;
+        <div className="tldr-controls">
+          <div className="segmented-tabs" role="tablist" aria-label="Digest topic" onKeyDown={handleTabKeyDown}>
+            {SECTIONS.map((section) => {
+              const selected = section === activeSection;
+              const count = itemsOf(digests?.[section.topic]).length;
 
-            return (
+              return (
+                <button
+                  key={section.slug}
+                  ref={(node) => { tabRefs.current[section.slug] = node; }}
+                  type="button"
+                  role="tab"
+                  id={`tldr-tab-${section.slug}`}
+                  className="segmented-tab"
+                  aria-selected={selected}
+                  aria-controls={`tldr-panel-${section.slug}`}
+                  tabIndex={selected ? 0 : -1}
+                  onClick={() => selectTab(section)}
+                >
+                  {section.title}
+                  {status === 'ready' && count > 0 && (
+                    <span className="segmented-tab-count" aria-label={`${count} items`}>{count}</span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+
+          <div className="view-toggle" role="group" aria-label="Layout">
+            {VIEWS.map(({ id, label, Icon }) => (
               <button
-                key={section.slug}
-                ref={(node) => { tabRefs.current[section.slug] = node; }}
+                key={id}
                 type="button"
-                role="tab"
-                id={`tldr-tab-${section.slug}`}
-                className="segmented-tab"
-                aria-selected={selected}
-                aria-controls={`tldr-panel-${section.slug}`}
-                tabIndex={selected ? 0 : -1}
-                onClick={() => selectTab(section)}
+                className={`view-toggle-btn${view === id ? ' active' : ''}`}
+                aria-label={label}
+                aria-pressed={view === id}
+                title={label}
+                onClick={() => selectView(id)}
               >
-                {section.title}
-                {status === 'ready' && count > 0 && (
-                  <span className="segmented-tab-count" aria-label={`${count} items`}>{count}</span>
-                )}
+                <Icon />
               </button>
-            );
-          })}
+            ))}
+          </div>
         </div>
 
         {status === 'loading' && <p className="trend-note">Loading digests&hellip;</p>}
@@ -182,7 +269,7 @@ const TldrPage = () => {
           </p>
         )}
         {status === 'ready' && (
-          <TldrPanel section={activeSection} digest={digests?.[activeSection.topic]} />
+          <TldrPanel section={activeSection} digest={digests?.[activeSection.topic]} view={view} />
         )}
       </main>
       <SiteFooter />

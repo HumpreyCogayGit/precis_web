@@ -7,6 +7,8 @@ import axios from 'axios';
 import FilterPanel from './FilterPanel.jsx';
 import SiteFooter from './components/SiteFooter.jsx';
 import ThemeToggle from './components/ThemeToggle.jsx';
+import TrendingSection from './components/TrendingSection.jsx';
+import useTopicTrends from './useTopicTrends.js';
 import DateFilterBar, { rangeChipLabel as dateRangeChipLabel } from './DateFilterBar.jsx';
 import { ChevronLeftIcon, ChevronRightIcon, CloseIcon, SearchIcon } from './icons.jsx';
 import {
@@ -866,9 +868,21 @@ function App() {
           `${API_BASE_URL}/api/trending?limit=${TOP_STORIES_POOL_LIMIT}&articles_per_entity=1`,
         );
         const entities = Array.isArray(response.data) ? response.data : (response.data?.items ?? []);
+        // Two entities can share one representative article: the pipeline sometimes
+        // keeps two candidates for a single story (two "Revolut" rows on 2026-09-15).
+        // Keep the first, higher-ranked copy. Without this, Top Stories lists the story
+        // twice, and BriefRow's url key collides, which lets React leave stale rows
+        // behind when a filter change re-renders the list.
+        const seenUrls = new Set();
         const stories = entities
           .map((entity) => (entity.articles || []).find((a) => a.is_representative) || entity.articles?.[0])
-          .filter(Boolean);
+          .filter((story) => {
+            if (!story || seenUrls.has(story.url)) {
+              return false;
+            }
+            seenUrls.add(story.url);
+            return true;
+          });
 
         if (!cancelled) {
           setTopStoriesPool(stories);
@@ -882,6 +896,9 @@ function App() {
       cancelled = true;
     };
   }, []);
+
+  // The two home-page trending sections share this one fetch.
+  const topicTrends = useTopicTrends(API_BASE_URL);
 
   // Facet changes are discrete and deliberate (an Apply, a chip removal), so the
   // URL follows them immediately.
@@ -1294,6 +1311,17 @@ function App() {
 
   const appliedCount = countFilterValues(applied);
   const isSearching = hasQuery(applied);
+
+  // A trending row narrows the edition to its tag, like a masthead topic tab: it
+  // replaces the included tags, and pressing the row again clears it. Other
+  // exclusions the reader set are kept; only this tag's own exclusion is lifted.
+  const toggleTrendTag = (slug) => removeApplied((current) => {
+    const isOnlyTag = current.tags.in.length === 1 && current.tags.in[0] === slug;
+    return {
+      ...current,
+      tags: { in: isOnlyTag ? [] : [slug], not: withoutSlug(current.tags.not, slug) },
+    };
+  });
   const searchTerms = queryTerms(applied.query);
   const highlightPattern = useMemo(() => buildHighlightPattern(searchTerms), [searchTerms]);
 
@@ -1729,6 +1757,28 @@ function App() {
               </div>
             </div>
           </section>
+
+          {/* Two separate sections, each with its own window toggle, sharing one fetch. */}
+          {!isSearching && topicTrends && (
+            <div className="topic-trends">
+              <TrendingSection
+                topic="AI"
+                title="Rising in AI"
+                storageKey="precis.trend.window.ai"
+                windows={topicTrends.windows}
+                activeTagSlugs={applied.tags.in}
+                onSelectTag={toggleTrendTag}
+              />
+              <TrendingSection
+                topic="Cyber Security"
+                title="Rising in Cyber Security"
+                storageKey="precis.trend.window.cyber"
+                windows={topicTrends.windows}
+                activeTagSlugs={applied.tags.in}
+                onSelectTag={toggleTrendTag}
+              />
+            </div>
+          )}
 
           <div className="section-divider" aria-hidden="true"></div>
         </>

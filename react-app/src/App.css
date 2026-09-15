@@ -151,6 +151,7 @@ select {
 .site-header,
 .masthead,
 .section-divider,
+.topic-trends,
 .edition-controls--standalone,
 .edition-main,
 .empty-state {
@@ -2582,8 +2583,123 @@ mark.search-hit {
 }
 
 .tldr-item {
+  display: grid;
+  grid-template-columns: minmax(0, 208px) minmax(0, 1fr);
+  gap: 18px;
+  align-items: start;
   border-bottom: 1px solid var(--line);
   padding-bottom: 16px;
+}
+
+.tldr-item-art {
+  display: block;
+}
+
+/* Tabs on the left, layout toggle on the right; the toggle wraps under the tabs on
+   a narrow screen rather than squeezing them. */
+.tldr-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.tldr-controls .view-toggle {
+  flex-shrink: 0;
+}
+
+/* Layout toggle variants. The bare .tldr-item rules above are the "list" layout
+   (image left, text right); grid and compact override them. */
+.tldr-list--grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 240px), 1fr));
+  gap: 28px 22px;
+}
+
+.tldr-list--grid .tldr-item {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 10px;
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.tldr-list--compact {
+  gap: 12px;
+}
+
+.tldr-list--compact .tldr-item {
+  grid-template-columns: minmax(0, 1fr);
+  padding-bottom: 12px;
+}
+
+.tldr-item-body {
+  min-width: 0;
+}
+
+/* Generated cover art (components/TldrArt.jsx). Dark-grounded in both themes, the
+   same way source og:images are. */
+.tldr-art {
+  position: relative;
+  overflow: hidden;
+  aspect-ratio: 16 / 9;
+  max-width: 100%;
+  background: #0b0b0d;
+}
+
+.tldr-art svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  transition: transform 320ms ease;
+}
+
+/* Source og:images are mostly 1.91:1; cover crops them to the 16:9 frame. */
+.tldr-art img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+  transition: transform 320ms ease;
+}
+
+.tldr-item-art:hover .tldr-art svg,
+.tldr-item-art:hover .tldr-art img {
+  transform: scale(1.04);
+}
+
+.tldr-art-label {
+  position: absolute;
+  bottom: 8px;
+  left: 8px;
+  max-width: calc(100% - 16px);
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.72);
+  padding: 4px 6px;
+  background: rgba(0, 0, 0, 0.35);
+  color: rgba(255, 255, 255, 0.92);
+  font-size: 0.6rem;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+  line-height: 1;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+@media (max-width: 640px) {
+  .tldr-item {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 10px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tldr-art svg,
+  .tldr-art img {
+    transition: none;
+  }
 }
 
 .tldr-item:last-child {
@@ -3032,4 +3148,283 @@ mark.search-hit {
   .cookie-banner-actions {
     justify-content: flex-end;
   }
+}
+
+/* --- Home-page trending sections: "Rising in AI" and "Rising in Cyber Security" ---
+   Two separate sections side by side; auto-fit stacks them on narrow screens and
+   lets one fill the row when the other has nothing to show. */
+.topic-trends {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 340px), 1fr));
+  gap: 12px clamp(24px, 4vw, 48px);
+  padding-block: 8px 20px;
+}
+
+.topic-trend {
+  min-width: 0;
+  border-top: 2px solid var(--line-dark);
+}
+
+.topic-trend-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px 16px;
+  padding: 14px 0 10px;
+}
+
+.topic-trend-head h2 {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 900;
+  letter-spacing: -0.03em;
+}
+
+.segmented-tabs.topic-trend-windows {
+  margin-top: 0;
+}
+
+.topic-trend-windows .segmented-tab {
+  padding: 4px 10px;
+  font-size: 0.8125rem;
+}
+
+.topic-trend-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.topic-trend-row {
+  display: grid;
+  grid-template-columns: 26px minmax(0, 1fr) minmax(48px, 28%) 2.25em 4.25em;
+  gap: 12px;
+  align-items: center;
+  width: 100%;
+  border: 0;
+  border-top: 1px solid var(--line);
+  padding: 9px 6px 9px 4px;
+  color: var(--ink);
+  background: transparent;
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+  transition: background-color 0.15s ease;
+}
+
+.topic-trend-list li:last-child .topic-trend-row {
+  border-bottom: 1px solid var(--line);
+}
+
+.topic-trend-row:hover {
+  background: var(--surface);
+}
+
+.topic-trend-row[aria-pressed="true"] {
+  background: var(--surface-strong);
+  box-shadow: inset 3px 0 0 var(--accent);
+}
+
+.topic-trend-row:focus-visible {
+  outline: 2px solid var(--accent-dark);
+  outline-offset: 2px;
+}
+
+.brief-rank.topic-trend-rank {
+  font-size: 1rem;
+  text-align: center;
+}
+
+.topic-trend-label {
+  overflow: hidden;
+  font-size: 0.9375rem;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.topic-trend-bar {
+  display: block;
+  overflow: hidden;
+  height: 8px;
+  background: var(--neutral-200);
+}
+
+.topic-trend-bar > span {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+}
+
+/* Bar length is article volume; a falling tag keeps its length but reads muted. */
+.topic-trend-bar--down > span {
+  background: var(--neutral-400);
+}
+
+.topic-trend-count {
+  color: var(--muted);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.topic-trend-growth {
+  font-size: 0.875rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.topic-trend-growth--up,
+.topic-trend-growth--new {
+  color: var(--accent-dark);
+}
+
+.topic-trend-growth--down {
+  color: var(--muted);
+}
+
+.topic-trend-empty {
+  margin: 0;
+  border-top: 1px solid var(--line);
+  padding: 14px 0;
+  color: var(--muted);
+  font-size: 0.875rem;
+}
+
+@media (max-width: 480px) {
+  .topic-trend-row {
+    grid-template-columns: 22px minmax(0, 1fr) minmax(36px, 24%) 3.75em;
+    gap: 8px;
+  }
+
+  /* The count is in the row's accessible name and tooltip; the bar carries it visually. */
+  .topic-trend-count {
+    display: none;
+  }
+}
+
+/* The ? beside each "Rising in …" title and its explanation panel. The panel is
+   positioned against the section head, not the button, so it never runs off the
+   right edge for the right-hand section. */
+.topic-trend-head {
+  position: relative;
+}
+
+.topic-trend-title {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 8px;
+}
+
+.topic-trend-help {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  padding: 0;
+  color: var(--ink-soft);
+  background: var(--control-bg);
+  cursor: help;
+  font: inherit;
+  font-size: 0.75rem;
+  font-weight: 800;
+  line-height: 1;
+  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.topic-trend-help:hover,
+.topic-trend-help[aria-expanded="true"] {
+  border-color: var(--accent);
+  color: var(--on-accent);
+  background: var(--accent);
+}
+
+.topic-trend-help:focus-visible {
+  outline: 2px solid var(--accent-dark);
+  outline-offset: 2px;
+}
+
+.topic-trend-help-panel {
+  position: absolute;
+  z-index: 5;
+  top: calc(100% - 6px);
+  left: 0;
+  width: min(400px, 100%);
+  border: 1px solid var(--line);
+  padding: 12px 14px;
+  color: var(--ink);
+  background: var(--panel-bg);
+  box-shadow: 0 8px 24px var(--shadow-elevated);
+  font-size: 0.8125rem;
+  font-weight: 400;
+  line-height: 1.45;
+  text-align: left;
+}
+
+.topic-trend-help-panel[hidden] {
+  display: none;
+}
+
+.topic-trend-help-title {
+  margin: 0 0 8px;
+  font-weight: 800;
+}
+
+.topic-trend-help-panel dl {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: 6px 12px;
+  margin: 0;
+}
+
+.topic-trend-help-panel dt {
+  font-weight: 700;
+}
+
+.topic-trend-help-panel dd {
+  margin: 0;
+  color: var(--ink-soft);
+}
+
+/* "Show all N" / "Show top 5" under each Rising list. */
+.topic-trend-more {
+  display: block;
+  width: 100%;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  padding: 10px 4px;
+  color: var(--accent-dark);
+  background: transparent;
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.875rem;
+  font-weight: 700;
+  text-align: left;
+}
+
+.topic-trend-more:hover {
+  background: var(--surface);
+}
+
+.topic-trend-more:focus-visible {
+  outline: 2px solid var(--accent-dark);
+  outline-offset: 2px;
+}
+
+/* A definition in the ? panel can run to two short paragraphs. */
+.topic-trend-help-panel dd p {
+  margin: 0;
+}
+
+.topic-trend-help-panel dd p + p {
+  margin-top: 6px;
 }

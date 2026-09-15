@@ -49,6 +49,30 @@ export const CalendarCheckIcon = () => (
   </svg>
 );
 
+// Layout toggle: cards, thumbnail list, text-only rows.
+export const GridIcon = () => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true">
+    <rect x="3" y="3" width="7" height="7" rx="1" />
+    <rect x="14" y="3" width="7" height="7" rx="1" />
+    <rect x="3" y="14" width="7" height="7" rx="1" />
+    <rect x="14" y="14" width="7" height="7" rx="1" />
+  </svg>
+);
+
+export const ListIcon = () => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true">
+    <rect x="3" y="4" width="6" height="6" rx="1" />
+    <rect x="3" y="14" width="6" height="6" rx="1" />
+    <path d="M13 5h8M13 9h5M13 15h8M13 19h5" />
+  </svg>
+);
+
+export const RowsIcon = () => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true">
+    <path d="M4 6h16M4 12h16M4 18h16" />
+  </svg>
+);
+
 // Sliders, matched to the header's Filters button but sized for the date bar.
 export const TuneIcon = () => (
   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true">

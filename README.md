@@ -42,6 +42,9 @@ This is a React web application that displays news blog items from the Precis Sc
 - `GET /api/article-count` - Count articles for a candidate filter combination
 - `GET /api/sites` - Get list of all available sites
 - `GET /api/topics` - Get list of all available topics
+- `GET /api/topic-trends?limit=5` - Rising subject tags per topic (AI, Cyber Security) for the
+  24h / 7d / 30d windows, as `{ generated_at, windows, totals }`. Needs `sql/grant-tag-topics.sql`
+  applied to the hosted database.
 - `GET /api/image-proxy?url=...` - Proxy remote article images for browser display
 
 ### Article filters
