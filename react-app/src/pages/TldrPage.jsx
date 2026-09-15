@@ -5,7 +5,7 @@ import axios from 'axios';
 import SiteFooter from '../components/SiteFooter.jsx';
 import TldrArt from '../components/TldrArt.jsx';
 import ThemeToggle from '../components/ThemeToggle.jsx';
-import { formatRelativeTime, safeHttpUrl } from '../App.jsx';
+import { buildCardLayout, formatRelativeTime, safeHttpUrl } from '../App.jsx';
 import { formatSiteName } from '../sources';
 import { GridIcon, ListIcon, RowsIcon } from '../icons.jsx';
 
@@ -68,12 +68,17 @@ const TldrCover = ({ item, topic }) => {
   );
 };
 
-const TldrItem = ({ item, topic, showArt }) => {
+const TldrItem = ({ item, topic, showArt, feature = null, trioEnd = false }) => {
   const url = safeHttpUrl(item.article_url);
   const art = showArt && <TldrCover item={item} topic={topic} />;
+  const className = [
+    'tldr-item',
+    feature && `tldr-item--feature tldr-item--image-${feature}`,
+    trioEnd && 'tldr-item--trio-end',
+  ].filter(Boolean).join(' ');
 
   return (
-    <li className="tldr-item">
+    <li className={className}>
       {/* The art duplicates the title link, so it stays out of the tab order and the
           accessibility tree rather than announcing the same link twice. */}
       {art && (url ? (
@@ -121,9 +126,13 @@ const TldrPanel = ({ section, digest, view }) => {
       )}
       {items.length > 0 && (
         <ol className={`tldr-list tldr-list--${view}`}>
-          {items.map((item) => (
-            <TldrItem key={item.article_url} item={item} topic={section.topic} showArt={view !== 'compact'} />
-          ))}
+          {view === 'grid'
+            ? buildCardLayout(items, (item) => item.article_url || item.title).map(({ article: item, feature, trioEnd }) => (
+              <TldrItem key={item.article_url} item={item} topic={section.topic} showArt feature={feature} trioEnd={trioEnd} />
+            ))
+            : items.map((item) => (
+              <TldrItem key={item.article_url} item={item} topic={section.topic} showArt={view !== 'compact'} />
+            ))}
         </ol>
       )}
     </section>

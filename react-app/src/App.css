@@ -1911,6 +1911,42 @@ mark.search-hit {
   line-height: 1.5;
 }
 
+/* A feature spans the whole row: image on one side, a larger headline on the other. */
+.everything-card--feature {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
+  column-gap: 36px;
+  align-items: center;
+}
+
+.everything-card--image-right {
+  grid-template-columns: minmax(0, 7fr) minmax(0, 5fr);
+}
+
+.everything-card--image-right .everything-card-image-link {
+  order: 2;
+}
+
+.everything-card--feature .everything-card-image,
+.everything-card--feature .everything-card-image-link .fallback-news-image {
+  height: 260px;
+}
+
+.everything-card--feature .everything-card-body {
+  gap: 12px;
+  padding: 14px 0 0;
+}
+
+.everything-card--feature .everything-card-body h4 {
+  font-size: clamp(1.45rem, 2.4vw, 1.95rem);
+  line-height: 1.1;
+}
+
+.everything-card--feature .everything-card-body p {
+  font-size: 1rem;
+}
+
 .show-more-inline {
   padding-top: 16px;
 }
@@ -2171,6 +2207,20 @@ mark.search-hit {
   .everything-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+
+  /* Two columns leave a trio's third card orphaned, so it becomes a feature. */
+  .everything-card--trio-end {
+    grid-column: 1 / -1;
+    display: grid;
+    grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
+    column-gap: 28px;
+    align-items: center;
+  }
+
+  .everything-card--feature .everything-card-image,
+  .everything-card--feature .everything-card-image-link .fallback-news-image {
+    height: 220px;
+  }
 }
 
 @media (max-width: 760px) {
@@ -2252,6 +2302,26 @@ mark.search-hit {
   .everything-grid {
     grid-template-columns: 1fr;
     gap: 28px;
+  }
+
+  /* One column: every card, feature or not, stacks image over text. */
+  .everything-card--feature,
+  .everything-card--trio-end {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .everything-card--image-right .everything-card-image-link {
+    order: 0;
+  }
+
+  .everything-card--feature .everything-card-image,
+  .everything-card--feature .everything-card-image-link .fallback-news-image {
+    height: 200px;
+  }
+
+  .everything-card--feature .everything-card-body h4 {
+    font-size: 1.35rem;
   }
 
   .tier-controls {
@@ -2610,9 +2680,11 @@ mark.search-hit {
 
 /* Layout toggle variants. The bare .tldr-item rules above are the "list" layout
    (image left, text right); grid and compact override them. */
+/* A fixed three columns, so buildCardLayout's rows of three line up and a feature
+   item can span the row with its art on one side (same scheme as Latest News). */
 .tldr-list--grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(min(100%, 240px), 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 28px 22px;
 }
 
@@ -2621,6 +2693,57 @@ mark.search-hit {
   gap: 10px;
   border-bottom: none;
   padding-bottom: 0;
+}
+
+.tldr-list--grid .tldr-item--feature {
+  grid-column: 1 / -1;
+  grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
+  gap: 32px;
+  align-items: center;
+}
+
+.tldr-list--grid .tldr-item--image-right {
+  grid-template-columns: minmax(0, 7fr) minmax(0, 5fr);
+}
+
+.tldr-list--grid .tldr-item--image-right .tldr-item-art {
+  order: 2;
+}
+
+.tldr-list--grid .tldr-item--feature .tldr-item-text {
+  font-size: clamp(1.1rem, 1.8vw, 1.35rem);
+  line-height: 1.45;
+}
+
+@media (max-width: 1040px) {
+  .tldr-list--grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  /* Two columns would orphan a trio's third item, so it becomes a feature. */
+  .tldr-list--grid .tldr-item--trio-end {
+    grid-column: 1 / -1;
+    grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
+    gap: 24px;
+    align-items: center;
+  }
+}
+
+@media (max-width: 640px) {
+  .tldr-list--grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  /* One column: features stack art over text like every other item. */
+  .tldr-list--grid .tldr-item--feature,
+  .tldr-list--grid .tldr-item--trio-end {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 10px;
+  }
+
+  .tldr-list--grid .tldr-item--image-right .tldr-item-art {
+    order: 0;
+  }
 }
 
 .tldr-list--compact {

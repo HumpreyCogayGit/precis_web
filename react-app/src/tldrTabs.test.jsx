@@ -179,6 +179,25 @@ describe('TLDR tabs', () => {
     expect(again.container.querySelector('.tldr-list')).toHaveClass('tldr-list--grid');
   });
 
+  test('grid view breaks rows of three with full-width feature items; list view does not', async () => {
+    const items = Array.from({ length: 30 }, (_, i) => digestItem(i + 1, 'AI'));
+    axios.get.mockResolvedValue({
+      data: { digests: { AI: { topic: 'AI', generated_at: new Date().toISOString(), items }, 'Cyber Security': null } },
+    });
+    const user = userEvent.setup();
+    const { container } = renderAt('/tldr');
+    await screen.findByText('AI summary 1.');
+
+    expect(container.querySelector('.tldr-item--feature')).toBeNull();
+
+    await user.click(screen.getByRole('button', { name: 'Grid view' }));
+    expect(container.querySelectorAll('.tldr-item')).toHaveLength(30);
+    expect(container.querySelector('.tldr-item--feature')).not.toBeNull();
+    // Order is preserved: the digest's ranking still reads top to bottom.
+    expect([...container.querySelectorAll('.tldr-item-text')].map((node) => node.textContent))
+      .toEqual(items.map((item) => item.tldr_text));
+  });
+
   test('a topic with no digest says so', async () => {
     axios.get.mockResolvedValue({ data: { digests: { AI: null, 'Cyber Security': null } } });
     renderAt('/tldr?topic=cyber-security');

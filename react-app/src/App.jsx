@@ -642,13 +642,65 @@ const BriefRow = ({ article, index }) => {
   );
 };
 
-const EverythingCard = ({ article }) => {
+// Out of every FEATURE_ROW_ODDS_OUT_OF rows, roughly this many span the full width.
+const FEATURE_ROW_ODDS = 2;
+const FEATURE_ROW_ODDS_OUT_OF = 5;
+const MAX_CONSECUTIVE_FEATURES = 2;
+
+// Latest News reads as a magazine page rather than a uniform grid: rows of three
+// cards are broken up, at random, by a single story spanning the row with its image
+// on the left or right. The dice are seeded from each row's lead URL, so a re-render
+// or "Show more" never reshuffles rows already on screen — only the tail can change.
+// `seedOf` names the stable identity of an item (the TLDR page keys on article_url).
+export const buildCardLayout = (articles, seedOf = (article) => article.url || article.title) => {
+  const layout = [];
+  let index = 0;
+  let featureStreak = 0;
+  let lastSide = null;
+
+  while (index < articles.length) {
+    const lead = articles[index];
+    const seed = seedOf(lead) || String(index);
+    const remaining = articles.length - index;
+    const isFeature = remaining === 1 || (
+      featureStreak < MAX_CONSECUTIVE_FEATURES
+      && hashToVariant(seed, FEATURE_ROW_ODDS_OUT_OF) < FEATURE_ROW_ODDS
+    );
+
+    if (isFeature) {
+      // Back-to-back features zig-zag; otherwise the side is a coin toss.
+      const side = lastSide
+        ? (lastSide === 'left' ? 'right' : 'left')
+        : (hashToVariant(`${seed}:side`, 2) === 0 ? 'left' : 'right');
+      layout.push({ article: lead, feature: side });
+      lastSide = side;
+      featureStreak += 1;
+      index += 1;
+    } else {
+      articles.slice(index, index + 3).forEach((article, offset) => {
+        layout.push({ article, feature: null, trioEnd: offset === 2 });
+      });
+      lastSide = null;
+      featureStreak = 0;
+      index += 3;
+    }
+  }
+
+  return layout;
+};
+
+const EverythingCard = ({ article, feature = null, trioEnd = false }) => {
   const articleUrl = safeHttpUrl(article.url);
   const summaryText = getCardSummaryText(article);
   const image = <ArticleImage article={article} className="everything-card-image" />;
+  const className = [
+    'everything-card',
+    feature && `everything-card--feature everything-card--image-${feature}`,
+    trioEnd && 'everything-card--trio-end',
+  ].filter(Boolean).join(' ');
 
   return (
-    <article className="everything-card">
+    <article className={className}>
       {articleUrl ? (
         <a href={articleUrl} target="_blank" rel="noopener noreferrer" className="everything-card-image-link" aria-label={`Open ${article.title}`}>
           {image}
@@ -1860,8 +1912,8 @@ function App() {
                 <>
                   {everythingViewMode === 'cards' && (
                     <div className="everything-grid">
-                      {visibleEverythingElse.map((article) => (
-                        <EverythingCard key={article.url} article={article} />
+                      {buildCardLayout(visibleEverythingElse).map(({ article, feature, trioEnd }) => (
+                        <EverythingCard key={article.url} article={article} feature={feature} trioEnd={trioEnd} />
                       ))}
                     </div>
                   )}
