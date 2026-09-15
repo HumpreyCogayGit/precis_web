@@ -151,7 +151,6 @@ select {
 .site-header,
 .masthead,
 .section-divider,
-.topic-trends,
 .edition-controls--standalone,
 .edition-main,
 .empty-state {
@@ -3462,4 +3461,16 @@ mark.search-hit {
   .topic-trends .topic-trend-list li {
     break-inside: avoid;
   }
+}
+
+/* Rising Now lives inside .edition-main, between the lead story and Top Stories, so it
+   takes that column's width. The lead story's bottom rule already separates the two,
+   so the panel drops its own top rule and draws the matching one underneath instead. */
+.edition-main .topic-trends {
+  border-bottom: 2px solid var(--line-dark);
+  padding-block: 4px 24px;
+}
+
+.edition-main .topic-trend {
+  border-top: 0;
 }

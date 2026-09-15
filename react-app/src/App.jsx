@@ -1763,22 +1763,6 @@ function App() {
             </div>
           </section>
 
-          {/* One panel. It follows the topic filter: a single topic narrows it to that
-              topic's categories, and no topic (or both) shows the combined ranking. */}
-          {!isSearching && topicTrends && (
-            <div className="topic-trends">
-              <TrendingSection
-                topic={risingTopic}
-                title="Rising Now"
-                context={risingTopic === ALL_TRENDS_KEY ? undefined : `in ${risingTopic}`}
-                storageKey="precis.trend.window"
-                windows={topicTrends.windows}
-                activeTagSlugs={applied.tags.in}
-                onSelectTag={toggleTrendTag}
-              />
-            </div>
-          )}
-
           <div className="section-divider" aria-hidden="true"></div>
         </>
       )}
@@ -1815,6 +1799,23 @@ function App() {
                   </div>
                 </div>
               </article>
+            )}
+
+            {/* Rising Now sits under the lead story, above Top Stories. It follows the topic
+                filter: a single topic narrows it to that topic's categories, and no topic
+                (or both) shows the combined ranking. */}
+            {!isSearching && topicTrends && (
+              <div className="topic-trends">
+                <TrendingSection
+                  topic={risingTopic}
+                  title="Rising Now"
+                  context={risingTopic === ALL_TRENDS_KEY ? undefined : `in ${risingTopic}`}
+                  storageKey="precis.trend.window"
+                  windows={topicTrends.windows}
+                  activeTagSlugs={applied.tags.in}
+                  onSelectTag={toggleTrendTag}
+                />
+              </div>
             )}
 
             {!isSearching && topStories.length > 0 && (
