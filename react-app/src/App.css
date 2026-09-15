@@ -3428,3 +3428,11 @@ mark.search-hit {
 .topic-trend-help-panel dd p + p {
   margin-top: 6px;
 }
+
+/* Phones: the two Rising sections push the edition too far down, so they are not
+   shown. Same breakpoint as the edition's own mobile layout. */
+@media (max-width: 760px) {
+  .topic-trends {
+    display: none;
+  }
+}
