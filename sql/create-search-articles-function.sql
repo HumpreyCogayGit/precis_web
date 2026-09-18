@@ -92,6 +92,12 @@ AS $$
     FROM public.articles a
     CROSS JOIN tsq
     WHERE COALESCE(a.needs_review, FALSE) = FALSE
+      -- Same per-source kill switch as public.public_articles. Search reads
+      -- public.articles directly for the index, so the exclusion has to be
+      -- repeated here or a hidden source stays findable by search alone.
+      AND NOT EXISTS (
+        SELECT 1 FROM public.hidden_sites h WHERE h.site = a.site
+      )
       AND to_tsvector('english', coalesce(a.title, '') || ' ' || coalesce(a.summary, '')) @@ tsq.value
       -- A NULL array means "no constraint on this group", matching the empty-group
       -- rule the filter panel and lib/articles.js both use.
@@ -181,7 +187,7 @@ AS $$
 $$;
 
 COMMENT ON FUNCTION public.search_public_articles IS
-  'Full-text search over public article title and summary. SECURITY DEFINER so the read-only web role can use idx_articles_search without SELECT on public.articles; withholds needs_review rows and returns the same public column set and 360-character excerpt as public.public_articles.';
+  'Full-text search over public article title and summary. SECURITY DEFINER so the read-only web role can use idx_articles_search without SELECT on public.articles; withholds needs_review rows and sources listed in public.hidden_sites, and returns the same public column set and 360-character excerpt as public.public_articles.';
 
 -- A SECURITY DEFINER function is granted to PUBLIC by default. Revoke first, then
 -- grant only to the role that needs it.

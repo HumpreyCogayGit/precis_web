@@ -99,10 +99,18 @@ SELECT
     CASE WHEN a.topic IS NULL THEN '{}'::text[] ELSE ARRAY[a.topic] END
   ) AS topics
 FROM public.articles a
-WHERE COALESCE(a.needs_review, FALSE) = FALSE;
+WHERE COALESCE(a.needs_review, FALSE) = FALSE
+  -- Per-source kill switch. A row in hidden_sites withholds that source's whole
+  -- back catalogue from every public read path without deleting anything: the
+  -- articles stay in public.articles, and removing the row brings them straight
+  -- back. Disabling the site in the ops database (blogscraper configs disable)
+  -- only stops new scrapes; this is what hides what was already scraped.
+  AND NOT EXISTS (
+    SELECT 1 FROM public.hidden_sites h WHERE h.site = a.site
+  );
 
 COMMENT ON VIEW public.public_articles IS
-  'Public Precis Web read model. Exposes only public article fields, returns excerpts instead of body_text, and excludes scraper-flagged records where needs_review is true.';
+  'Public Precis Web read model. Exposes only public article fields, returns excerpts instead of body_text, and excludes scraper-flagged records where needs_review is true and every source listed in public.hidden_sites.';
 
 COMMIT;
 
