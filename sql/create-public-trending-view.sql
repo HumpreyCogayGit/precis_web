@@ -35,8 +35,10 @@ WITH latest AS (
        LIMIT 1
     ) s ON TRUE
    -- Only candidates a recent extraction still produced; entity_candidates is never pruned.
-   -- Same filter and rationale as scoring/sql/qa-views.sql.
-   WHERE c.last_seen_at >= (SELECT max(last_seen_at) FROM entity_candidates) - interval '9 hours'
+   -- Same filter and rationale as scoring/sql/qa-views.sql: one scheduler gap (4h) plus an
+   -- hour of slack, so exactly one earlier extraction run is still shown. Was 9 hours for the
+   -- old 8-hourly schedule. Change it with TREND_SCHEDULE_UTC, in both files.
+   WHERE c.last_seen_at >= (SELECT max(last_seen_at) FROM entity_candidates) - interval '5 hours'
 ),
 ranked AS (
   SELECT *,
