@@ -79,6 +79,93 @@ blog.eleuther.ai,blog.jetbrains.com,blogger.googleusercontent.com,blogs.nvidia.c
 Four configured sites store no images at all and need no entry: `cert_cc_vulnotes`,
 `cisa_advisories`, `okta_security_advisories`, `zero_day_initiative`.
 
+## 2026-09-18 addition: MarkTechPost thumbnail host
+
+MarkTechPost article thumbnails are stored as direct WordPress uploads under
+`https://www.marktechpost.com/wp-content/uploads/...`. Because the React app loads all article
+images through `/api/image-proxy`, Vercel Production/Preview must include `www.marktechpost.com`
+in `IMAGE_PROXY_ALLOWED_HOSTS`; otherwise these cards fall back to generated art.
+
+```
+www.marktechpost.com
+```
+
+## 2026-09-16 additions (41 sources added this session)
+
+Hosts below are the distinct `image_url` hosts of these sources in `public_articles` (verified after
+they scraped), except `liquid_ai`, `scale_ai`, `mdsec`, `sentinellabs` (not yet published — derived
+by running their `image_selectors` over a live sample). `doyensec` & `schneier` publish no images.
+Seven sources reuse hosts already listed above — `langchain` & `greynoise` →
+`cdn.prod.website-files.com`; `fireworks_ai` → `cdn.sanity.io`; `baseten`, `wiz_research` &
+`intigriti` → `www.datocms-assets.com`; `hacking_articles` → `blogger.googleusercontent.com`.
+
+Verified 2026-09-16: with these entries added, every stored `image_url` for the new sources serves
+a valid image through `/api/image-proxy` (200, correct content-type). The images in the app were
+blank only because the deployed `IMAGE_PROXY_ALLOWED_HOSTS` had not yet been updated — not a config
+problem. Parent domains are used where a source spans subdomains: `kimi.ai` (covers `kimi-file.` +
+`statics.`) and `paloaltonetworks.com` (covers `unit42.` + `origin-unit42.`).
+
+**32 new hosts to add:**
+
+```
+api-docs.deepseek.com,assets.bishopfox.com,assets.infosecurity-magazine.com,aypchzzf9pftwuto.public.blob.vercel-storage.com,blog.trailofbits.com,cdn.builder.io,cms.therecord.media,cognition.com,cyble.com,eleven-public-cdn.elevenlabs.io,eu-images.contentstack.com,hackingpassion.com,helpnetsecurity.com,horizon3.ai,ik.imagekit.io,img.shields.io,isc.sans.edu,kimi.ai,paloaltonetworks.com,pub-4caceed5c57c4466b559b0834d2806c9.r2.dev,sakana.ai,scale.com,seclists.org,securityaffairs.com,sploitus.com,web-assets.esetstatic.com,www.mdsec.co.uk,www.outflank.nl,www.pentestpartners.com,www.pinecone.io,www.sentinelone.com,www.synacktiv.com
+```
+
+### New host → source site
+
+| Host | Scraper site(s) |
+| --- | --- |
+| `api-docs.deepseek.com` | deepseek |
+| `eleven-public-cdn.elevenlabs.io` | elevenlabs |
+| `kimi.ai` | kimi (covers `kimi-file.` + `statics.`) |
+| `img.shields.io` | kimi (README badge images) |
+| `aypchzzf9pftwuto.public.blob.vercel-storage.com` | liquid_ai |
+| `www.pinecone.io` | pinecone |
+| `sakana.ai` | sakana_ai (see config note below) |
+| `cognition.com` | cognition |
+| `scale.com` | scale_ai |
+| `hackingpassion.com` | hackingpassion |
+| `sploitus.com` | sploitus |
+| `seclists.org` | full_disclosure, oss_security |
+| `horizon3.ai` | horizon3_attack_team |
+| `assets.bishopfox.com` | bishop_fox |
+| `www.synacktiv.com` | synacktiv |
+| `isc.sans.edu` | sans_isc |
+| `pub-4caceed5c57c4466b559b0834d2806c9.r2.dev` | 0xdf |
+| `paloaltonetworks.com` | unit42 (covers `unit42.` + `origin-unit42.`) |
+| `cdn.builder.io` | huntress |
+| `web-assets.esetstatic.com` | welivesecurity |
+| `blog.trailofbits.com` | trail_of_bits |
+| `ik.imagekit.io` | qualys_tru |
+| `www.sentinelone.com` | sentinellabs |
+| `www.mdsec.co.uk` | mdsec |
+| `www.outflank.nl` | outflank |
+| `www.pentestpartners.com` | pen_test_partners |
+| `cyble.com` | cyble |
+| `cms.therecord.media` | the_record |
+| `eu-images.contentstack.com` | dark_reading |
+| `securityaffairs.com` | security_affairs |
+| `helpnetsecurity.com` | help_net_security (covers `img.` + `img2.`) |
+| `assets.infosecurity-magazine.com` | infosecurity_magazine |
+
+New multi-tenant CDNs among the above (same shared-bucket caveat as the section below):
+`cdn.builder.io`, `ik.imagekit.io`, `eu-images.contentstack.com`, `img.shields.io`, the `*.r2.dev`
+(Cloudflare R2) tenant, and the `*.public.blob.vercel-storage.com` tenant.
+
+**Known config bug — `sakana_ai`.** ~4 of 5 sakana posts store a root-relative image path
+(`/assets/<slug>/thumbnail.jpg`) because the extractor's `article img[src^='/assets/']` selector
+returns the `src` verbatim and `extract.engine` does not absolutize non-meta image srcs (unlike link
+discovery). The proxy rejects a relative URL (`400 invalid_url`), so those cards fall back to
+generated art regardless of the allowlist. `sakana.ai` is listed for the one post whose image came
+from `og:image`. Fix options (separate task): absolutize image src in `extract.engine`, or reorder
+sakana's `image_selectors` to prefer `og:image` (a single generic site card for every post).
+
+### Merged value (93 entries) — drop-in replacement for `IMAGE_PROXY_ALLOWED_HOSTS`
+
+```
+api-docs.deepseek.com,assets.bishopfox.com,assets.infosecurity-magazine.com,aypchzzf9pftwuto.public.blob.vercel-storage.com,blog.eleuther.ai,blog.jetbrains.com,blog.trailofbits.com,blogger.googleusercontent.com,blogs.nvidia.com,cdn.amazon.science,cdn.builder.io,cdn.prod.website-files.com,cdn.sanity.io,cms.therecord.media,cognition.com,cursor.com,cyberscoop.com,cyble.com,d2908q01vomqb2.cloudfront.net,d3phaj0sisr2ct.cloudfront.net,developer-blogs.nvidia.com,developers.openai.com,eleven-public-cdn.elevenlabs.io,eu-images.contentstack.com,framerusercontent.com,frontend-cdn.perplexity.ai,github.blog,hackingpassion.com,helpnetsecurity.com,horizon3.ai,huggingface.co,i.ytimg.com,ik.imagekit.io,images.ctfassets.net,img.shields.io,isc.sans.edu,kimi.ai,krebsonsecurity.com,lambda.ai,lh3.googleusercontent.com,microsoft.ai,mistral.ai,mitalinlp.oss-cn-hangzhou.aliyuncs.com,mlr.cdn-apple.com,ollama.com,openclaw.ai,paloaltonetworks.com,portswigger.net,projectzero.google,ptht05hbb1ssoooe.public.blob.vercel-storage.com,pub-4caceed5c57c4466b559b0834d2806c9.r2.dev,qianwen-res.oss-accelerate-overseas.aliyuncs.com,qianwen-res.oss-accelerate.aliyuncs.com,qianwen-res.oss-cn-beijing.aliyuncs.com,replicate.com,research.ibm.com,rocm.blogs.amd.com,runway-static-assets.s3.amazonaws.com,sakana.ai,scale.com,seclists.org,securityaffairs.com,specterops.io,sploitus.com,static1.squarespace.com,storage.ghost.io,storage.googleapis.com,thinkingmachines.ai,vllm.ai,weaviate.io,web-assets.esetstatic.com,www.ai21.com,www.anthropic.com,www.bleepstatic.com,www.cybereason.com,www.databricks.com,www.datocms-assets.com,www.exploit-db.com,www.malwarebytes.com,www.marktechpost.com,www.mdsec.co.uk,www.microsoft.com,www.outflank.nl,www.pentestpartners.com,www.pinecone.io,www.rapid7.com,www.salesforce.com,www.securityweek.com,www.sentinelone.com,www.synacktiv.com,www.tenable.com,x.ai,yqintl.alicdn.com
+```
+
 ## Notes
 
 - **No CSP change needed.** The React app rewrites every image through

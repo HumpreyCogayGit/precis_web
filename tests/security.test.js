@@ -606,6 +606,21 @@ test('image proxy rejects private hosts and private resolved IPs', async () => {
   });
 });
 
+test('image proxy production allowlist includes MarkTechPost thumbnails when configured', async () => {
+  await withEnv({ NODE_ENV: 'production', IMAGE_PROXY_ALLOWED_HOSTS: 'www.marktechpost.com' }, async () => {
+    assert.equal(isHostAllowed('www.marktechpost.com'), true);
+    assert.equal(isHostAllowed('cdn.marktechpost.com'), false);
+
+    await withMockedDns({
+      'www.marktechpost.com': [{ address: '8.8.8.8', family: 4 }],
+    }, async () => {
+      await assert.doesNotReject(
+        () => validateUrlTarget(new URL('https://www.marktechpost.com/wp-content/uploads/2026/09/blog111-4.png')),
+      );
+    });
+  });
+});
+
 test('image proxy enforces the production host allowlist', async () => {
   await withEnv({ NODE_ENV: 'production', IMAGE_PROXY_ALLOWED_HOSTS: 'images.example.com' }, async () => {
     assert.equal(isHostAllowed('images.example.com'), true);
