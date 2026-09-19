@@ -5,7 +5,7 @@ import { SpeedInsights } from '@vercel/speed-insights/react';
 import './index.css';
 import { BrowserRouter, Route, Routes } from 'react-router-dom';
 import App from './App.jsx';
-import CookieConsent from './components/CookieConsent.jsx';
+import AnalyticsTracker from './components/AnalyticsTracker.jsx';
 import { initTheme } from './components/ThemeToggle.jsx';
 import reportWebVitals from './reportWebVitals';
 
@@ -36,7 +36,7 @@ root.render(
           <Route path="/terms" element={<TermsPage />} />
         </Routes>
       </Suspense>
-      <CookieConsent />
+      <AnalyticsTracker />
     </BrowserRouter>
     <Analytics />
     <SpeedInsights />

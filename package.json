@@ -7,6 +7,7 @@
     "build": "cd react-app && npm ci && npm run build && cd .. && rm -rf public && cp -R react-app/dist public",
     "test:backend": "node --test tests/*.test.js",
     "test": "cd react-app && npm test -- --run",
+    "verify:readonly-role": "test -n \"$WEB_READONLY_DATABASE_URL\" || { echo 'WEB_READONLY_DATABASE_URL is required' >&2; exit 1; }; psql \"$WEB_READONLY_DATABASE_URL\" -v ON_ERROR_STOP=1 -f sql/verify-readonly-web-role.sql",
     "start": "node server.js",
     "dev": "nodemon server.js",
     "check:node": "node -v && npm -v"

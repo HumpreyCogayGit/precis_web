@@ -669,7 +669,9 @@ test('image proxy revalidates redirect destinations', async () => {
           headers: { location: 'http://127.0.0.1/private.png' },
         });
       }, async () => {
-        await proxyImage(createImageProxyRequest('https://images.example.com/redirect.png'), res);
+        await proxyImage(createImageProxyRequest('https://images.example.com/redirect.png'), res, {
+          fetchImpl: global.fetch,
+        });
       });
     });
 
@@ -691,7 +693,9 @@ test('image proxy rejects images larger than configured maximum bytes', async ()
       'images.example.com': [{ address: '8.8.8.8', family: 4 }],
     }, async () => {
       await withMockedFetch(async () => pngResponse(oversizedPng), async () => {
-        await proxyImage(createImageProxyRequest('https://images.example.com/large.png'), res);
+        await proxyImage(createImageProxyRequest('https://images.example.com/large.png'), res, {
+          fetchImpl: global.fetch,
+        });
       });
     });
 
@@ -711,11 +715,66 @@ test('image proxy blocks SVG image responses', async () => {
         status: 200,
         headers: { 'content-type': 'image/svg+xml' },
       }), async () => {
-        await proxyImage(createImageProxyRequest('https://images.example.com/vector.svg'), res);
+        await proxyImage(createImageProxyRequest('https://images.example.com/vector.svg'), res, {
+          fetchImpl: global.fetch,
+        });
       });
     });
 
     assert.equal(res.statusCode, 415);
     assert.match(res.body.error, /SVG images are not supported/);
+  });
+});
+
+test('image proxy passes only validated DNS records to the connection layer', async () => {
+  await withEnv({ NODE_ENV: 'development' }, async () => {
+    const validated = [{ address: '8.8.8.8', family: 4 }];
+    const res = createMockResponse();
+    let connectionAddresses;
+
+    await withMockedDns({ 'images.example.com': validated }, async () => {
+      await proxyImage(createImageProxyRequest('https://images.example.com/image.png'), res, {
+        fetchImpl: async (url, options, addresses) => {
+          connectionAddresses = addresses;
+          return pngResponse();
+        },
+      });
+    });
+
+    assert.deepEqual(connectionAddresses, validated);
+    assert.equal(res.statusCode, undefined);
+    assert.ok(Buffer.isBuffer(res.body));
+  });
+});
+
+test('image proxy timeout remains active while the response body is downloading', async () => {
+  await withEnv({ NODE_ENV: 'development', IMAGE_PROXY_TIMEOUT_MS: '10' }, async () => {
+    const res = createMockResponse();
+
+    await withMockedDns({
+      'images.example.com': [{ address: '8.8.8.8', family: 4 }],
+    }, async () => {
+      await proxyImage(createImageProxyRequest('https://images.example.com/stalled.png'), res, {
+        fetchImpl: async (url, options) => ({
+          ok: true,
+          status: 200,
+          headers: { get: () => null },
+          body: {
+            async *[Symbol.asyncIterator]() {
+              await new Promise((resolve, reject) => {
+                options.signal.addEventListener('abort', () => {
+                  const error = new Error('aborted');
+                  error.name = 'AbortError';
+                  reject(error);
+                }, { once: true });
+              });
+            },
+          },
+        }),
+      });
+    });
+
+    assert.equal(res.statusCode, 504);
+    assert.match(res.body.error, /timed out/);
   });
 });

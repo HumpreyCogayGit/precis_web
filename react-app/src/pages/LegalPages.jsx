@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import SiteFooter from '../components/SiteFooter.jsx';
 import ThemeToggle from '../components/ThemeToggle.jsx';
 
-const today = new Intl.DateTimeFormat('en', { year: 'numeric', month: 'long', day: 'numeric' }).format(new Date());
+const LEGAL_REVISION_DATE = 'September 19, 2026';
 
 const LegalHeader = ({ current }) => (
   <header className="site-header" id="top">
@@ -29,7 +29,7 @@ export const PrivacyPolicyPage = () => (
     <main className="legal-main">
       <p className="masthead-kicker">Legal</p>
       <h1>Privacy Policy</h1>
-      <p className="legal-updated">Last updated: {today}</p>
+      <p className="legal-updated">Last updated: {LEGAL_REVISION_DATE}</p>
 
       <section>
         <h2>Overview</h2>
@@ -45,8 +45,9 @@ export const PrivacyPolicyPage = () => (
         <p>
           We use Google Analytics to understand aggregate usage of the site, such as pages viewed,
           approximate geography, device/browser information and general traffic patterns. Google
-          Analytics collects and processes data using cookies and similar technologies when you
-          consent to analytics cookies.
+          Analytics may collect and process data using cookies and similar technologies whenever
+          the site is used. This includes visits in private or incognito browsing modes unless the
+          browser, an extension or a network-level control blocks the analytics request.
         </p>
         <p>
           Google explains how it collects and processes data at{' '}
@@ -57,12 +58,26 @@ export const PrivacyPolicyPage = () => (
       </section>
 
       <section>
-        <h2>Cookie choices</h2>
+        <h2>Vercel Analytics and Speed Insights</h2>
         <p>
-          Analytics cookies are disabled unless this browser has already stored an explicit
-          analytics consent choice. If analytics are declined or no choice is stored, we do not
-          initialize Google Analytics for this browser. You can reset any stored choice by clearing
-          this site&rsquo;s local storage/cookies in your browser settings.
+          We use Vercel Analytics to measure aggregate page visits and Vercel Speed Insights to
+          understand site performance. These services receive technical request information needed
+          to provide their reports. Vercel describes its data practices in its{' '}
+          <a href="https://vercel.com/legal/privacy-policy" target="_blank" rel="noopener noreferrer">
+            Privacy Policy
+          </a>.
+        </p>
+      </section>
+
+      <section>
+        <h2>Analytics controls</h2>
+        <p>
+          PR&Eacute;CIS does not currently provide an on-site analytics opt-out. You can limit or block
+          Google Analytics through browser privacy settings, content-blocking extensions, network
+          controls, or the{' '}
+          <a href="https://tools.google.com/dlpage/gaoptout" target="_blank" rel="noopener noreferrer">
+            Google Analytics Opt-out Browser Add-on
+          </a>. Blocking analytics does not prevent you from reading the site.
         </p>
       </section>
 
@@ -93,7 +108,7 @@ export const TermsPage = () => (
     <main className="legal-main">
       <p className="masthead-kicker">Legal</p>
       <h1>Terms of Use / Disclaimer</h1>
-      <p className="legal-updated">Last updated: {today}</p>
+      <p className="legal-updated">Last updated: {LEGAL_REVISION_DATE}</p>
 
       <section>
         <h2>Independent aggregator</h2>

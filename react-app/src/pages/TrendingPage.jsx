@@ -6,7 +6,7 @@ import axios from 'axios';
 import FilterPanel from '../FilterPanel.jsx';
 import SiteFooter from '../components/SiteFooter.jsx';
 import ThemeToggle from '../components/ThemeToggle.jsx';
-import { formatRelativeTime } from '../App.jsx';
+import { formatRelativeTime, safeHttpUrl } from '../App.jsx';
 import { formatSiteName } from '../sources';
 import {
   FACET_ROW_CAP,
@@ -53,11 +53,18 @@ const MOMENTUM_LABELS = {
 const momentumOf = (entity) => MOMENTUM_LABELS[entity.momentum_label]
   ?? (entity.momentum_label ? { text: entity.momentum_label, tone: 'muted' } : null);
 
-const TrendArticleRow = ({ article }) => (
-  <li className="trend-article">
-    <a className="trend-article-link" href={article.url} target="_blank" rel="noopener noreferrer">
-      {article.title}
-    </a>
+export const TrendArticleRow = ({ article }) => {
+  const safeUrl = safeHttpUrl(article.url);
+
+  return (
+    <li className="trend-article">
+      {safeUrl ? (
+        <a className="trend-article-link" href={safeUrl} target="_blank" rel="noopener noreferrer">
+          {article.title}
+        </a>
+      ) : (
+        <span className="trend-article-link">{article.title}</span>
+      )}
     <span className="trend-article-meta">
       <span className="trend-article-site">Source: {formatSiteName(article.site)}</span>
       <span aria-hidden="true"> &middot; </span>
@@ -71,8 +78,9 @@ const TrendArticleRow = ({ article }) => (
         </span>
       )}
     </span>
-  </li>
-);
+    </li>
+  );
+};
 
 const TrendRow = ({ entity, expanded, onToggle }) => {
   const momentum = momentumOf(entity);
