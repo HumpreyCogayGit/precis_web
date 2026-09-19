@@ -100,6 +100,7 @@ describe('front page split', () => {
       return Promise.resolve({ data: { items: ITEMS.map((article) => ({
         ...article,
         is_lead: article.title === 'Story 9',
+        lead_topics: article.title === 'Story 9' ? ['AI'] : [],
       })), facets: { tags: [], sources: [], topics: [] } } });
     });
 
@@ -119,6 +120,7 @@ describe('front page split', () => {
         ...article,
         topics: [article.topic],
         is_lead: article.title === 'Story 9',
+        lead_topics: article.title === 'Story 9' ? ['AI'] : [],
       })), facets: { tags: [], sources: [], topics: [] } } });
     });
     window.history.replaceState(null, '', '/?source=nvidia');
@@ -128,5 +130,28 @@ describe('front page split', () => {
 
     expect(within(document.querySelector('.lead-story')).getByRole('heading', { level: 2 }))
       .toHaveTextContent('Story 1');
+  });
+
+  test('uses the Cyber Security lead when that topic is selected', async () => {
+    const mixedItems = ITEMS.map((article) => ({
+      ...article,
+      topic: article.title === 'Story 10' ? 'Cyber Security' : 'AI',
+      topics: [article.title === 'Story 10' ? 'Cyber Security' : 'AI'],
+      is_lead: ['Story 9', 'Story 10'].includes(article.title),
+      lead_topics: article.title === 'Story 9'
+        ? ['AI']
+        : article.title === 'Story 10' ? ['Cyber Security'] : [],
+    }));
+    axios.get.mockImplementation((url) => {
+      if (url.includes('/api/trending')) return Promise.resolve({ data: [] });
+      return Promise.resolve({ data: { items: mixedItems, facets: { tags: [], sources: [], topics: [] } } });
+    });
+    window.history.replaceState(null, '', '/?topic=Cyber%20Security');
+
+    render(<App />);
+    expect(await screen.findByText('Daily tech brief')).toBeInTheDocument();
+
+    expect(within(document.querySelector('.lead-story')).getByRole('heading', { level: 2 }))
+      .toHaveTextContent('Story 10');
   });
 });

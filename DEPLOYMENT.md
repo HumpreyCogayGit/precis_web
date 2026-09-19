@@ -72,11 +72,12 @@ psql "$ADMIN_DATABASE_URL" \
   -f sql/create-readonly-web-role.sql
 ```
 
-The role script includes `sql/create-public-articles-view.sql`, which creates or replaces `public.public_articles`. That view is the only relation the public web role should be able to read. It exposes public fields, derives a 360-character excerpt from `body_text`, and excludes records where `needs_review` is true.
+The role script includes the topic-lead migration and `sql/create-public-articles-view.sql`, which creates or replaces `public.public_articles`. That view is the only relation the public web role should be able to read. It exposes public fields, derives a 360-character excerpt from `body_text`, and excludes records where `needs_review` is true.
 
-**Existing deployments must re-run that view script** — the filter panel's Tags group reads `public_articles.tags`, and a view created before that column was added will still be serving the old column list. `CREATE OR REPLACE VIEW` appends the column in place and keeps the existing grants, so no role changes are needed:
+**Existing deployments must run the topic-lead migration before re-running the view script.** The migration creates the independent AI and Cyber Security slots; the view exposes them as `lead_topics`. `CREATE OR REPLACE VIEW` appends the column in place and keeps the existing grants, so no role changes are needed:
 
 ```bash
+psql "$ADMIN_DATABASE_URL" -f sql/2026-09-19_topic_article_leads.sql
 psql "$ADMIN_DATABASE_URL" -f sql/create-public-articles-view.sql
 ```
 

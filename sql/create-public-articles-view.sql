@@ -98,8 +98,14 @@ SELECT
     ),
     CASE WHEN a.topic IS NULL THEN '{}'::text[] ELSE ARRAY[a.topic] END
   ) AS topics,
-  -- Editorial designation. Appended to preserve the existing view column order.
-  a.is_lead
+  -- Editorial designation. is_lead remains for older clients; lead_topics identifies
+  -- which of the independent AI/Cyber Security slots this article occupies.
+  a.is_lead,
+  COALESCE(
+    ARRAY(SELECT l.topic FROM public.article_leads l
+          WHERE l.article_url = a.url ORDER BY l.topic),
+    '{}'::text[]
+  ) AS lead_topics
 FROM public.articles a
 WHERE COALESCE(a.needs_review, FALSE) = FALSE
   -- Per-source kill switch. A row in hidden_sites withholds that source's whole

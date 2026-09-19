@@ -229,6 +229,8 @@ test('article list queries use the public view and expose only public fields', (
   assert.match(ARTICLE_PAGE_SQL, /\bexcerpt\b/i);
   assert.match(built.text, /\bis_lead\b/i);
   assert.match(ARTICLE_PAGE_SQL, /\bis_lead\b/i);
+  assert.match(built.text, /\blead_topics\b/i);
+  assert.match(ARTICLE_PAGE_SQL, /\blead_topics\b/i);
   // The page query binds its URLs as one array parameter, never interpolated.
   assert.match(ARTICLE_PAGE_SQL, /url = ANY\(\$1::text\[\]\)/);
   // Topic is an array overlap, so even one value binds as a one-element array.
