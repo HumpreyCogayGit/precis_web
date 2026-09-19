@@ -1414,7 +1414,9 @@ function App() {
   // Only the lead gets pulled above the fold now; everything else — including the
   // five briefs that used to run under "Previous stories" — flows straight into
   // Latest News. A single slot has no diversity to preserve, so this is a
-  // plain split rather than a pickDiverseTop call.
+  // flagged article when it matches the active filters, with the newest matching
+  // article as fallback. Remove by identity rather than position so it cannot be
+  // duplicated in Latest News when the flagged lead is not the newest row.
   //
   // A search is not an edition, so it does not get a front page: promoting one hit
   // to a hero would be the app making an editorial claim about a list the reader
@@ -1423,7 +1425,13 @@ function App() {
   const { top: frontPageArticles, rest: everythingElseAll } = useMemo(
     () => (isSearching
       ? { top: [], rest: sortedArticles }
-      : { top: sortedArticles.slice(0, 1), rest: sortedArticles.slice(1) }),
+      : (() => {
+        const lead = sortedArticles.find((article) => article.is_lead) || sortedArticles[0];
+        return {
+          top: lead ? [lead] : [],
+          rest: lead ? sortedArticles.filter((article) => article !== lead) : [],
+        };
+      })()),
     [sortedArticles, isSearching],
   );
 

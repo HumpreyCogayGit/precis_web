@@ -46,6 +46,12 @@
 
 BEGIN;
 
+-- The return table gains is_lead; PostgreSQL cannot change a function's return
+-- type with CREATE OR REPLACE, so remove the old signature first.
+DROP FUNCTION IF EXISTS public.search_public_articles(
+  text, text[], text[], text[], text[], integer, integer
+);
+
 CREATE OR REPLACE FUNCTION public.search_public_articles(
   q text,
   sites text[] DEFAULT NULL,
@@ -67,6 +73,7 @@ RETURNS TABLE (
   fetched_at timestamptz,
   summary text,
   tags text[],
+  is_lead boolean,
   total_count bigint
 )
 LANGUAGE sql
@@ -97,6 +104,14 @@ AS $$
       -- repeated here or a hidden source stays findable by search alone.
       AND NOT EXISTS (
         SELECT 1 FROM public.hidden_sites h WHERE h.site = a.site
+      )
+      -- Same per-article exclusion list as public.public_articles, repeated for
+      -- the same reason. Keep the two predicates identical.
+      AND NOT EXISTS (
+        SELECT 1 FROM public.article_exclusions x
+         WHERE (x.site IS NULL OR x.site = a.site)
+           AND (x.title_pattern IS NULL OR a.title ~* x.title_pattern)
+           AND (x.url_pattern IS NULL OR a.url ~* x.url_pattern)
       )
       AND to_tsvector('english', coalesce(a.title, '') || ' ' || coalesce(a.summary, '')) @@ tsq.value
       -- A NULL array means "no constraint on this group", matching the empty-group
@@ -180,6 +195,7 @@ AS $$
     a.fetched_at,
     a.summary,
     a.tags,
+    a.is_lead,
     m.total_count
   FROM matched m
   JOIN public.articles a ON a.site = m.site AND a.url = m.url
@@ -187,7 +203,7 @@ AS $$
 $$;
 
 COMMENT ON FUNCTION public.search_public_articles IS
-  'Full-text search over public article title and summary. SECURITY DEFINER so the read-only web role can use idx_articles_search without SELECT on public.articles; withholds needs_review rows and sources listed in public.hidden_sites, and returns the same public column set and 360-character excerpt as public.public_articles.';
+  'Full-text search over public article title and summary. SECURITY DEFINER so the read-only web role can use idx_articles_search without SELECT on public.articles; withholds needs_review rows, sources listed in public.hidden_sites and articles matching public.article_exclusions, and returns the same public column set and 360-character excerpt as public.public_articles.';
 
 -- A SECURITY DEFINER function is granted to PUBLIC by default. Revoke first, then
 -- grant only to the role that needs it.

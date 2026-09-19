@@ -88,6 +88,20 @@ itself, but `public.search_public_articles` also has a defensive SQL-side clamp:
 psql "$ADMIN_DATABASE_URL" -f sql/2026-09-09_search_articles_limit_5000.sql
 ```
 
+Both public read paths also honour two hide lists, `public.hidden_sites` (whole sources) and
+`public.article_exclusions` (rules matching titles/URLs, e.g. Schneier's "Friday Squid
+Blogging"). The view and search scripts reference both tables, so on a fresh database create
+them first, in this order, before re-running either script on its own:
+
+```bash
+psql "$ADMIN_DATABASE_URL" -f sql/2026-09-16_hidden_sites.sql
+psql "$ADMIN_DATABASE_URL" -f sql/2026-09-19_article_exclusions.sql
+```
+
+`2026-09-16_hidden_sites.sql` re-applies the current view, so on a fresh database it fails at
+that step. The table is still created, and the next command then installs everything. Manage
+exclusion rules with `scraper/scripts/exclusions.py list | add | remove`.
+
 Build the Vercel `DATABASE_URL` or `POSTGRES_URL` from that `precis_web_readonly` role and password. Keep the local scraper on its separate write-capable `BLOGSCRAPER_DATABASE_URL` credential. The scraper/admin credential remains responsible for writing `articles`, reviewing held records, and rerunning failed extractions.
 
 Validate the read-only role before using it in production:

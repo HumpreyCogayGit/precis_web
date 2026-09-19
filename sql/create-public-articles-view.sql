@@ -97,7 +97,9 @@ SELECT
       '{}'::text[]
     ),
     CASE WHEN a.topic IS NULL THEN '{}'::text[] ELSE ARRAY[a.topic] END
-  ) AS topics
+  ) AS topics,
+  -- Editorial designation. Appended to preserve the existing view column order.
+  a.is_lead
 FROM public.articles a
 WHERE COALESCE(a.needs_review, FALSE) = FALSE
   -- Per-source kill switch. A row in hidden_sites withholds that source's whole
@@ -107,10 +109,21 @@ WHERE COALESCE(a.needs_review, FALSE) = FALSE
   -- only stops new scrapes; this is what hides what was already scraped.
   AND NOT EXISTS (
     SELECT 1 FROM public.hidden_sites h WHERE h.site = a.site
+  )
+  -- Per-article exclusion list (sql/2026-09-19_article_exclusions.sql). Each row is
+  -- a rule, not a one-off flag, so it also catches future articles that match --
+  -- e.g. every "Friday Squid Blogging" post from schneier. A NULL column is no
+  -- constraint; the non-NULL ones must all match. Deleting the rule brings its
+  -- articles back.
+  AND NOT EXISTS (
+    SELECT 1 FROM public.article_exclusions x
+     WHERE (x.site IS NULL OR x.site = a.site)
+       AND (x.title_pattern IS NULL OR a.title ~* x.title_pattern)
+       AND (x.url_pattern IS NULL OR a.url ~* x.url_pattern)
   );
 
 COMMENT ON VIEW public.public_articles IS
-  'Public Precis Web read model. Exposes only public article fields, returns excerpts instead of body_text, and excludes scraper-flagged records where needs_review is true and every source listed in public.hidden_sites.';
+  'Public Precis Web read model. Exposes only public article fields, returns excerpts instead of body_text, and excludes scraper-flagged records where needs_review is true, every source listed in public.hidden_sites, and every article matching a rule in public.article_exclusions.';
 
 COMMIT;
 

@@ -227,6 +227,8 @@ test('article list queries use the public view and expose only public fields', (
   // view build a regexp_replace for every row, which is the cost the split removes.
   assert.doesNotMatch(built.text, /\bexcerpt\b/i);
   assert.match(ARTICLE_PAGE_SQL, /\bexcerpt\b/i);
+  assert.match(built.text, /\bis_lead\b/i);
+  assert.match(ARTICLE_PAGE_SQL, /\bis_lead\b/i);
   // The page query binds its URLs as one array parameter, never interpolated.
   assert.match(ARTICLE_PAGE_SQL, /url = ANY\(\$1::text\[\]\)/);
   // Topic is an array overlap, so even one value binds as a one-element array.
@@ -332,6 +334,17 @@ test('public articles view withholds review-held records and truncates body text
   assert.match(viewSql, /public\.tag_topics\b/);
 });
 
+test('both public read paths honour the article exclusion list', () => {
+  // Search reads public.articles directly for its index, so the exclusion has to be
+  // repeated there; dropping it from either file leaves excluded articles reachable.
+  for (const file of ['create-public-articles-view.sql', 'create-search-articles-function.sql']) {
+    const sql = fs.readFileSync(path.join(__dirname, '..', 'sql', file), 'utf8');
+    assert.match(sql, /NOT EXISTS \(\s*SELECT 1 FROM public\.article_exclusions x/, file);
+    assert.match(sql, /x\.title_pattern IS NULL OR a\.title ~\* x\.title_pattern/, file);
+    assert.match(sql, /x\.url_pattern IS NULL OR a\.url ~\* x\.url_pattern/, file);
+  }
+});
+
 test('search validates the query the same way every other filter is validated', () => {
   assert.equal(normalizeQuery('  openai codex  '), 'openai codex');
   assert.equal(normalizeQuery(''), undefined);
@@ -428,6 +441,7 @@ test('the search function reproduces every guarantee the public view makes', () 
   // Same row filter and same excerpt truncation as the view it stands in for.
   assert.match(functionSql, /COALESCE\(a\.needs_review, FALSE\) = FALSE/i);
   assert.match(functionSql, /left\(regexp_replace\(a\.body_text, '\\s\+', ' ', 'g'\), 360\) \|\| '…'/i);
+  assert.match(functionSql, /\bis_lead boolean\b/i);
   // And the same withheld columns.
   assert.doesNotMatch(functionSql, /\bcontent_hash\b|\bmatched_strategy\b|\bflag_reason\b|\braw_html_path\b/i);
 });

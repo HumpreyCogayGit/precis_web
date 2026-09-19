@@ -93,4 +93,40 @@ describe('front page split', () => {
 
     expect(within(section).queryByText('Story 1')).not.toBeInTheDocument();
   });
+
+  test('a flagged matching article becomes lead without also appearing in Latest News', async () => {
+    axios.get.mockImplementation((url) => {
+      if (url.includes('/api/trending')) return Promise.resolve({ data: [] });
+      return Promise.resolve({ data: { items: ITEMS.map((article) => ({
+        ...article,
+        is_lead: article.title === 'Story 9',
+      })), facets: { tags: [], sources: [], topics: [] } } });
+    });
+
+    render(<App />);
+    expect(await screen.findByText('Daily tech brief')).toBeInTheDocument();
+
+    const lead = document.querySelector('.lead-story');
+    expect(within(lead).getByRole('heading', { level: 2 })).toHaveTextContent('Story 9');
+    expect(within(everythingElse()).queryByText('Story 9')).not.toBeInTheDocument();
+    expect(within(everythingElse()).getByText('Story 1')).toBeInTheDocument();
+  });
+
+  test('falls back to the newest matching article when the flagged lead is filtered out', async () => {
+    axios.get.mockImplementation((url) => {
+      if (url.includes('/api/trending')) return Promise.resolve({ data: [] });
+      return Promise.resolve({ data: { items: ITEMS.map((article) => ({
+        ...article,
+        topics: [article.topic],
+        is_lead: article.title === 'Story 9',
+      })), facets: { tags: [], sources: [], topics: [] } } });
+    });
+    window.history.replaceState(null, '', '/?source=nvidia');
+
+    render(<App />);
+    expect(await screen.findByText('Daily tech brief')).toBeInTheDocument();
+
+    expect(within(document.querySelector('.lead-story')).getByRole('heading', { level: 2 }))
+      .toHaveTextContent('Story 1');
+  });
 });
