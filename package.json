@@ -19,6 +19,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@resvg/resvg-wasm": "^2.6.2",
     "@vercel/analytics": "^2.0.1",
     "cors": "^2.8.6",
     "dotenv": "^17.4.2",

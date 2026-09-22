@@ -704,25 +704,56 @@ test('image proxy rejects images larger than configured maximum bytes', async ()
   });
 });
 
-test('image proxy blocks SVG image responses', async () => {
-  await withEnv({ NODE_ENV: 'development' }, async () => {
-    const res = createMockResponse();
-
-    await withMockedDns({
-      'images.example.com': [{ address: '8.8.8.8', family: 4 }],
-    }, async () => {
-      await withMockedFetch(async () => new Response('<svg xmlns="http://www.w3.org/2000/svg"></svg>', {
-        status: 200,
-        headers: { 'content-type': 'image/svg+xml' },
-      }), async () => {
-        await proxyImage(createImageProxyRequest('https://images.example.com/vector.svg'), res, {
-          fetchImpl: global.fetch,
-        });
+async function proxySvg(svg) {
+  const res = createMockResponse();
+  await withMockedDns({
+    'images.example.com': [{ address: '8.8.8.8', family: 4 }],
+  }, async () => {
+    await withMockedFetch(async () => new Response(svg, {
+      status: 200,
+      headers: { 'content-type': 'image/svg+xml' },
+    }), async () => {
+      await proxyImage(createImageProxyRequest('https://images.example.com/vector.svg'), res, {
+        fetchImpl: global.fetch,
       });
     });
+  });
+  return res;
+}
+
+test('image proxy renders SVG to PNG and never serves SVG', async () => {
+  await withEnv({ NODE_ENV: 'development' }, async () => {
+    const res = await proxySvg(
+      '<svg xmlns="http://www.w3.org/2000/svg" width="40" height="20">'
+      + '<script>alert(1)</script><rect width="40" height="20" fill="#c00"/></svg>',
+    );
+
+    assert.equal(res.statusCode, undefined, 'success keeps the default 200');
+    assert.equal(res.headers['content-type'], 'image/png');
+    const body = Buffer.from(res.body);
+    assert.equal(body.slice(1, 4).toString('ascii'), 'PNG');
+    assert.doesNotMatch(body.toString('latin1'), /<script/);
+    // Small figures render at 2x: 80 x 40 in the PNG IHDR.
+    assert.equal(body.readUInt32BE(16), 80);
+    assert.equal(body.readUInt32BE(20), 40);
+  });
+});
+
+test('image proxy caps the size of a rendered SVG', async () => {
+  await withEnv({ NODE_ENV: 'development' }, async () => {
+    const res = await proxySvg('<svg xmlns="http://www.w3.org/2000/svg" width="100000" height="1000"></svg>');
+
+    assert.equal(res.headers['content-type'], 'image/png');
+    assert.equal(Buffer.from(res.body).readUInt32BE(16), 1600);
+  });
+});
+
+test('image proxy rejects an SVG it cannot render', async () => {
+  await withEnv({ NODE_ENV: 'development' }, async () => {
+    const res = await proxySvg('<svg xmlns="http://www.w3.org/2000/svg" width="0" height="0"></svg>');
 
     assert.equal(res.statusCode, 415);
-    assert.match(res.body.error, /SVG images are not supported/);
+    assert.match(res.body.error, /could not be rendered/);
   });
 });
 

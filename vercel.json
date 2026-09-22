@@ -5,7 +5,10 @@
       "src": "api/**/*.js",
       "use": "@vercel/node",
       "config": {
-        "maxDuration": 10
+        "maxDuration": 10,
+        "includeFiles": [
+          "node_modules/@resvg/resvg-wasm/index_bg.wasm"
+        ]
       }
     },
     {
