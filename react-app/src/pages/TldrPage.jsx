@@ -4,10 +4,14 @@ import axios from 'axios';
 
 import SiteFooter from '../components/SiteFooter.jsx';
 import TldrArt from '../components/TldrArt.jsx';
+import TldrExportDialog from '../components/TldrExportDialog.jsx';
 import ThemeToggle from '../components/ThemeToggle.jsx';
 import { buildCardLayout, formatRelativeTime, safeHttpUrl } from '../App.jsx';
 import { formatSiteName } from '../sources';
-import { GridIcon, ListIcon, RowsIcon } from '../icons.jsx';
+import {
+  DocumentIcon, GridIcon, ListIcon, RowsIcon,
+} from '../icons.jsx';
+import { buildFacebookPost, downloadTextFile, exportFileName } from '../tldrExport.js';
 import useRevealOnScroll from '../useRevealOnScroll.js';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL
@@ -147,6 +151,8 @@ const TldrPage = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const tabRefs = useRef({});
   const [view, setView] = useState(readStoredView);
+  // The open export preview, frozen at the moment it was opened: { title, fileName, text }.
+  const [exportPreview, setExportPreview] = useState(null);
 
   const selectView = (nextView) => {
     setView(nextView);
@@ -159,6 +165,19 @@ const TldrPage = () => {
 
   const requestedSlug = searchParams.get('topic');
   const activeSection = SECTIONS.find((section) => section.slug === requestedSlug) ?? SECTIONS[0];
+  const activeDigest = digests?.[activeSection.topic];
+  const canExport = status === 'ready' && itemsOf(activeDigest).length > 0;
+
+  // Shows the open tab's digest as a post ready to paste into a Facebook Group;
+  // the preview's Save button downloads it as a .md file.
+  const previewExport = () => {
+    setExportPreview({
+      kicker: 'Export · Markdown',
+      title: `${activeSection.title} TLDR`,
+      fileName: exportFileName(activeSection.slug, activeDigest?.generated_at),
+      text: buildFacebookPost({ title: activeSection.title, digest: activeDigest, safeUrl: safeHttpUrl }),
+    });
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -256,20 +275,34 @@ const TldrPage = () => {
             })}
           </div>
 
-          <div className="view-toggle" role="group" aria-label="Layout">
-            {VIEWS.map(({ id, label, Icon }) => (
-              <button
-                key={id}
-                type="button"
-                className={`view-toggle-btn${view === id ? ' active' : ''}`}
-                aria-label={label}
-                aria-pressed={view === id}
-                title={label}
-                onClick={() => selectView(id)}
-              >
-                <Icon />
-              </button>
-            ))}
+          <div className="tldr-actions">
+            <button
+              type="button"
+              className="tldr-export-btn"
+              onClick={previewExport}
+              disabled={!canExport}
+              aria-haspopup="dialog"
+              title="Preview this digest as Markdown, formatted for a Facebook Group post, and save it"
+            >
+              <DocumentIcon />
+              <span>Preview MD</span>
+            </button>
+
+            <div className="view-toggle" role="group" aria-label="Layout">
+              {VIEWS.map(({ id, label, Icon }) => (
+                <button
+                  key={id}
+                  type="button"
+                  className={`view-toggle-btn${view === id ? ' active' : ''}`}
+                  aria-label={label}
+                  aria-pressed={view === id}
+                  title={label}
+                  onClick={() => selectView(id)}
+                >
+                  <Icon />
+                </button>
+              ))}
+            </div>
           </div>
         </div>
 
@@ -280,10 +313,18 @@ const TldrPage = () => {
           </p>
         )}
         {status === 'ready' && (
-          <TldrPanel section={activeSection} digest={digests?.[activeSection.topic]} view={view} />
+          <TldrPanel section={activeSection} digest={activeDigest} view={view} />
         )}
       </main>
       <SiteFooter />
+
+      {exportPreview && (
+        <TldrExportDialog
+          {...exportPreview}
+          onSave={() => downloadTextFile(exportPreview.fileName, exportPreview.text)}
+          onClose={() => setExportPreview(null)}
+        />
+      )}
     </div>
   );
 };

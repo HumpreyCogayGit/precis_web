@@ -1329,6 +1329,193 @@ mark.search-hit {
   border-bottom: 2px solid var(--line-dark);
 }
 
+/* Several leads rotate in a carousel. The carousel owns the rule under the lead, so
+   the stories inside it drop theirs. Slides stack in one grid cell: the outgoing and
+   incoming story overlap while they cross, and the cell is as tall as the taller one. */
+.lead-carousel {
+  padding-bottom: 20px;
+  border-bottom: 2px solid var(--line-dark);
+}
+
+.lead-carousel .lead-story {
+  padding-bottom: 0;
+  border-bottom: 0;
+}
+
+.lead-carousel-viewport {
+  display: grid;
+  overflow: hidden;
+}
+
+.lead-slide {
+  grid-area: 1 / 1;
+  min-width: 0;
+  animation-duration: 650ms;
+  animation-timing-function: cubic-bezier(0.22, 0.61, 0.36, 1);
+  animation-fill-mode: both;
+}
+
+.lead-slide.is-leaving {
+  pointer-events: none;
+}
+
+.lead-slide--next.is-active { animation-name: lead-in-from-right; }
+.lead-slide--next.is-leaving { animation-name: lead-out-to-left; }
+.lead-slide--prev.is-active { animation-name: lead-in-from-left; }
+.lead-slide--prev.is-leaving { animation-name: lead-out-to-right; }
+
+/* The incoming copy settles a beat after the slide, line by line. */
+.lead-slide.is-active .lead-copy > * {
+  animation: lead-copy-rise 520ms cubic-bezier(0.22, 0.61, 0.36, 1) both;
+}
+.lead-slide.is-active .lead-copy > :nth-child(2) { animation-delay: 80ms; }
+.lead-slide.is-active .lead-copy > :nth-child(3) { animation-delay: 160ms; }
+.lead-slide.is-active .lead-copy > :nth-child(4) { animation-delay: 240ms; }
+
+@keyframes lead-in-from-right {
+  from { transform: translateX(100%); opacity: 0.2; }
+  to { transform: none; opacity: 1; }
+}
+
+@keyframes lead-out-to-left {
+  from { transform: none; opacity: 1; }
+  to { transform: translateX(-100%); opacity: 0; }
+}
+
+@keyframes lead-in-from-left {
+  from { transform: translateX(-100%); opacity: 0.2; }
+  to { transform: none; opacity: 1; }
+}
+
+@keyframes lead-out-to-right {
+  from { transform: none; opacity: 1; }
+  to { transform: translateX(100%); opacity: 0; }
+}
+
+@keyframes lead-copy-rise {
+  from { transform: translateY(10px); opacity: 0; }
+  to { transform: none; opacity: 1; }
+}
+
+.lead-carousel-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 14px;
+  margin-top: 20px;
+}
+
+.lead-carousel-arrow {
+  display: inline-grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border: 1px solid var(--ink);
+  border-radius: 50%;
+  background: var(--control-bg);
+  color: var(--ink);
+  font-size: 1.125rem;
+  line-height: 1;
+  cursor: pointer;
+  transition: background 160ms ease, color 160ms ease, transform 160ms ease;
+}
+
+.lead-carousel-arrow:hover {
+  background: var(--ink);
+  color: var(--paper);
+}
+
+.lead-carousel-arrow:active {
+  transform: scale(0.94);
+}
+
+.lead-carousel-dots {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* Each dot is a 28px-wide bar inside a 44px-tall hit area. */
+.lead-carousel-dot {
+  position: relative;
+  width: 28px;
+  height: 44px;
+  border: 0;
+  padding: 0;
+  background: none;
+  cursor: pointer;
+  transition: width 260ms ease;
+}
+
+.lead-carousel-dot::before {
+  content: "";
+  position: absolute;
+  inset: 20px 0;
+  border-radius: 2px;
+  background: var(--neutral-300);
+  transition: background 160ms ease;
+}
+
+.lead-carousel-dot:hover::before {
+  background: var(--neutral-400);
+}
+
+.lead-carousel-dot.is-active {
+  width: 56px;
+}
+
+/* The active bar fills over the rotation interval, showing when the next story lands. */
+.lead-carousel-progress {
+  position: absolute;
+  inset: 20px 0;
+  border-radius: 2px;
+  background: var(--accent);
+  transform-origin: left center;
+  animation-name: lead-progress;
+  animation-timing-function: linear;
+  animation-fill-mode: both;
+}
+
+.lead-carousel.is-holding .lead-carousel-progress {
+  animation: none;
+  transform: scaleX(1);
+  opacity: 0.45;
+}
+
+@keyframes lead-progress {
+  from { transform: scaleX(0); }
+  to { transform: scaleX(1); }
+}
+
+.lead-carousel-pause {
+  min-height: 44px;
+  margin-left: auto;
+  border: 0;
+  padding: 0 4px;
+  background: none;
+  color: var(--muted);
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.lead-carousel-pause:hover {
+  color: var(--ink);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  /* A near-zero duration still fires animationend, which retires the outgoing slide. */
+  .lead-slide {
+    animation-duration: 1ms;
+  }
+
+  .lead-slide.is-active .lead-copy > * {
+    animation: none;
+  }
+}
+
 .lead-image-link {
   display: block;
   overflow: hidden;
@@ -2181,6 +2368,9 @@ mark.search-hit {
 .active-filter-clear:focus-visible,
 .empty-state-back:focus-visible,
 .view-toggle-btn:focus-visible,
+.tldr-export-btn:focus-visible,
+.tldr-export-dialog-save:focus-visible,
+.tldr-export-dialog-close:focus-visible,
 .page-size-select select:focus-visible,
 .site-header a:focus-visible,
 .filters-button:focus-visible,
@@ -2704,8 +2894,152 @@ mark.search-hit {
   gap: 12px;
 }
 
-.tldr-controls .view-toggle {
+.tldr-actions {
+  display: inline-flex;
   flex-shrink: 0;
+  align-items: center;
+  gap: 8px;
+}
+
+.tldr-export-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--control-bg);
+  color: var(--muted);
+  font: inherit;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 160ms ease, color 160ms ease;
+}
+
+.tldr-export-btn:hover:not(:disabled) {
+  color: var(--ink);
+  background: var(--control-bg-hover);
+}
+
+.tldr-export-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Export preview: a centred modal showing the Markdown post before it is saved. */
+.tldr-export-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  background: var(--scrim);
+}
+
+.tldr-export-dialog {
+  position: fixed;
+  z-index: 31;
+  top: 50%;
+  left: 50%;
+  display: flex;
+  width: min(960px, calc(100vw - 32px));
+  height: min(880px, calc(100vh - 48px));
+  flex-direction: column;
+  border: 1px solid var(--line);
+  background: var(--paper);
+  box-shadow: 0 24px 64px var(--shadow-elevated);
+  transform: translate(-50%, -50%);
+}
+
+/* The page masthead in miniature: kicker and heavy headline. */
+.tldr-export-dialog-head {
+  flex-shrink: 0;
+  margin: 0 clamp(16px, 3vw, 32px);
+  padding: clamp(18px, 3vw, 28px) 0 4px;
+}
+
+.tldr-export-dialog-title {
+  margin: 6px 0 8px;
+  font-size: clamp(1.75rem, 4vw, 2.5rem);
+  font-weight: 900;
+  letter-spacing: -0.03em;
+  line-height: 1;
+}
+
+.tldr-export-dialog-file {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.tldr-export-dialog-text {
+  flex: 1;
+  min-height: 0;
+  margin: 0;
+  border: none;
+  padding: 20px clamp(16px, 3vw, 32px);
+  background: var(--paper);
+  color: var(--ink-soft);
+  font: inherit;
+  font-size: 0.9375rem;
+  line-height: 1.6;
+  resize: none;
+  white-space: pre-wrap;
+}
+
+.tldr-export-dialog-text:focus {
+  outline: none;
+}
+
+.tldr-export-dialog-footer {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 10px;
+  margin: 0 clamp(16px, 3vw, 32px);
+  padding: 14px 0 clamp(18px, 3vw, 24px);
+}
+
+.tldr-export-dialog-save {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: none;
+  border-radius: var(--radius);
+  padding: 10px 16px;
+  color: var(--on-accent);
+  background: var(--accent);
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.085em;
+  text-transform: uppercase;
+  transition: background-color 160ms ease;
+}
+
+.tldr-export-dialog-save:hover {
+  background: var(--accent-600);
+}
+
+.tldr-export-dialog-close {
+  margin-left: auto;
+  border: none;
+  background: none;
+  padding: 0 4px;
+  color: var(--accent-dark);
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.085em;
+  text-transform: uppercase;
+}
+
+.tldr-export-dialog-close:hover {
+  color: var(--accent-900);
 }
 
 /* Layout toggle variants. The bare .tldr-item rules above are the "list" layout

@@ -6,6 +6,7 @@ import { createPortal } from 'react-dom';
 import axios from 'axios';
 import FilterPanel from './FilterPanel.jsx';
 import SiteFooter from './components/SiteFooter.jsx';
+import LeadCarousel from './components/LeadCarousel.jsx';
 import ThemeToggle from './components/ThemeToggle.jsx';
 import TrendingSection, { ALL_TRENDS_KEY } from './components/TrendingSection.jsx';
 import useTopicTrends from './useTopicTrends.js';
@@ -57,6 +58,8 @@ const TOP_STORIES_COUNT = 5;
 // Matches blogscraper/taxonomy.py TOPICS -- the only two subjects a digest exists
 // for. Order here decides the order the masthead topic pills render in.
 const TOPIC_SLUGS = ['AI', 'Cyber Security'];
+// Topics that carry editor-picked leads (article_leads in the content database).
+const LEAD_TOPICS = ['AI', 'Cyber Security'];
 // The trending endpoint's own default depth (see DEFAULT_LIMIT in lib/trending.js)
 // — deep enough that filtering the pool down to one topic still leaves plenty of
 // ranked candidates to fill Top Stories from.
@@ -1411,13 +1414,14 @@ function App() {
     expanded: Boolean(expandedGroups[group.key]),
   }));
 
-  // Only the lead gets pulled above the fold now; everything else — including the
+  // Only the leads get pulled above the fold now; everything else — including the
   // five briefs that used to run under "Previous stories" — flows straight into
-  // Latest News. A single slot has no diversity to preserve, so this is a
-  // article flagged for the selected topic when it matches the active filters, with
-  // AI as the default edition and the newest matching article as fallback. Remove by
-  // identity rather than position so it cannot be
-  // duplicated in Latest News when the flagged lead is not the newest row.
+  // Latest News. The leads are every article flagged for the selected topic that
+  // matches the active filters (newest first; the carousel rotates through them).
+  // With no single topic selected, the AI and Cyber Security leads rotate together;
+  // the newest matching article is the fallback when nothing is flagged.
+  // Remove by identity rather than position so a lead cannot be duplicated in
+  // Latest News when it is not among the newest rows.
   //
   // A search is not an edition, so it does not get a front page: promoting one hit
   // to a hero would be the app making an editorial claim about a list the reader
@@ -1427,23 +1431,60 @@ function App() {
     () => (isSearching
       ? { top: [], rest: sortedArticles }
       : (() => {
-        const leadTopic = applied.topics.length === 1 ? applied.topics[0] : 'AI';
-        const lead = sortedArticles.find((article) => (
-          Array.isArray(article.lead_topics) && article.lead_topics.includes(leadTopic)
-        )) || sortedArticles.find((article) => (
-          article.is_lead && !Array.isArray(article.lead_topics)
-        )) || sortedArticles[0];
+        const leadTopics = applied.topics.length === 1 ? applied.topics : LEAD_TOPICS;
+        let leads = sortedArticles.filter((article) => (
+          Array.isArray(article.lead_topics)
+          && article.lead_topics.some((topic) => leadTopics.includes(topic))
+        ));
+        if (leads.length === 0) {
+          leads = sortedArticles.filter((article) => (
+            article.is_lead && !Array.isArray(article.lead_topics)
+          ));
+        }
+        if (leads.length === 0 && sortedArticles.length > 0) leads = [sortedArticles[0]];
+        const leadSet = new Set(leads);
         return {
-          top: lead ? [lead] : [],
-          rest: lead ? sortedArticles.filter((article) => article !== lead) : [],
+          top: leads,
+          rest: sortedArticles.filter((article) => !leadSet.has(article)),
         };
       })()),
     [sortedArticles, isSearching, applied.topics],
   );
 
-  const leadArticle = frontPageArticles[0];
-  const leadArticleUrl = safeHttpUrl(leadArticle?.url);
-  const leadImage = <ArticleImage key={leadArticle?.url} article={leadArticle} />;
+  const renderLeadStory = (leadArticle) => {
+    const leadArticleUrl = safeHttpUrl(leadArticle.url);
+    const leadImage = <ArticleImage key={leadArticle.url} article={leadArticle} />;
+    return (
+      <article className="lead-story">
+        <div className="lead-media">
+          {leadArticleUrl ? (
+            <a href={leadArticleUrl} target="_blank" rel="noopener noreferrer" className="lead-image-link" aria-label={`Open ${leadArticle.title}`}>
+              {leadImage}
+            </a>
+          ) : (
+            <div className="lead-image-link" aria-hidden="true">{leadImage}</div>
+          )}
+        </div>
+        <div className="lead-copy">
+          <div className="lead-meta">
+            <span className="lead-byline">Source: {formatSiteName(leadArticle.site)} &middot; {formatRelativeTime(getArticleTimestamp(leadArticle))}</span>
+          </div>
+          <h2 className="lead-headline"><SafeArticleTitle article={leadArticle} /></h2>
+          {getLeadSummaryText(leadArticle) && (
+            <p className="lead-summary"><Highlight text={getLeadSummaryText(leadArticle)} /></p>
+          )}
+          <div className="lead-actions">
+            {leadArticleUrl && (
+              <a className="btn-secondary" href={leadArticleUrl} target="_blank" rel="noopener noreferrer">
+                Read at {formatSiteName(leadArticle.site)}
+              </a>
+            )}
+            <SaveAffordance />
+          </div>
+        </div>
+      </article>
+    );
+  };
 
   // Top Stories respects the same active filter as the rest of the edition — a
   // Topics selection (AI vs Cyber Security, say) narrows it exactly like it
@@ -1843,36 +1884,14 @@ function App() {
       {sortedArticles.length > 0 ? (
         <>
           <div className="edition-main">
-            {leadArticle && (
-              <article className="lead-story">
-                <div className="lead-media">
-                  {leadArticleUrl ? (
-                    <a href={leadArticleUrl} target="_blank" rel="noopener noreferrer" className="lead-image-link" aria-label={`Open ${leadArticle.title}`}>
-                      {leadImage}
-                    </a>
-                  ) : (
-                    <div className="lead-image-link" aria-hidden="true">{leadImage}</div>
-                  )}
-                </div>
-                <div className="lead-copy">
-                  <div className="lead-meta">                   
-                    <span className="lead-byline">Source: {formatSiteName(leadArticle.site)} &middot; {formatRelativeTime(getArticleTimestamp(leadArticle))}</span>
-                  </div>
-                  <h2 className="lead-headline"><SafeArticleTitle article={leadArticle} /></h2>
-                  {getLeadSummaryText(leadArticle) && (
-                    <p className="lead-summary"><Highlight text={getLeadSummaryText(leadArticle)} /></p>
-                  )}
-                  <div className="lead-actions">
-                    {leadArticleUrl && (
-                      <a className="btn-secondary" href={leadArticleUrl} target="_blank" rel="noopener noreferrer">
-                        Read at {formatSiteName(leadArticle.site)}
-                      </a>
-                    )}
-                    <SaveAffordance />
-                  </div>
-                </div>
-              </article>
-            )}
+            {/* Keyed on the topic selection, so switching topic starts that set at its first
+                story, while leads arriving with later pages leave the current story alone. */}
+            <LeadCarousel
+              key={applied.topics.length === 1 ? applied.topics[0] : 'all'}
+              items={frontPageArticles}
+              getKey={(article) => article.url}
+              renderItem={renderLeadStory}
+            />
 
             {/* Rising Now sits under the lead story, above Top Stories. It follows the topic
                 filter: a single topic narrows it to that topic's categories, and no topic

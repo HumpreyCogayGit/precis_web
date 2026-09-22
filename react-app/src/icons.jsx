@@ -84,3 +84,22 @@ export const TuneIcon = () => (
     <circle cx="10" cy="18" r="2" fill="currentColor" stroke="none" />
   </svg>
 );
+
+// Tray with a downward arrow: save the current digest as a file.
+export const DownloadIcon = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true">
+    <path d="M12 3v12" />
+    <path d="m7 10 5 5 5-5" />
+    <path d="M5 21h14" />
+  </svg>
+);
+
+// Page with ruled lines: open the digest's Markdown export for a look first.
+export const DocumentIcon = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true">
+    <path d="M14 3H6v18h12V7z" />
+    <path d="M14 3v4h4" />
+    <path d="M9 12h6" />
+    <path d="M9 16h6" />
+  </svg>
+);

@@ -125,6 +125,31 @@ test('article pages carry the paging cursor and whole-working-set facets', async
   assert.deepEqual(shared.items.map((item) => item.title), ['other/u1']);
 });
 
+test('the first page carries leads from further down so the lead carousel is whole at first paint', async () => {
+  const rows = INDEX_ROWS.map((row, i) => ({
+    ...row,
+    lead_topics: i === 4 ? ['Cyber Security'] : [],
+  }));
+  reset((text, params) => {
+    if (/url = ANY/.test(text)) {
+      return {
+        rows: rows
+          .filter((row) => params[0].includes(row.url))
+          .map((row) => ({ ...row, title: `${row.site}/${row.url}` })),
+      };
+    }
+    return { rows };
+  });
+
+  const first = await fetchArticles({ limit: 2, offset: 0, site: 'paging-leads' });
+  assert.deepEqual(first.items.map((item) => item.title), ['nvidia/u0', 'nvidia/u1', 'nvidia/u4']);
+  // The cursor still counts only the page itself, so the lead also arrives in its own page.
+  assert.equal(first.next_offset, 2);
+
+  const later = await fetchArticles({ limit: 2, offset: 2, site: 'paging-leads' });
+  assert.deepEqual(later.items.map((item) => item.title), ['nvidia/u2', 'other/u1']);
+});
+
 test('page requests for the same filter reuse one index query', async () => {
   reset(articlesResponder);
 

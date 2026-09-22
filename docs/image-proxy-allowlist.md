@@ -152,13 +152,14 @@ New multi-tenant CDNs among the above (same shared-bucket caveat as the section 
 `cdn.builder.io`, `ik.imagekit.io`, `eu-images.contentstack.com`, `img.shields.io`, the `*.r2.dev`
 (Cloudflare R2) tenant, and the `*.public.blob.vercel-storage.com` tenant.
 
-**Known config bug — `sakana_ai`.** ~4 of 5 sakana posts store a root-relative image path
-(`/assets/<slug>/thumbnail.jpg`) because the extractor's `article img[src^='/assets/']` selector
-returns the `src` verbatim and `extract.engine` does not absolutize non-meta image srcs (unlike link
-discovery). The proxy rejects a relative URL (`400 invalid_url`), so those cards fall back to
-generated art regardless of the allowlist. `sakana.ai` is listed for the one post whose image came
-from `og:image`. Fix options (separate task): absolutize image src in `extract.engine`, or reorder
-sakana's `image_selectors` to prefer `og:image` (a single generic site card for every post).
+**Fixed 2026-09-22 — relative image paths (`sakana_ai`, `xiaomi_mimo`).** `extract.engine` now
+resolves every `image_url` against the article URL (and drops values that cannot become an absolute
+http(s) URL), so root-relative srcs like sakana's `/assets/<slug>/thumbnail.jpg` and MiMo's
+`/mimo-v2-6/assets/...` reach the proxy as absolute URLs. Rows scraped before the fix keep their old
+value until the site is re-run with `--reprocess-seen`.
+
+**`xiaomi_mimo`** needs two entries: `mimo.xiaomi.com` (most post images) and `xiaomimimo.com`
+(covers `aistudio-cdn.xiaomimimo.com`, used by the V2.5 ASR/TTS posts).
 
 ### Merged value (93 entries) — drop-in replacement for `IMAGE_PROXY_ALLOWED_HOSTS`
 

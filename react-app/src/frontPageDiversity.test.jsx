@@ -1,4 +1,4 @@
-import { render, screen, within } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import App from './App.jsx';
 import { buildVocabulary } from './filters';
@@ -153,5 +153,61 @@ describe('front page split', () => {
 
     expect(within(document.querySelector('.lead-story')).getByRole('heading', { level: 2 }))
       .toHaveTextContent('Story 10');
+  });
+
+  test('several leads for the topic rotate in a carousel and all leave Latest News', async () => {
+    const leads = ['Story 9', 'Story 11', 'Story 13'];
+    axios.get.mockImplementation((url) => {
+      if (url.includes('/api/trending')) return Promise.resolve({ data: [] });
+      return Promise.resolve({ data: { items: ITEMS.map((article) => ({
+        ...article,
+        is_lead: leads.includes(article.title),
+        lead_topics: leads.includes(article.title) ? ['AI'] : [],
+      })), facets: { tags: [], sources: [], topics: [] } } });
+    });
+
+    render(<App />);
+    expect(await screen.findByText('Daily tech brief')).toBeInTheDocument();
+
+    const carousel = screen.getByRole('region', { name: 'Lead stories' });
+    const activeHeadline = () => within(carousel.querySelector('.lead-slide.is-active'))
+      .getByRole('heading', { level: 2 });
+    expect(activeHeadline()).toHaveTextContent('Story 9');
+    for (const title of leads) {
+      expect(within(everythingElse()).queryByText(title)).not.toBeInTheDocument();
+    }
+
+    fireEvent.click(within(carousel).getByRole('button', { name: 'Next lead story' }));
+    expect(activeHeadline()).toHaveTextContent('Story 11');
+    fireEvent.click(within(carousel).getByRole('button', { name: 'Previous lead story' }));
+    fireEvent.click(within(carousel).getByRole('button', { name: 'Previous lead story' }));
+    expect(activeHeadline()).toHaveTextContent('Story 13');
+  });
+
+  test('with no topic selected, AI and Cyber Security leads rotate together', async () => {
+    const mixedItems = ITEMS.map((article) => ({
+      ...article,
+      topic: article.title === 'Story 10' ? 'Cyber Security' : 'AI',
+      topics: [article.title === 'Story 10' ? 'Cyber Security' : 'AI'],
+      is_lead: ['Story 9', 'Story 10'].includes(article.title),
+      lead_topics: article.title === 'Story 9'
+        ? ['AI']
+        : article.title === 'Story 10' ? ['Cyber Security'] : [],
+    }));
+    axios.get.mockImplementation((url) => {
+      if (url.includes('/api/trending')) return Promise.resolve({ data: [] });
+      return Promise.resolve({ data: { items: mixedItems, facets: { tags: [], sources: [], topics: [] } } });
+    });
+
+    render(<App />);
+    expect(await screen.findByText('Daily tech brief')).toBeInTheDocument();
+
+    const carousel = screen.getByRole('region', { name: 'Lead stories' });
+    const activeHeadline = () => within(carousel.querySelector('.lead-slide.is-active'))
+      .getByRole('heading', { level: 2 });
+    expect(activeHeadline()).toHaveTextContent('Story 9');
+    fireEvent.click(within(carousel).getByRole('button', { name: 'Next lead story' }));
+    expect(activeHeadline()).toHaveTextContent('Story 10');
+    expect(within(everythingElse()).queryByText('Story 10')).not.toBeInTheDocument();
   });
 });
