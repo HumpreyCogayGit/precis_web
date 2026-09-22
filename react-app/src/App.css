@@ -4262,7 +4262,7 @@ mark.search-hit {
 /* The header is a full-bleed band; its content lines up with the page column. */
 .site-header {
   width: 100%;
-  min-height: 72px;
+  min-height: 56px;
   border-bottom: 0;
   padding-inline: max(clamp(16px, 3vw, 40px), calc((100% - var(--max-width)) / 2));
   color: var(--masthead-ink);
@@ -4376,7 +4376,7 @@ mark.search-hit {
 
 .edition-main {
   border-top: 0;
-  padding-top: clamp(24px, 3vw, 36px);
+  padding-top: clamp(14px, 1.6vw, 20px);
 }
 
 /* --- Framed panels ------------------------------------------------------ */
@@ -4395,8 +4395,15 @@ mark.search-hit {
   display: grid;
   grid-template-columns: minmax(0, 1.45fr) minmax(340px, 1fr);
   align-items: stretch;
-  gap: 32px;
+  gap: 20px;
   margin-bottom: 8px;
+}
+
+/* Above the fold the two panels are read as one band, so they run tighter than a
+   standalone frame: the side padding still lines the content up with the page
+   column, but the block padding is cut back so the band is not mostly air. */
+.edition-top > .frame {
+  padding-block: clamp(14px, 1.4vw, 18px);
 }
 
 /* Either panel alone takes the whole row. */
@@ -4408,6 +4415,10 @@ mark.search-hit {
 
 .edition-top .lead-carousel {
   position: relative;
+  /* The strip of dashes overlays the right of the actions row, so the row reserves
+     exactly this much and the strip is bounded by the same figure. One number, so a
+     lead count the design never anticipated cannot walk the dashes over the button. */
+  --lead-controls-width: 320px;
   padding-bottom: 0;
   border-bottom: 0;
 }
@@ -4420,17 +4431,15 @@ mark.search-hit {
   border-bottom: 0;
 }
 
+/* The byline is the row's only content now that the kicker is gone, so it centres
+   over the story rather than hanging off one edge. */
 .lead-meta {
-  justify-content: space-between;
+  justify-content: center;
   color: var(--muted);
   font-size: 0.8125rem;
   font-weight: 600;
   letter-spacing: 0.16em;
   text-transform: uppercase;
-}
-
-.lead-kicker {
-  color: var(--muted);
 }
 
 .lead-byline {
@@ -4503,7 +4512,7 @@ mark.search-hit {
   min-height: 48px;
   margin-top: 4px;
   /* Leaves room for the carousel's controls, which sit at the right of this row. */
-  padding-right: 320px;
+  padding-right: var(--lead-controls-width, 320px);
 }
 
 .btn-primary {
@@ -4544,6 +4553,7 @@ mark.search-hit {
   position: absolute;
   right: 0;
   bottom: 2px;
+  max-width: var(--lead-controls-width);
   flex-wrap: nowrap;
   gap: 4px;
   margin-top: 0;
@@ -4555,13 +4565,19 @@ mark.search-hit {
   display: none;
 }
 
+/* The count is editorial, not fixed: "All" rotates the AI and Cyber Security leads
+   together, so the strip has to hold twice what one topic shows. The dashes shrink
+   to share whatever the reservation leaves rather than growing past it. */
 .edition-top .lead-carousel-dots {
+  min-width: 0;
   gap: 6px;
 }
 
 .edition-top .lead-carousel-dot,
 .edition-top .lead-carousel-dot.is-active {
+  flex: 0 1 30px;
   width: 30px;
+  min-width: 8px;
 }
 
 .edition-top .lead-carousel-dot::before,
@@ -4575,6 +4591,7 @@ mark.search-hit {
 }
 
 .edition-top .lead-carousel-pause {
+  flex: none;
   min-height: 32px;
   margin-left: 6px;
   font-size: 0.6875rem;
@@ -4584,7 +4601,7 @@ mark.search-hit {
 
 .edition-top .topic-trends {
   display: block;
-  padding-block: clamp(20px, 2.4vw, 32px);
+  padding-block: clamp(14px, 1.4vw, 18px);
 }
 
 .edition-top .topic-trend {

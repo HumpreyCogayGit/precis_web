@@ -61,6 +61,19 @@ const TOP_STORIES_COUNT = 5;
 const TOPIC_SLUGS = ['AI', 'Cyber Security'];
 // Topics that carry editor-picked leads (article_leads in the content database).
 const LEAD_TOPICS = ['AI', 'Cyber Security'];
+
+// Lead priority is editorial and topic-specific. The public view exposes the
+// existing article_leads.selected_at values as a topic -> timestamp object; newer
+// values come first. Taking the newest relevant selection also gives a stable,
+// useful order on the combined home view when an article belongs to both topics.
+const getLeadPriority = (article, topics) => {
+  const selectedAt = article.lead_selected_at;
+  if (!selectedAt || Array.isArray(selectedAt) || typeof selectedAt !== 'object') return 0;
+  return topics.reduce((priority, topic) => {
+    const timestamp = Date.parse(selectedAt[topic]);
+    return Number.isFinite(timestamp) ? Math.max(priority, timestamp) : priority;
+  }, 0);
+};
 // The trending endpoint's own default depth (see DEFAULT_LIMIT in lib/trending.js)
 // — deep enough that filtering the pool down to one topic still leaves plenty of
 // ranked candidates to fill Top Stories from.
@@ -663,8 +676,13 @@ export const formatStoryTime = (article, now = new Date()) => {
     return '';
   }
   const date = new Date(timestamp);
-  const dateOnly = DATE_ONLY_RE.test(String(article.published_at ?? '').trim());
-  if (!dateOnly && date.toDateString() === now.toDateString()) {
+  const publishedText = String(article.published_at ?? '').trim();
+  const dateOnly = DATE_ONLY_RE.test(publishedText);
+  // Undated: the timestamp is the scrape instant standing in for a publication date
+  // (see articleTimestamp). The day is all it is evidence for, so a story scraped
+  // today shows "23 Sep" rather than a clock time it never published at.
+  const undated = publishedText === '';
+  if (!dateOnly && !undated && date.toDateString() === now.toDateString()) {
     return date.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false });
   }
   // en-US for the three-letter month ("Sep", not en-GB's "Sept"), day first.
@@ -1473,7 +1491,7 @@ function App() {
   // Only the leads get pulled above the fold now; everything else — including the
   // five briefs that used to run under "Previous stories" — flows straight into
   // Latest News. The leads are every article flagged for the selected topic that
-  // matches the active filters (newest first; the carousel rotates through them).
+  // matches the active filters (editorial priority first; the carousel rotates through them).
   // With no single topic selected, the AI and Cyber Security leads rotate together;
   // the newest matching article is the fallback when nothing is flagged.
   // Remove by identity rather than position so a lead cannot be duplicated in
@@ -1491,6 +1509,10 @@ function App() {
         let leads = sortedArticles.filter((article) => (
           Array.isArray(article.lead_topics)
           && article.lead_topics.some((topic) => leadTopics.includes(topic))
+        )).sort((a, b) => (
+          getLeadPriority(b, leadTopics) - getLeadPriority(a, leadTopics)
+          || getArticleTimestamp(b) - getArticleTimestamp(a)
+          || String(a.url).localeCompare(String(b.url))
         ));
         if (leads.length === 0) {
           leads = sortedArticles.filter((article) => (
@@ -1507,16 +1529,14 @@ function App() {
     [sortedArticles, isSearching, applied.topics],
   );
 
-  const renderLeadStory = (leadArticle, index = 0) => {
+  const renderLeadStory = (leadArticle) => {
     const leadArticleUrl = safeHttpUrl(leadArticle.url);
     const leadImage = <ArticleImage key={leadArticle.url} article={leadArticle} />;
-    const leadCount = frontPageArticles.length;
     return (
       <article className="lead-story">
+        {/* No "Lead · 2 of 7" kicker: the dashes already show the position, and each
+            slide still carries it in its aria-label for anyone not seeing them. */}
         <div className="lead-meta">
-          <span className="lead-kicker">
-            Lead{leadCount > 1 ? ` · ${index + 1} of ${leadCount}` : ''}
-          </span>
           <span className="lead-byline">{formatSiteName(leadArticle.site)} &middot; {formatRelativeTime(getArticleTimestamp(leadArticle))}</span>
         </div>
         <div className="lead-body">

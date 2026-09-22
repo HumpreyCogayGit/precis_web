@@ -59,7 +59,11 @@ function legacySort(articles) {
     return 0;
   };
 
-  return [...articles].sort((a, b) => (articleTimestamp(b) - articleTimestamp(a))
+  // An article with no usable published_at is dated by its scrape instead of sorting
+  // as 0 and sinking below the whole archive.
+  const sortKey = (article) => articleTimestamp(article) || parse(article.fetched_at);
+
+  return [...articles].sort((a, b) => (sortKey(b) - sortKey(a))
     || (parse(b.fetched_at) - parse(a.fetched_at)));
 }
 
@@ -75,6 +79,10 @@ test('precomputed sort orders articles exactly as the per-comparison sort did', 
   ];
 
   assert.deepEqual(sortArticlesNewestFirst(articles).map((a) => a.url), legacySort(articles).map((a) => a.url));
+  // Spelled out, so the rule is visible and not merely self-consistent: e and c carry no
+  // published_at and take their scrape date (Sep 6, Sep 5), f and d share Sep 4 and split
+  // on the fetch, and g -- no date of either kind -- is the only one left undated.
+  assert.deepEqual(sortArticlesNewestFirst(articles).map((a) => a.url), ['e', 'c', 'f', 'd', 'a', 'b', 'g']);
   // Sorting returns a new array and leaves the input alone.
   assert.equal(articles[0].url, 'a');
 });

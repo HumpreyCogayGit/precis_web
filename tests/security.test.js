@@ -231,6 +231,8 @@ test('article list queries use the public view and expose only public fields', (
   assert.match(ARTICLE_PAGE_SQL, /\bis_lead\b/i);
   assert.match(built.text, /\blead_topics\b/i);
   assert.match(ARTICLE_PAGE_SQL, /\blead_topics\b/i);
+  assert.match(built.text, /\blead_selected_at\b/i);
+  assert.match(ARTICLE_PAGE_SQL, /\blead_selected_at\b/i);
   // The page query binds its URLs as one array parameter, never interpolated.
   assert.match(ARTICLE_PAGE_SQL, /url = ANY\(\$1::text\[\]\)/);
   // Topic is an array overlap, so even one value binds as a one-element array.
@@ -334,6 +336,8 @@ test('public articles view withholds review-held records and truncates body text
   // The derived rollup, appended last so CREATE OR REPLACE keeps the view's grants.
   assert.match(viewSql, /\bAS topics\b/);
   assert.match(viewSql, /public\.tag_topics\b/);
+  assert.match(viewSql, /jsonb_object_agg\(l\.topic, l\.selected_at/i);
+  assert.match(viewSql, /\bAS lead_selected_at\b/i);
 });
 
 test('both public read paths honour the article exclusion list', () => {

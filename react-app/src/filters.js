@@ -228,9 +228,17 @@ export const articleTimestamp = (article) => {
   // is a bad extraction (OpenAI's "September 14, 2026" stored on a Sep 12 fetch), and
   // left alone it pins the story to the lead slot reading "Just now" until the
   // calendar catches up. Clamp to the fetch instant instead.
+  //
+  // With no published_at at all the scrape instant stands in for it. Some pages carry
+  // no date anywhere in their markup (anthropic.com's threat intelligence reports), and
+  // a blank cell in Top Stories reads as a bug. The fetch is an upper bound on the real
+  // publication date, never earlier than it, so the story sorts and filters close to
+  // where it belongs instead of dropping out of every dated view.
   const published = parseDateTimestamp(article.published_at);
   const fetched = parseDateTimestamp(article.fetched_at);
-  const timestamp = published && fetched && published > fetched ? fetched : published;
+  const timestamp = published
+    ? (fetched && published > fetched ? fetched : published)
+    : fetched;
   timestampCache.set(article, timestamp);
   return timestamp;
 };

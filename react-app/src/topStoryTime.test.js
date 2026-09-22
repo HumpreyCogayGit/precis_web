@@ -24,4 +24,10 @@ describe('Top Stories time column', () => {
   test('no usable timestamp shows nothing', () => {
     expect(formatStoryTime({}, now)).toBe('');
   });
+
+  test('an undated story shows the day it was scraped, never a clock time', () => {
+    const scraped = new Date(2026, 8, 22, 17, 3);
+    expect(formatStoryTime({ published_at: null, fetched_at: scraped.toISOString() }, now))
+      .toBe('22 Sep');
+  });
 });

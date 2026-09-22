@@ -202,8 +202,19 @@ describe('article timestamp', () => {
     expect(articleTimestamp(dated)).toBe(at('2026-09-11T00:00:00.000'));
   });
 
-  test('a missing fetched_at does not clamp, and a missing published_at stays undated', () => {
+  test('a missing fetched_at does not clamp', () => {
     expect(articleTimestamp({ published_at: 'September 14, 2026' })).toBe(at('2026-09-14T00:00:00.000'));
-    expect(articleTimestamp({ published_at: null, fetched_at: '2026-09-12T04:01:48.909Z' })).toBe(0);
+  });
+
+  test('a missing published_at falls back to the scrape instant', () => {
+    // anthropic.com's threat intelligence reports carry no date in their markup at all.
+    expect(articleTimestamp({ published_at: null, fetched_at: '2026-09-12T04:01:48.909Z' }))
+      .toBe(Date.parse('2026-09-12T04:01:48.909Z'));
+    expect(articleTimestamp({ published_at: '   ', fetched_at: '2026-09-12T04:01:48.909Z' }))
+      .toBe(Date.parse('2026-09-12T04:01:48.909Z'));
+  });
+
+  test('neither date leaves the article undated', () => {
+    expect(articleTimestamp({ published_at: null, fetched_at: null })).toBe(0);
   });
 });

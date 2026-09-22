@@ -105,7 +105,13 @@ SELECT
     ARRAY(SELECT l.topic FROM public.article_leads l
           WHERE l.article_url = a.url ORDER BY l.topic),
     '{}'::text[]
-  ) AS lead_topics
+  ) AS lead_topics,
+  COALESCE(
+    (SELECT jsonb_object_agg(l.topic, l.selected_at ORDER BY l.topic)
+       FROM public.article_leads l
+      WHERE l.article_url = a.url),
+    '{}'::jsonb
+  ) AS lead_selected_at
 FROM public.articles a
 WHERE COALESCE(a.needs_review, FALSE) = FALSE
   -- Per-source kill switch. A row in hidden_sites withholds that source's whole

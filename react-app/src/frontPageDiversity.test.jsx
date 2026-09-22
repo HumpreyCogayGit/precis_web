@@ -184,6 +184,28 @@ describe('front page split', () => {
     expect(activeHeadline()).toHaveTextContent('Story 13');
   });
 
+  test('editorial lead priority decides which story appears first', async () => {
+    const leads = ['Story 9', 'Story 11', 'Story 13'];
+    axios.get.mockImplementation((url) => {
+      if (url.includes('/api/trending')) return Promise.resolve({ data: [] });
+      return Promise.resolve({ data: { items: ITEMS.map((article) => ({
+        ...article,
+        is_lead: leads.includes(article.title),
+        lead_topics: leads.includes(article.title) ? ['AI'] : [],
+        lead_selected_at: leads.includes(article.title) ? {
+          AI: article.title === 'Story 13' ? '2026-09-23T03:00:00Z' : '2026-09-22T03:00:00Z',
+        } : {},
+      })), facets: { tags: [], sources: [], topics: [] } } });
+    });
+
+    render(<App />);
+    expect(await screen.findByRole('heading', { name: 'Top Stories' })).toBeInTheDocument();
+
+    const carousel = screen.getByRole('region', { name: 'Lead stories' });
+    expect(within(carousel.querySelector('.lead-slide.is-active'))
+      .getByRole('heading', { level: 2 })).toHaveTextContent('Story 13');
+  });
+
   test('with no topic selected, AI and Cyber Security leads rotate together', async () => {
     const mixedItems = ITEMS.map((article) => ({
       ...article,
