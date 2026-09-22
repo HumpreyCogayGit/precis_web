@@ -89,7 +89,7 @@ describe('date filter bar', () => {
   test('opens on All, showing date counts without a right-side working-set count', async () => {
     render(<App />);
 
-    // Scoped to the date row: the masthead's topic tabs have an All button too.
+    // Scoped to the date row: the Top Stories topic pills have an All button too.
     await screen.findByRole('group', { name: 'Filter briefs by date' });
     const all = chip('All');
     expect(all).toHaveAttribute('aria-pressed', 'true');
@@ -200,7 +200,7 @@ describe('date filter bar', () => {
     render(<App />);
     await screen.findByRole('group', { name: 'Filter briefs by date' });
 
-    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('September 2 – September 7');
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('2 Sep – 7 Sep');
   });
 });
 

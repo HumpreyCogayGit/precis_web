@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700;800&family=Barlow+Condensed:wght@500;600;700;800&display=swap');
 
 :root {
   --accent: #5980a6;
@@ -17,7 +17,7 @@
   --neutral-300: #d4d4d7;
   --neutral-400: #b7b7ba;
   --band: #eaeaec;
-  --paper: #ffffff;
+  --paper: #f2f2f3;
   --surface: #f5f5f8;
   --surface-strong: #eeeeee;
   --line: rgba(29, 31, 32, 0.16);
@@ -33,6 +33,17 @@
   --header-height: 65px;
   --scrim: rgba(29, 31, 32, 0.28);
   --scrim-mobile: rgba(29, 31, 32, 0.35);
+  --font-body: Barlow, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-display: "Barlow Condensed", "Arial Narrow", ui-sans-serif, system-ui, sans-serif;
+  /* The navy band the header sits on, and the type set on it. */
+  --masthead-bg: #1f2b3b;
+  --masthead-ink: #ffffff;
+  --masthead-link: #8fb3d9;
+  --masthead-muted: #c9d3de;
+  --brand-dot: #e5484d;
+  --frame-line: rgba(29, 31, 32, 0.12);
+  --panel-surface: #ffffff;
+  --panel-shadow: rgba(29, 31, 32, 0.06);
 }
 
 :root[data-theme="dark"] {
@@ -65,6 +76,14 @@
   --shadow-elevated: rgba(0, 0, 0, 0.42);
   --scrim: rgba(0, 0, 0, 0.56);
   --scrim-mobile: rgba(0, 0, 0, 0.62);
+  --masthead-bg: #16212d;
+  --masthead-ink: #f4f7fa;
+  --masthead-link: #8bb6df;
+  --masthead-muted: #a4afbb;
+  --frame-line: rgba(244, 247, 250, 0.12);
+  --panel-surface: #121b24;
+  --panel-shadow: rgba(0, 0, 0, 0.3);
+  --panel-rule: var(--accent);
 }
 
 * {
@@ -103,7 +122,7 @@ select {
   overflow-x: hidden;
   color: var(--ink);
   background: var(--paper);
-  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-family: var(--font-body);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
@@ -149,8 +168,6 @@ select {
 }
 
 .site-header,
-.masthead,
-.section-divider,
 .edition-controls--standalone,
 .edition-main,
 .empty-state {
@@ -384,34 +401,6 @@ mark.search-hit {
 
 .state-kicker {
   margin: 0 0 18px;
-}
-
-.masthead {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: 18px 28px;
-  padding: clamp(20px, 3vw, 34px) 0 20px;
-}
-
-.masthead-head {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  min-width: 0;
-}
-
-.masthead-kicker {
-  margin: 0;
-}
-
-.masthead-date {
-  margin: 0;
-  font-size: clamp(2.35rem, 5.5vw, 3.5rem);
-  font-weight: 900;
-  line-height: 0.95;
-  letter-spacing: -0.02em;
 }
 
 /* Date filter
@@ -1198,11 +1187,6 @@ mark.search-hit {
 
 .filter-panel-cancel:hover {
   color: var(--accent-900);
-}
-
-.section-divider {
-  border-top: 1px solid var(--line-dark);
-  margin-bottom: 0;
 }
 
 /* Date filtering sits with the other narrowing controls, directly below the tag rail. */
@@ -2445,8 +2429,6 @@ mark.search-hit {
 
 @media (max-width: 760px) {
   .site-header,
-  .masthead,
-  .section-divider,
   .edition-controls--standalone,
   .edition-main,
   .empty-state {
@@ -2469,10 +2451,6 @@ mark.search-hit {
 
   .membership-link {
     padding: 8px 10px;
-  }
-
-  .masthead {
-    align-items: flex-start;
   }
 
   .edition-controls {
@@ -3445,7 +3423,7 @@ mark.search-hit {
   border-top: 1px solid var(--line);
   padding: 22px 0 36px;
   color: var(--muted);
-  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-family: var(--font-body);
   font-size: 0.8125rem;
   line-height: 1.55;
 }
@@ -3481,7 +3459,7 @@ mark.search-hit {
   overflow-x: hidden;
   color: var(--ink);
   background: var(--paper);
-  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-family: var(--font-body);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
@@ -3829,41 +3807,658 @@ mark.search-hit {
   }
 }
 
-/* Phones: at its 2.35rem floor the masthead date ("Wednesday, September 30" is the
-   longest) wraps to two lines on a ~400px screen. Scale it with the viewport instead,
-   so it stays on one line down to 360px-wide phones. */
-@media (max-width: 520px) {
-  .masthead-date {
-    font-size: clamp(1.5rem, 6.5vw, 2.35rem);
-  }
-}
-
 /* Rising Now: a single panel. The topic suffix ("in AI") reads as a quieter part of
-   the title, and on wide screens the rows sit in two columns (rank order runs down
-   the first column, then the second) instead of stretching across the page. */
+   the title. */
 .topic-trend-context {
   color: var(--muted);
 }
 
-@media (min-width: 1040px) {
-  .topic-trends .topic-trend-list {
-    column-gap: clamp(24px, 4vw, 48px);
-    columns: 2;
-  }
-
-  .topic-trends .topic-trend-list li {
-    break-inside: avoid;
-  }
+.masthead-kicker {
+  margin: 0;
 }
 
-/* Rising Now lives inside .edition-main, between the lead story and Top Stories, so it
-   takes that column's width. The lead story's bottom rule already separates the two,
-   so the panel drops its own top rule and draws the matching one underneath instead. */
-.edition-main .topic-trends {
-  border-bottom: 2px solid var(--line-dark);
-  padding-block: 4px 24px;
+/* ==========================================================================
+   Edition layout: navy header band, framed lead + Rising Now, Top Stories table
+   ========================================================================== */
+
+/* Condensed display type for the brand, headings and controls; Barlow for text. */
+.brand,
+.site-nav-link,
+.lead-headline,
+.tier-heading h3,
+.topic-trend-head h2,
+.btn-primary,
+.save-affordance,
+.topic-trend-label {
+  font-family: var(--font-display);
 }
 
-.edition-main .topic-trend {
+/* The header is a full-bleed band; its content lines up with the page column. */
+.site-header {
+  width: 100%;
+  min-height: 72px;
+  border-bottom: 0;
+  padding-inline: max(clamp(16px, 3vw, 40px), calc((100% - var(--max-width)) / 2));
+  color: var(--masthead-ink);
+  background: var(--masthead-bg);
+  backdrop-filter: none;
+}
+
+.brand {
+  color: var(--masthead-ink);
+  font-size: 2.125rem;
+  font-weight: 800;
+  letter-spacing: 0;
+}
+
+.brand span::after {
+  color: var(--brand-dot);
+}
+
+.header-dateline {
+  display: flex;
+  min-width: 0;
+  align-items: baseline;
+  gap: 0;
+  color: var(--masthead-muted);
+  font-family: var(--font-display);
+  font-size: 1.375rem;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.header-dateline .masthead-date {
+  margin: 0;
+  color: var(--masthead-ink);
+  font: inherit;
+  letter-spacing: inherit;
+}
+
+.site-nav {
+  gap: clamp(16px, 2.4vw, 32px);
+  /* Right-aligned on every page, whether or not a dateline sits beside the brand. */
+  margin-left: auto;
+}
+
+.site-nav-link {
+  border-bottom: 0;
+  padding-bottom: 0;
+  color: var(--masthead-link);
+  font-size: 1.125rem;
+  font-weight: 700;
+}
+
+.site-nav-link.active {
+  color: var(--masthead-ink);
+  font-weight: 700;
+}
+
+.site-nav-link:hover {
+  color: var(--masthead-ink);
+}
+
+.site-header-actions {
+  margin-left: clamp(8px, 2vw, 24px);
+}
+
+/* Header icon buttons read as plain glyphs on the band. */
+.site-header .theme-toggle,
+.site-header .search-toggle,
+.site-header .filters-button {
+  border-color: transparent;
+  color: var(--masthead-ink);
+  background: transparent;
+}
+
+.site-header .theme-toggle:hover,
+.site-header .search-toggle:hover,
+.site-header .filters-button:hover {
+  border-color: rgba(255, 255, 255, 0.35);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.site-header .search-toggle svg,
+.site-header .theme-toggle-icon {
+  color: var(--masthead-ink);
+}
+
+.site-header .header-search-bar {
+  padding-inline: inherit;
+  background: var(--masthead-bg);
+}
+
+.site-header .header-search {
+  border-bottom-color: var(--masthead-muted);
+  color: var(--masthead-muted);
+}
+
+.site-header .header-search input {
+  color: var(--masthead-ink);
+}
+
+.site-header .header-search input::placeholder {
+  color: var(--masthead-muted);
+}
+
+.site-header .header-search-close {
+  border-color: transparent;
+  color: var(--masthead-ink);
+  background: transparent;
+}
+
+.edition-main {
   border-top: 0;
+  padding-top: clamp(24px, 3vw, 36px);
+}
+
+/* --- Framed panels ------------------------------------------------------ */
+
+.frame {
+  position: relative;
+  min-width: 0;
+  border: 1px solid var(--frame-line);
+  border-top: 3px solid var(--panel-rule, var(--masthead-bg));
+  padding: clamp(20px, 2.4vw, 32px);
+  background: var(--panel-surface);
+  box-shadow: 0 1px 2px var(--panel-shadow);
+}
+
+.edition-top {
+  display: grid;
+  grid-template-columns: minmax(0, 1.45fr) minmax(340px, 1fr);
+  align-items: stretch;
+  gap: 32px;
+  margin-bottom: 8px;
+}
+
+/* Either panel alone takes the whole row. */
+.edition-top > .frame:only-child {
+  grid-column: 1 / -1;
+}
+
+/* --- Lead story --------------------------------------------------------- */
+
+.edition-top .lead-carousel {
+  position: relative;
+  padding-bottom: 0;
+  border-bottom: 0;
+}
+
+.edition-top .lead-story {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding-bottom: 0;
+  border-bottom: 0;
+}
+
+.lead-meta {
+  justify-content: space-between;
+  color: var(--muted);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.lead-kicker {
+  color: var(--muted);
+}
+
+.lead-byline {
+  font-size: inherit;
+}
+
+/* Every lead is the same height at a given screen size, so the panel does not jump
+   as the carousel rotates: the headline is held to three lines and the summary to
+   three, and the body is sized for exactly that (or the image, if taller). The line
+   heights here and on .lead-headline / .lead-summary must stay in step. */
+.edition-top .lead-story {
+  --lead-headline-size: clamp(1.75rem, 2.9vw, 2.6rem);
+  --lead-headline-lines: 3;
+  --lead-summary-lines: 3;
+  --lead-copy-height: calc(
+    var(--lead-headline-lines) * 1.05 * var(--lead-headline-size)
+    + 12px
+    + var(--lead-summary-lines) * 1.45 * 1.125rem
+  );
+}
+
+.lead-body {
+  display: grid;
+  grid-template-columns: minmax(180px, 38%) minmax(0, 1fr);
+  gap: 24px;
+  align-items: start;
+}
+
+.edition-top .lead-body {
+  height: max(214px, var(--lead-copy-height));
+  overflow: hidden;
+}
+
+.edition-top .lead-headline,
+.edition-top .lead-summary {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+}
+
+.edition-top .lead-headline {
+  -webkit-line-clamp: var(--lead-headline-lines);
+  line-clamp: var(--lead-headline-lines);
+}
+
+.edition-top .lead-summary {
+  -webkit-line-clamp: var(--lead-summary-lines);
+  line-clamp: var(--lead-summary-lines);
+}
+
+.edition-top .lead-image-link img,
+.edition-top .lead-image-link .fallback-news-image {
+  height: 214px;
+}
+
+.edition-top .lead-headline {
+  font-size: var(--lead-headline-size);
+  font-weight: 700;
+  line-height: 1.05;
+  letter-spacing: -0.005em;
+}
+
+.edition-top .lead-summary {
+  font-size: 1.125rem;
+  line-height: 1.45;
+}
+
+.edition-top .lead-actions {
+  gap: 20px;
+  min-height: 48px;
+  margin-top: 4px;
+  /* Leaves room for the carousel's controls, which sit at the right of this row. */
+  padding-right: 320px;
+}
+
+.btn-primary {
+  display: inline-flex;
+  align-items: center;
+  min-height: 48px;
+  border: 1px solid var(--accent);
+  border-radius: 0;
+  padding: 0 22px;
+  color: var(--on-accent);
+  background: var(--accent);
+  font-size: 1rem;
+  font-weight: 700;
+  text-decoration: none;
+  transition: background-color 160ms ease, border-color 160ms ease;
+}
+
+.btn-primary:hover {
+  border-color: var(--accent-dark);
+  color: var(--on-accent);
+  background: var(--accent-dark);
+}
+
+.btn-primary:focus-visible {
+  outline: 2px solid var(--accent-dark);
+  outline-offset: 2px;
+}
+
+.edition-top .save-affordance {
+  color: var(--ink-soft);
+  font-size: 1.0625rem;
+  font-weight: 600;
+}
+
+/* The carousel's controls share the actions row: dashes at the right edge, with the
+   arrows and pause kept small beside them. */
+.edition-top .lead-carousel-controls {
+  position: absolute;
+  right: 0;
+  bottom: 2px;
+  flex-wrap: nowrap;
+  gap: 4px;
+  margin-top: 0;
+}
+
+/* The dashes, swipe and the arrow keys already move between stories; in the framed
+   lead the arrow buttons would crowd the actions they share a row with. */
+.edition-top .lead-carousel-arrow {
+  display: none;
+}
+
+.edition-top .lead-carousel-dots {
+  gap: 6px;
+}
+
+.edition-top .lead-carousel-dot,
+.edition-top .lead-carousel-dot.is-active {
+  width: 30px;
+}
+
+.edition-top .lead-carousel-dot::before,
+.edition-top .lead-carousel-progress {
+  inset: 20px 0;
+  border-radius: 0;
+}
+
+.edition-top .lead-carousel-dot::before {
+  background: var(--neutral-300);
+}
+
+.edition-top .lead-carousel-pause {
+  min-height: 32px;
+  margin-left: 6px;
+  font-size: 0.6875rem;
+}
+
+/* --- Rising Now panel --------------------------------------------------- */
+
+.edition-top .topic-trends {
+  display: block;
+  padding-block: clamp(20px, 2.4vw, 32px);
+}
+
+.edition-top .topic-trend {
+  border-top: 0;
+}
+
+.edition-top .topic-trend-head {
+  padding: 0 0 14px;
+}
+
+.edition-top .topic-trend-head h2 {
+  font-size: 1.75rem;
+  font-weight: 700;
+  letter-spacing: 0;
+}
+
+.edition-top .topic-trend-windows {
+  border-color: var(--frame-line);
+  padding: 0;
+  background: var(--paper);
+}
+
+.edition-top .topic-trend-windows .segmented-tab {
+  padding: 6px 14px;
+  font-size: 1.0625rem;
+  font-weight: 500;
+}
+
+.edition-top .topic-trend-row,
+.edition-top .topic-trend-list li:last-child .topic-trend-row {
+  grid-template-columns: 24px minmax(0, 1fr) minmax(48px, 26%) 4.25em;
+  border: 0;
+  padding: 10px 4px;
+}
+
+/* The panel is narrow, so the count gives its room to the label; it stays in each
+   row's accessible name and tooltip. */
+.edition-top .topic-trend-count {
+  display: none;
+}
+
+.edition-top .topic-trend-rank {
+  color: var(--accent);
+  font-family: var(--font-display);
+  font-size: 1.25rem;
+  font-weight: 600;
+  text-align: left;
+}
+
+.edition-top .topic-trend-label {
+  font-size: 1.1875rem;
+  font-weight: 600;
+}
+
+.edition-top .topic-trend-bar {
+  height: 10px;
+}
+
+.edition-top .topic-trend-growth {
+  font-weight: 500;
+  font-size: 1rem;
+}
+
+/* --- Top Stories -------------------------------------------------------- */
+
+.top-stories-head {
+  align-items: center;
+  justify-content: space-between;
+  padding-top: 40px;
+}
+
+.top-stories-head h3 {
+  font-size: 2rem;
+  font-weight: 700;
+  letter-spacing: 0;
+}
+
+.topic-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.topic-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4em;
+  min-height: 40px;
+  border: 1px solid var(--accent);
+  border-radius: 0;
+  padding: 0 16px;
+  color: var(--accent-dark);
+  background: transparent;
+  cursor: pointer;
+  font: inherit;
+  font-size: 1rem;
+  font-weight: 500;
+  transition: background-color 160ms ease, border-color 160ms ease, color 160ms ease;
+}
+
+.topic-pill:hover {
+  background: var(--accent-100);
+}
+
+.topic-pill[aria-pressed="true"] {
+  border-color: var(--accent-100);
+  color: var(--ink);
+  background: var(--accent-100);
+  font-weight: 600;
+}
+
+.topic-pill:focus-visible {
+  outline: 2px solid var(--accent-dark);
+  outline-offset: 2px;
+}
+
+.topic-pill-count {
+  font-variant-numeric: tabular-nums;
+}
+
+.top-stories-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 12px;
+  font-size: 1.125rem;
+}
+
+.top-stories-table thead th {
+  border-bottom: 1px solid var(--frame-line);
+  padding: 14px 12px;
+  color: var(--muted);
+  font-size: 0.875rem;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-align: left;
+  text-transform: uppercase;
+}
+
+.top-stories-table td,
+.top-stories-table tbody th {
+  border-bottom: 1px solid var(--line);
+  padding: 16px 12px;
+  text-align: left;
+  vertical-align: baseline;
+}
+
+.top-story-time {
+  width: 8%;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.top-story-source {
+  width: 13%;
+  color: var(--ink);
+  white-space: nowrap;
+}
+
+.top-stories-table tbody .top-story-headline {
+  font-weight: 700;
+}
+
+.top-story-headline a {
+  color: var(--ink);
+  text-decoration: none;
+}
+
+.top-story-headline a:hover {
+  color: var(--accent);
+}
+
+.top-story-topic {
+  width: 14%;
+  color: var(--accent);
+}
+
+.top-stories-table tbody tr {
+  transition: background-color 160ms ease;
+}
+
+.top-stories-table tbody tr:hover {
+  background: var(--surface-strong);
+}
+
+.top-stories + .everything-else .tier-heading {
+  padding-top: 40px;
+}
+
+/* --- Responsive --------------------------------------------------------- */
+
+@media (max-width: 1040px) {
+  .edition-top {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 760px) {
+  .site-header {
+    width: 100%;
+    padding-inline: 16px;
+  }
+
+  .header-dateline {
+    order: 4;
+    width: 100%;
+    font-size: 1rem;
+  }
+
+  .lead-body {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 16px;
+  }
+
+  /* Stacked: the 214px image, the gap, then the clamped copy. */
+  .edition-top .lead-story {
+    --lead-summary-lines: 4;
+  }
+
+  .edition-top .lead-body {
+    height: calc(214px + 16px + var(--lead-copy-height));
+  }
+
+  .edition-top .lead-actions {
+    padding-right: 0;
+  }
+
+  .edition-top .lead-carousel-controls {
+    position: static;
+    margin-top: 12px;
+  }
+
+  .frame {
+    padding: 18px 16px;
+  }
+
+  .topic-pills {
+    flex-wrap: nowrap;
+    gap: 8px;
+    width: 100%;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .topic-pill {
+    flex: none;
+    min-height: 36px;
+    padding: 0 12px;
+    font-size: 0.9375rem;
+  }
+
+  /* Phones keep leaving Rising Now out, as before: it pushes the edition too far down. */
+  .edition-top .topic-trends {
+    display: none;
+  }
+
+  /* The table reflows into stacked rows: time and source over the headline. */
+  .top-stories-table thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
+
+  .top-stories-table,
+  .top-stories-table tbody {
+    display: block;
+  }
+
+  .top-stories-table tbody tr {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    gap: 4px 12px;
+    border-bottom: 1px solid var(--line);
+    padding: 14px 0;
+  }
+
+  .top-stories-table td,
+  .top-stories-table tbody th {
+    width: auto;
+    border: 0;
+    padding: 0;
+  }
+
+  .top-stories-table .top-story-time { grid-row: 1; grid-column: 1; font-size: 0.875rem; }
+  .top-stories-table .top-story-source { grid-row: 1; grid-column: 2; font-size: 0.875rem; color: var(--muted); }
+  .top-stories-table .top-story-topic { grid-row: 1; grid-column: 3; font-size: 0.875rem; }
+  .top-stories-table tbody .top-story-headline { grid-row: 2; grid-column: 1 / -1; font-size: 1.0625rem; }
+}
+
+/* One line, always: a long source name would otherwise wrap and change the lead's height. */
+.edition-top .lead-meta {
+  flex-wrap: nowrap;
+  white-space: nowrap;
+}
+
+.edition-top .lead-byline {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }

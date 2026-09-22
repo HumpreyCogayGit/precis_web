@@ -94,10 +94,11 @@ function TrendHelp({ span }) {
             is more news about it&mdash;if other categories grew even more.
           </p>
         </dd>
-        <dt>Number</dt>
-        <dd>Articles tagged with the category in the last {span}.</dd>
         <dt>Bar</dt>
-        <dd>That article count, relative to the busiest category here. Grey means falling.</dd>
+        <dd>
+          Articles tagged with the category in the last {span}, relative to the busiest
+          category here. Grey means falling. Hover a row for the exact counts.
+        </dd>
         <dt>New</dt>
         <dd>No articles in the previous {span}.</dd>
         <dt>Order</dt>

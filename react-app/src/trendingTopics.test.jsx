@@ -317,9 +317,9 @@ describe('home page trending sections', () => {
     render(<App />);
 
     const topStories = await screen.findByRole('region', { name: 'Top Stories' });
-    const rows = () => screen.getByRole('region', { name: 'Top Stories' }).querySelectorAll('.brief-row');
+    const rows = () => screen.getByRole('region', { name: 'Top Stories' }).querySelectorAll('.top-story-row');
     const titles = () => [...rows()].map((node) => node.textContent);
-    expect(topStories.querySelectorAll('.brief-row')).toHaveLength(2);
+    expect(topStories.querySelectorAll('.top-story-row')).toHaveLength(2);
 
     await user.click(trendRow(region('Rising Now'), 'Agentic AI'));
     expect(titles().some((text) => text.includes('Cyber Security story 2'))).toBe(false);

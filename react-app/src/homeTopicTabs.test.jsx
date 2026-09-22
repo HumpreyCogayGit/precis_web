@@ -48,13 +48,14 @@ afterEach(() => {
 });
 
 describe('home topic tabs', () => {
-  test('offers AI and Cyber Security only, with neither selected and everything shown', async () => {
+  test('offers All, AI and Cyber Security, with All current and everything shown', async () => {
     render(<App />);
 
     await screen.findByRole('group', { name: 'Filter by topic' });
 
     expect(within(topicTabs()).getAllByRole('button').map((node) => node.textContent))
-      .toEqual(['AI2', 'Cyber Security1']);
+      .toEqual(['All3', 'AI2', 'Cyber Security1']);
+    expect(topicTab('All')).toHaveAttribute('aria-pressed', 'true');
     expect(topicTab('AI')).toHaveAttribute('aria-pressed', 'false');
     expect(topicTab('Cyber Security')).toHaveAttribute('aria-pressed', 'false');
     expect(shows('AI story 1')).toBe(true);
@@ -78,7 +79,22 @@ describe('home topic tabs', () => {
 
     await user.click(topicTab('AI'));
     expect(topicTab('AI')).toHaveAttribute('aria-pressed', 'false');
+    expect(topicTab('All')).toHaveAttribute('aria-pressed', 'true');
     expect(shows('AI story 1')).toBe(true);
     expect(shows('Cyber Security story 2')).toBe(true);
+  });
+
+  test('All clears the topic a pill set', async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await screen.findByRole('group', { name: 'Filter by topic' });
+
+    await user.click(topicTab('Cyber Security'));
+    expect(shows('AI story 1')).toBe(false);
+
+    await user.click(topicTab('All'));
+    expect(topicTab('All')).toHaveAttribute('aria-pressed', 'true');
+    expect(topicTab('Cyber Security')).toHaveAttribute('aria-pressed', 'false');
+    expect(shows('AI story 1')).toBe(true);
   });
 });

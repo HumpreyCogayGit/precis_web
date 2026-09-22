@@ -71,7 +71,7 @@ describe('front page split', () => {
   test('the lead is the newest item, whatever its source', async () => {
     render(<App />);
 
-    expect(await screen.findByText('Daily tech brief')).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Top Stories' })).toBeInTheDocument();
 
     const lead = document.querySelector('.lead-story');
     expect(within(lead).getByRole('heading', { level: 2 })).toHaveTextContent('Story 1');
@@ -81,7 +81,7 @@ describe('front page split', () => {
   test('everything not the lead lands in Latest News, burst included', async () => {
     render(<App />);
 
-    expect(await screen.findByText('Daily tech brief')).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Top Stories' })).toBeInTheDocument();
 
     const section = everythingElse();
     // Every item but the lead: 16 - 1 = 15.
@@ -105,7 +105,7 @@ describe('front page split', () => {
     });
 
     render(<App />);
-    expect(await screen.findByText('Daily tech brief')).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Top Stories' })).toBeInTheDocument();
 
     const lead = document.querySelector('.lead-story');
     expect(within(lead).getByRole('heading', { level: 2 })).toHaveTextContent('Story 9');
@@ -126,7 +126,7 @@ describe('front page split', () => {
     window.history.replaceState(null, '', '/?source=nvidia');
 
     render(<App />);
-    expect(await screen.findByText('Daily tech brief')).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Top Stories' })).toBeInTheDocument();
 
     expect(within(document.querySelector('.lead-story')).getByRole('heading', { level: 2 }))
       .toHaveTextContent('Story 1');
@@ -149,7 +149,7 @@ describe('front page split', () => {
     window.history.replaceState(null, '', '/?topic=Cyber%20Security');
 
     render(<App />);
-    expect(await screen.findByText('Daily tech brief')).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Top Stories' })).toBeInTheDocument();
 
     expect(within(document.querySelector('.lead-story')).getByRole('heading', { level: 2 }))
       .toHaveTextContent('Story 10');
@@ -167,7 +167,7 @@ describe('front page split', () => {
     });
 
     render(<App />);
-    expect(await screen.findByText('Daily tech brief')).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Top Stories' })).toBeInTheDocument();
 
     const carousel = screen.getByRole('region', { name: 'Lead stories' });
     const activeHeadline = () => within(carousel.querySelector('.lead-slide.is-active'))
@@ -200,7 +200,7 @@ describe('front page split', () => {
     });
 
     render(<App />);
-    expect(await screen.findByText('Daily tech brief')).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Top Stories' })).toBeInTheDocument();
 
     const carousel = screen.getByRole('region', { name: 'Lead stories' });
     const activeHeadline = () => within(carousel.querySelector('.lead-slide.is-active'))

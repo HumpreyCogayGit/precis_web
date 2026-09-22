@@ -153,10 +153,10 @@ afterEach(() => {
 });
 
 describe('App', () => {
-  test('renders the dated masthead and safe HTTP/HTTPS article links with noopener protections', async () => {
+  test('renders the dated header and safe HTTP/HTTPS article links with noopener protections', async () => {
     render(<App />);
 
-    expect(await screen.findByText('Daily tech brief')).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Top Stories' })).toBeInTheDocument();
     expect(await screen.findByText('A deployable Precis story')).toBeInTheDocument();
 
     const httpsLink = screen.getByRole('link', { name: 'A deployable Precis story' });
@@ -193,7 +193,7 @@ describe('App', () => {
   test('renders source-labeled fallback news images when articles have no captured image', async () => {
     render(<App />);
 
-    expect(await screen.findByText('Daily tech brief')).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Top Stories' })).toBeInTheDocument();
     expect(screen.getAllByText('NVIDIA').length).toBeGreaterThan(0);
     expect(screen.getAllByText('News Brief').length).toBeGreaterThan(0);
   });

@@ -646,6 +646,60 @@ const BriefRow = ({ article, index }) => {
   );
 };
 
+// The panels at the top of the edition: a hairline border with a navy rule on top.
+const Frame = ({ className = '', children }) => (
+  <div className={`frame ${className}`.trim()}>{children}</div>
+);
+
+const DATE_ONLY_RE = /^\d{4}-\d{2}-\d{2}$/;
+
+// The Top Stories time column: a clock time for something published today, the day
+// otherwise. A date-only published_at has no time of day to show, and is a UTC day,
+// so it is formatted as one rather than shifted into the reader's zone.
+export const formatStoryTime = (article, now = new Date()) => {
+  const timestamp = getArticleTimestamp(article);
+  if (!timestamp) {
+    return '';
+  }
+  const date = new Date(timestamp);
+  const dateOnly = DATE_ONLY_RE.test(String(article.published_at ?? '').trim());
+  if (!dateOnly && date.toDateString() === now.toDateString()) {
+    return date.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false });
+  }
+  // en-US for the three-letter month ("Sep", not en-GB's "Sept"), day first.
+  const parts = Object.fromEntries(
+    new Intl.DateTimeFormat('en-US', {
+      day: 'numeric', month: 'short', ...(dateOnly ? { timeZone: 'UTC' } : {}),
+    }).formatToParts(date).map(({ type, value }) => [type, value]),
+  );
+  return `${parts.day} ${parts.month}`;
+};
+
+// Top Stories' topic column names the story's first tag, the most specific label it
+// has, and falls back to its broad topic when it carries no tags.
+const storyTopicLabel = (article) => {
+  const [firstTag] = articleTagSlugs(article);
+  return firstTag ? labelFromTagSlug(firstTag) : (article.topic || '');
+};
+
+const TopStoryRow = ({ article }) => {
+  const timestamp = getArticleTimestamp(article);
+  return (
+    <tr className="top-story-row">
+      <td className="top-story-time">
+        {timestamp > 0 && (
+          <time dateTime={new Date(timestamp).toISOString()} title={formatRelativeTime(timestamp)}>
+            {formatStoryTime(article)}
+          </time>
+        )}
+      </td>
+      <td className="top-story-source">{formatSiteName(article.site)}</td>
+      <th scope="row" className="top-story-headline"><SafeArticleTitle article={article} /></th>
+      <td className="top-story-topic">{storyTopicLabel(article)}</td>
+    </tr>
+  );
+};
+
 // Out of every FEATURE_ROW_ODDS_OUT_OF rows, roughly this many span the full width.
 const FEATURE_ROW_ODDS = 2;
 const FEATURE_ROW_ODDS_OUT_OF = 5;
@@ -1211,12 +1265,13 @@ function App() {
     topics: withoutSlug(current.topics, slug),
   }));
 
-  // The masthead topic tabs: at most one is current. No current tab means no topic
-  // filter (an empty list is no constraint, see groupOverlap in filters.js), a tab
-  // narrows the edition to its topic, and pressing the current tab again clears it.
+  // The Top Stories topic pills: at most one topic is current. No current topic means
+  // no topic filter (an empty list is no constraint, see groupOverlap in filters.js), a
+  // pill narrows the edition to its topic, and pressing the current one again — or
+  // "All", whose slug is null — clears it.
   const toggleTopicTab = (slug) => removeApplied((current) => ({
     ...current,
-    topics: current.topics.length === 1 && current.topics[0] === slug ? [] : [slug],
+    topics: slug === null || (current.topics.length === 1 && current.topics[0] === slug) ? [] : [slug],
   }));
 
   const removeIncludedTag = (slug) => removeApplied((current) => ({
@@ -1451,36 +1506,42 @@ function App() {
     [sortedArticles, isSearching, applied.topics],
   );
 
-  const renderLeadStory = (leadArticle) => {
+  const renderLeadStory = (leadArticle, index = 0) => {
     const leadArticleUrl = safeHttpUrl(leadArticle.url);
     const leadImage = <ArticleImage key={leadArticle.url} article={leadArticle} />;
+    const leadCount = frontPageArticles.length;
     return (
       <article className="lead-story">
-        <div className="lead-media">
-          {leadArticleUrl ? (
-            <a href={leadArticleUrl} target="_blank" rel="noopener noreferrer" className="lead-image-link" aria-label={`Open ${leadArticle.title}`}>
-              {leadImage}
-            </a>
-          ) : (
-            <div className="lead-image-link" aria-hidden="true">{leadImage}</div>
-          )}
+        <div className="lead-meta">
+          <span className="lead-kicker">
+            Lead{leadCount > 1 ? ` · ${index + 1} of ${leadCount}` : ''}
+          </span>
+          <span className="lead-byline">{formatSiteName(leadArticle.site)} &middot; {formatRelativeTime(getArticleTimestamp(leadArticle))}</span>
         </div>
-        <div className="lead-copy">
-          <div className="lead-meta">
-            <span className="lead-byline">Source: {formatSiteName(leadArticle.site)} &middot; {formatRelativeTime(getArticleTimestamp(leadArticle))}</span>
-          </div>
-          <h2 className="lead-headline"><SafeArticleTitle article={leadArticle} /></h2>
-          {getLeadSummaryText(leadArticle) && (
-            <p className="lead-summary"><Highlight text={getLeadSummaryText(leadArticle)} /></p>
-          )}
-          <div className="lead-actions">
-            {leadArticleUrl && (
-              <a className="btn-secondary" href={leadArticleUrl} target="_blank" rel="noopener noreferrer">
-                Read at {formatSiteName(leadArticle.site)}
+        <div className="lead-body">
+          <div className="lead-media">
+            {leadArticleUrl ? (
+              <a href={leadArticleUrl} target="_blank" rel="noopener noreferrer" className="lead-image-link" aria-label={`Open ${leadArticle.title}`}>
+                {leadImage}
               </a>
+            ) : (
+              <div className="lead-image-link" aria-hidden="true">{leadImage}</div>
             )}
-            <SaveAffordance />
           </div>
+          <div className="lead-copy">
+            <h2 className="lead-headline"><SafeArticleTitle article={leadArticle} /></h2>
+            {getLeadSummaryText(leadArticle) && (
+              <p className="lead-summary"><Highlight text={getLeadSummaryText(leadArticle)} /></p>
+            )}
+          </div>
+        </div>
+        <div className="lead-actions">
+          {leadArticleUrl && (
+            <a className="btn-primary" href={leadArticleUrl} target="_blank" rel="noopener noreferrer">
+              Read at {formatSiteName(leadArticle.site)}
+            </a>
+          )}
+          <SaveAffordance />
         </div>
       </article>
     );
@@ -1525,28 +1586,44 @@ function App() {
   // a week of briefs. Day keys are UTC, like every other date on the page.
   const editionDateLabel = useMemo(() => {
     const range = resolveDateRange(applied.dateRange);
-    const dayFormat = new Intl.DateTimeFormat('en', {
-      weekday: 'long', month: 'long', day: 'numeric', timeZone: 'UTC',
-    });
-    const spanFormat = new Intl.DateTimeFormat('en', {
-      month: 'long', day: 'numeric', timeZone: 'UTC',
-    });
+    // "Tue 22 Sep 2026", assembled from parts: en-GB orders it this way but spells
+    // September "Sept", and the dateline wants the three-letter abbreviation.
+    const partsOf = (date) => Object.fromEntries(
+      new Intl.DateTimeFormat('en-US', {
+        weekday: 'short', day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC',
+      }).formatToParts(date).map(({ type, value }) => [type, value]),
+    );
+    const formatDay = (date) => {
+      const { weekday, day, month, year } = partsOf(date);
+      return `${weekday} ${day} ${month} ${year}`;
+    };
+    const formatSpanDay = (date) => {
+      const { day, month } = partsOf(date);
+      return `${day} ${month}`;
+    };
     const asDate = (key) => new Date(`${key}T00:00:00.000Z`);
 
     if (!range) {
-      return dayFormat.format(new Date());
+      return formatDay(new Date());
     }
 
     return range.from === range.to
-      ? dayFormat.format(asDate(range.from))
-      : `${spanFormat.format(asDate(range.from))} – ${spanFormat.format(asDate(range.to))}`;
+      ? formatDay(asDate(range.from))
+      : `${formatSpanDay(asDate(range.from))} – ${formatSpanDay(asDate(range.to))}`;
   }, [applied.dateRange]);
 
-  const editionTopicTabs = TOPIC_SLUGS.map((slug) => ({
-    slug,
-    count: vocabulary.topics.get(slug)?.count ?? 0,
-    active: applied.topics.length === 1 && applied.topics[0] === slug,
-  }));
+  // "All" is the no-topic state, so it reads as current whenever no single topic is.
+  const editionTopicTabs = [
+    {
+      slug: null, label: 'All', count: articles.length, active: applied.topics.length !== 1,
+    },
+    ...TOPIC_SLUGS.map((slug) => ({
+      slug,
+      label: slug,
+      count: vocabulary.topics.get(slug)?.count ?? 0,
+      active: applied.topics.length === 1 && applied.topics[0] === slug,
+    })),
+  ];
 
   const activeFilterChips = [];
   if (hasQuery(applied)) {
@@ -1745,6 +1822,13 @@ function App() {
         <a className="brand" href="#top" aria-label="Precis home">
           <span>PRÉCIS</span>
         </a>
+        {/* The dateline names the day the reader is looking at. It only appears once
+            there is an edition to describe. */}
+        {articles.length > 0 && (
+          <div className="masthead header-dateline">
+            <h1 id="masthead-title" className="masthead-date">{editionDateLabel}</h1>
+          </div>
+        )}
         <nav className="site-nav" aria-label="Primary">
           <a href="#top" className="site-nav-link active">Today</a>
           <a href="/tldr" className="site-nav-link">TL;DR</a>
@@ -1850,76 +1934,85 @@ function App() {
         </div>
       </header>
 
-      {/* Outside the results branch on purpose: the masthead stays visible even
-          when filters empty the list, so readers still know which edition they
-          are changing. The date filter itself is rendered with the tag controls
-          below, where the filtering controls live. */}
-      {articles.length > 0 && (
-        <>
-          <section className="masthead" aria-labelledby="masthead-title">
-            <div className="masthead-head">
-              <p className="masthead-kicker">Daily tech brief</p>
-              <h1 id="masthead-title" className="masthead-date">{editionDateLabel}</h1>
-              <div className="segmented-tabs" role="group" aria-label="Filter by topic">
-                {editionTopicTabs.map(({ slug, count, active }) => (
-                  <button
-                    key={slug}
-                    type="button"
-                    className="segmented-tab"
-                    aria-pressed={active}
-                    onClick={() => toggleTopicTab(slug)}
-                  >
-                    {slug}
-                    <span className="segmented-tab-count">{count}</span>
-                  </button>
-                ))}
-              </div>
-            </div>
-          </section>
-
-          <div className="section-divider" aria-hidden="true"></div>
-        </>
-      )}
-
       {sortedArticles.length > 0 ? (
         <>
           <div className="edition-main">
-            {/* Keyed on the topic selection, so switching topic starts that set at its first
-                story, while leads arriving with later pages leave the current story alone. */}
-            <LeadCarousel
-              key={applied.topics.length === 1 ? applied.topics[0] : 'all'}
-              items={frontPageArticles}
-              getKey={(article) => article.url}
-              renderItem={renderLeadStory}
-            />
+            {/* The top of the edition: the rotating lead on the left, Rising Now on the
+                right. A search is not an edition, so neither shows while one is active. */}
+            {!isSearching && (frontPageArticles.length > 0 || topicTrends) && (
+              <div className="edition-top">
+                {frontPageArticles.length > 0 && (
+                  <Frame className="edition-top-lead">
+                    {/* Keyed on the topic selection, so switching topic starts that set at its
+                        first story, while leads arriving with later pages leave the current
+                        story alone. */}
+                    <LeadCarousel
+                      key={applied.topics.length === 1 ? applied.topics[0] : 'all'}
+                      items={frontPageArticles}
+                      getKey={(article) => article.url}
+                      renderItem={renderLeadStory}
+                    />
+                  </Frame>
+                )}
 
-            {/* Rising Now sits under the lead story, above Top Stories. It follows the topic
-                filter: a single topic narrows it to that topic's categories, and no topic
-                (or both) shows the combined ranking. */}
-            {!isSearching && topicTrends && (
-              <div className="topic-trends">
-                <TrendingSection
-                  topic={risingTopic}
-                  title="Rising Now"
-                  context={risingTopic === ALL_TRENDS_KEY ? undefined : `in ${risingTopic}`}
-                  storageKey="precis.trend.window"
-                  windows={topicTrends.windows}
-                  activeTagSlugs={applied.tags.in}
-                  onSelectTag={toggleTrendTag}
-                />
+                {/* Rising Now follows the topic filter: a single topic narrows it to that
+                    topic's categories, and no topic (or both) shows the combined ranking. */}
+                {topicTrends && (
+                  <Frame className="topic-trends">
+                    <TrendingSection
+                      topic={risingTopic}
+                      title="Rising Now"
+                      context={risingTopic === ALL_TRENDS_KEY ? undefined : `in ${risingTopic}`}
+                      storageKey="precis.trend.window"
+                      windows={topicTrends.windows}
+                      activeTagSlugs={applied.tags.in}
+                      onSelectTag={toggleTrendTag}
+                    />
+                  </Frame>
+                )}
               </div>
             )}
 
-            {!isSearching && topStories.length > 0 && (
-              <section className="also-today" aria-labelledby="also-today-title">
-                <div className="tier-heading">
-                  <h3 id="also-today-title">Top Stories</h3>
+            {/* Top Stories carries the topic pills, so it renders even when the trending
+                pool has nothing for the current topic: the reader must be able to switch. */}
+            {!isSearching && (
+              <section className="top-stories" aria-labelledby="top-stories-title">
+                <div className="tier-heading top-stories-head">
+                  <h3 id="top-stories-title">Top Stories</h3>
+                  <div className="topic-pills" role="group" aria-label="Filter by topic">
+                    {editionTopicTabs.map(({ slug, label, count, active }) => (
+                      <button
+                        key={slug ?? 'all'}
+                        type="button"
+                        className="topic-pill"
+                        aria-pressed={active}
+                        onClick={() => toggleTopicTab(slug)}
+                      >
+                        {label}
+                        <span className="topic-pill-count">{count.toLocaleString('en')}</span>
+                      </button>
+                    ))}
+                  </div>
                 </div>
-                <div className="brief-list">
-                  {topStories.map((article, index) => (
-                    <BriefRow key={article.url} article={article} index={index} />
-                  ))}
-                </div>
+                {topStories.length > 0 ? (
+                  <table className="top-stories-table">
+                    <thead>
+                      <tr>
+                        <th scope="col" className="top-story-time">Time</th>
+                        <th scope="col" className="top-story-source">Source</th>
+                        <th scope="col" className="top-story-headline">Headline</th>
+                        <th scope="col" className="top-story-topic">Topic</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {topStories.map((article) => (
+                        <TopStoryRow key={article.url} article={article} />
+                      ))}
+                    </tbody>
+                  </table>
+                ) : (
+                  <p className="tier-empty">No top stories for this selection yet.</p>
+                )}
               </section>
             )}
 
