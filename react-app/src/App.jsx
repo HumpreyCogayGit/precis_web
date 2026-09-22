@@ -9,6 +9,7 @@ import SiteFooter from './components/SiteFooter.jsx';
 import LeadCarousel from './components/LeadCarousel.jsx';
 import ThemeToggle from './components/ThemeToggle.jsx';
 import TrendingSection, { ALL_TRENDS_KEY } from './components/TrendingSection.jsx';
+import NewsLoader from './components/NewsLoader.jsx';
 import useTopicTrends from './useTopicTrends.js';
 import useRevealOnScroll from './useRevealOnScroll.js';
 import DateFilterBar, { rangeChipLabel as dateRangeChipLabel } from './DateFilterBar.jsx';
@@ -1744,15 +1745,7 @@ function App() {
   };
 
   if (loading) {
-    return (
-      <div className="app app-state">
-        <div className="loader-card" aria-live="polite">
-          <span className="loader-line" aria-hidden="true"></span>
-          <p className="state-kicker">Loading</p>
-          <h1>Pulling the latest articles.</h1>
-        </div>
-      </div>
-    );
+    return <NewsLoader />;
   }
 
   if (error) {
