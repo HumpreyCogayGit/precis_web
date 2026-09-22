@@ -2011,7 +2011,7 @@ function App() {
                   <table className="top-stories-table">
                     <thead>
                       <tr>
-                        <th scope="col" className="top-story-time">Time</th>
+                        <th scope="col" className="top-story-time">Date</th>
                         <th scope="col" className="top-story-source">Source</th>
                         <th scope="col" className="top-story-headline">Headline</th>
                         <th scope="col" className="top-story-topic">Topic</th>
