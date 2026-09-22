@@ -552,13 +552,12 @@ select {
   }
 
   .news-loader {
-    width: min(540px, 112vw);
-    height: 320px;
-    margin-left: -6vw;
+    width: min(390px, 76vw);
+    height: 250px;
   }
 
   .news-loader__scene {
-    transform: rotateX(55deg) rotateZ(-35deg) translate3d(4%, -1%, 0);
+    transform: rotateX(55deg) rotateZ(-35deg) translate3d(1%, 1%, 0);
   }
 
   .news-loader__board {
@@ -568,6 +567,10 @@ select {
   .news-loader__article {
     gap: 5px;
     padding: 6px;
+  }
+
+  .news-loader__topic--signal {
+    display: none;
   }
 
   .news-loader__lines { gap: 3px; }
