@@ -16,9 +16,9 @@ secrets.*
 # Dependencies/build outputs should be recreated by Vercel.
 node_modules/
 react-app/node_modules/
-public/
-build/
-dist/
+/public/
+/build/
+/dist/
 react-app/build/
 react-app/dist/
 

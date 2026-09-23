@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Precis loading animation</title>
+
+    <!--
+      Standalone preview for the Precis page-loading animation.
+
+      Open this file directly (no server, no build) to see the scene, check it
+      in both themes and watch the teardown the app will trigger. To use the
+      loader in a real page you need only the three lines marked below.
+    -->
+    <link rel="stylesheet" href="loader.css" />
+
+    <style>
+      /* Preview chrome only -- none of this ships with the loader. */
+      body {
+        margin: 0;
+        font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      }
+
+      .demo-bar {
+        position: fixed;
+        z-index: 10000;
+        bottom: 18px;
+        left: 50%;
+        display: flex;
+        gap: 8px;
+        padding: 8px;
+        border: 1px solid rgba(128, 138, 150, 0.32);
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.86);
+        box-shadow: 0 10px 30px rgba(15, 20, 28, 0.16);
+        backdrop-filter: blur(10px);
+        transform: translateX(-50%);
+      }
+
+      .demo-bar button {
+        border: 0;
+        border-radius: 999px;
+        padding: 8px 15px;
+        background: #11151b;
+        color: #fff;
+        font: inherit;
+        font-size: 0.82rem;
+        font-weight: 600;
+        cursor: pointer;
+      }
+
+      .demo-bar button.is-ghost {
+        background: rgba(17, 21, 27, 0.08);
+        color: #11151b;
+      }
+    </style>
+  </head>
+
+  <body>
+    <!-- (1) the mount point -->
+    <div id="precis-loader"></div>
+
+    <div class="demo-bar">
+      <button type="button" data-act="theme">Toggle theme</button>
+      <button type="button" data-act="remount" class="is-ghost">Restart</button>
+      <button type="button" data-act="destroy" class="is-ghost">App ready &rarr;</button>
+    </div>
+
+    <!-- (2) the stylesheet, above; (3) the script -->
+    <script src="loader.js"></script>
+
+    <script>
+      // Preview harness. A real page needs none of this: loader.js self-mounts
+      // into #precis-loader, and the app calls PrecisLoader.destroy() when it
+      // has painted.
+      (function () {
+        var theme = null;
+
+        function ensureMounted() {
+          if (!document.getElementById('precis-loader')) {
+            var host = document.createElement('div');
+            host.id = 'precis-loader';
+            document.body.insertBefore(host, document.body.firstChild);
+          }
+          PrecisLoader.mount('#precis-loader', theme ? { theme: theme } : {});
+        }
+
+        document.querySelector('.demo-bar').addEventListener('click', function (event) {
+          var act = event.target.getAttribute('data-act');
+          if (act === 'theme') {
+            theme = theme === 'dark' ? 'light' : 'dark';
+            PrecisLoader.destroy({ immediate: true });
+            ensureMounted();
+          } else if (act === 'remount') {
+            PrecisLoader.destroy({ immediate: true });
+            ensureMounted();
+          } else if (act === 'destroy') {
+            PrecisLoader.destroy();
+          }
+        });
+      })();
+    </script>
+  </body>
+</html>

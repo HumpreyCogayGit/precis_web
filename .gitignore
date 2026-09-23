@@ -30,12 +30,12 @@ react-app/.env.production.local
 !react-app/.env.example
 
 # Production builds
-public/
-public/**
-build/
-build/**
-dist/
-dist/**
+/public/
+/public/**
+/build/
+/build/**
+/dist/
+/dist/**
 react-app/build/
 react-app/build/**
 react-app/dist/
