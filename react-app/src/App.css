@@ -4259,7 +4259,7 @@ mark.search-hit {
 
 .topic-trend-row {
   display: grid;
-  grid-template-columns: 26px minmax(0, 1fr) minmax(48px, 28%) 2.25em 4.25em;
+  grid-template-columns: 26px minmax(0, 1fr) 2.25em 4.25em;
   gap: 12px;
   align-items: center;
   width: 100%;
@@ -4305,24 +4305,6 @@ mark.search-hit {
   white-space: nowrap;
 }
 
-.topic-trend-bar {
-  display: block;
-  overflow: hidden;
-  height: 8px;
-  background: var(--neutral-200);
-}
-
-.topic-trend-bar > span {
-  display: block;
-  height: 100%;
-  background: var(--accent);
-}
-
-/* Bar length is article volume; a falling tag keeps its length but reads muted. */
-.topic-trend-bar--down > span {
-  background: var(--neutral-400);
-}
-
 .topic-trend-count {
   color: var(--muted);
   font-size: 0.8125rem;
@@ -4358,13 +4340,8 @@ mark.search-hit {
 
 @media (max-width: 480px) {
   .topic-trend-row {
-    grid-template-columns: 22px minmax(0, 1fr) minmax(36px, 24%) 3.75em;
+    grid-template-columns: 22px minmax(0, 1fr) 2em 3.75em;
     gap: 8px;
-  }
-
-  /* The count is in the row's accessible name and tooltip; the bar carries it visually. */
-  .topic-trend-count {
-    display: none;
   }
 }
 
@@ -4656,9 +4633,11 @@ mark.search-hit {
   box-shadow: 0 1px 2px var(--panel-shadow);
 }
 
+/* Rising Now carries no bars, so the right column asks for only enough width for a
+   category name and its %, and the lead story takes the rest. */
 .edition-top {
   display: grid;
-  grid-template-columns: minmax(0, 1.45fr) minmax(340px, 1fr);
+  grid-template-columns: minmax(0, 2fr) minmax(280px, 0.8fr);
   align-items: stretch;
   gap: 20px;
   margin-bottom: 8px;
@@ -4873,14 +4852,32 @@ mark.search-hit {
   border-top: 0;
 }
 
+/* Title, ? and the window tabs stay on one line; the title shrinks before the tabs do. */
 .edition-top .topic-trend-head {
-  padding: 0 0 14px;
+  flex-wrap: nowrap;
+  gap: 10px;
+  padding: 0 0 10px;
 }
 
+.edition-top .topic-trend-title {
+  min-width: 0;
+  flex: 0 1 auto;
+}
+
+.edition-top .topic-trend-windows {
+  flex: none;
+}
+
+/* A narrow column plus a long context ("in Cyber Security") must not push the tabs
+   off the line, so the title is what gives way. */
 .edition-top .topic-trend-head h2 {
+  min-width: 0;
+  overflow: hidden;
   font-size: 1.75rem;
   font-weight: 700;
   letter-spacing: 0;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .edition-top .topic-trend-windows {
@@ -4890,20 +4887,23 @@ mark.search-hit {
 }
 
 .edition-top .topic-trend-windows .segmented-tab {
-  padding: 6px 14px;
-  font-size: 1.0625rem;
+  padding: 4px 9px;
+  font-size: 0.8125rem;
   font-weight: 500;
 }
 
+/* No bar: the label runs the width of the panel and the % closes the row. The rows
+   also sit tighter than the standalone list, so the five of them stay level with the
+   lead story beside them. */
 .edition-top .topic-trend-row,
 .edition-top .topic-trend-list li:last-child .topic-trend-row {
-  grid-template-columns: 24px minmax(0, 1fr) minmax(48px, 26%) 4.25em;
+  grid-template-columns: 24px minmax(0, 1fr) 4.25em;
   border: 0;
-  padding: 10px 4px;
+  padding: 7px 4px;
 }
 
-/* The panel is narrow, so the count gives its room to the label; it stays in each
-   row's accessible name and tooltip. */
+/* The count gives its room to the label; it stays in each row's accessible name
+   and tooltip. */
 .edition-top .topic-trend-count {
   display: none;
 }
@@ -4919,10 +4919,6 @@ mark.search-hit {
 .edition-top .topic-trend-label {
   font-size: 1.1875rem;
   font-weight: 600;
-}
-
-.edition-top .topic-trend-bar {
-  height: 10px;
 }
 
 .edition-top .topic-trend-growth {
@@ -5162,6 +5158,7 @@ mark.search-hit {
 /* One line, always: a long source name would otherwise wrap and change the lead's height. */
 .edition-top .lead-meta {
   flex-wrap: nowrap;
+  font-size: 1rem;
   white-space: nowrap;
 }
 

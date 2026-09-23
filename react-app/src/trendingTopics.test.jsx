@@ -96,17 +96,14 @@ describe('TrendingSection', () => {
     expect(windowTab(region('Rising in AI'), '7d')).toHaveAttribute('aria-pressed', 'true');
   });
 
-  test('bars scale with article count, not growth, and a falling tag is marked down', () => {
+  test('each row carries its article count and marks a falling tag down', () => {
     renderBoth();
     const ai = region('Rising in AI');
-    const bar = (tag) => trendRow(ai, tag).querySelector('.topic-trend-bar');
+    const growth = (tag) => trendRow(ai, tag).querySelector('.topic-trend-growth');
 
-    expect(bar('Agentic AI').firstChild.style.width).toBe('100%');
-    expect(bar('Open Source Models').firstChild.style.width).toBe('50%');
-    expect(bar('AI Coding Agents').firstChild.style.width).toBe('25%');
-    expect(bar('AI Coding Agents')).toHaveClass('topic-trend-bar--down');
-    expect(bar('Agentic AI')).toHaveClass('topic-trend-bar--up');
     expect(trendRow(ai, 'Agentic AI').querySelector('.topic-trend-count')).toHaveTextContent('12');
+    expect(growth('AI Coding Agents')).toHaveClass('topic-trend-growth--down');
+    expect(growth('Agentic AI')).toHaveClass('topic-trend-growth--up');
   });
 
   test('the ? beside each title explains the numbers for the selected window, on click and on hover', async () => {
@@ -143,9 +140,9 @@ describe('TrendingSection', () => {
     expect(panel).not.toBeVisible();
   });
 
-  test('Show all reveals every ranked category and Show top 5 collapses again, per section', async () => {
+  test('Show all reveals every ranked category and Show top 7 collapses again, per section', async () => {
     const user = userEvent.setup();
-    const many = Array.from({ length: 8 }, (_, n) => row(n + 1, `AI Tag ${n + 1}`, 40 - n * 10, { nowN: 20 - n }));
+    const many = Array.from({ length: 10 }, (_, n) => row(n + 1, `AI Tag ${n + 1}`, 40 - n * 10, { nowN: 20 - n }));
     const windows = {
       '24h': { AI: [], 'Cyber Security': [] },
       '7d': { AI: many, 'Cyber Security': WINDOWS['7d']['Cyber Security'] },
@@ -159,22 +156,20 @@ describe('TrendingSection', () => {
     );
 
     const ai = region('Rising in AI');
-    expect(within(ai).getAllByRole('listitem')).toHaveLength(5);
-    const expand = within(ai).getByRole('button', { name: 'Show all 8' });
+    expect(within(ai).getAllByRole('listitem')).toHaveLength(7);
+    const expand = within(ai).getByRole('button', { name: 'Show all 10' });
     expect(expand).toHaveAttribute('aria-expanded', 'false');
     // Two rows fit without a toggle.
     expect(within(region('Rising in Cyber Security')).queryByRole('button', { name: /^Show/ })).toBeNull();
 
     await user.click(expand);
-    expect(within(ai).getAllByRole('listitem')).toHaveLength(8);
-    expect(trendRow(ai, 'AI Tag 8')).toBeInTheDocument();
-    // Bars are scaled against every row, so expanding does not change their length.
-    expect(trendRow(ai, 'AI Tag 1').querySelector('.topic-trend-bar').firstChild.style.width).toBe('100%');
+    expect(within(ai).getAllByRole('listitem')).toHaveLength(10);
+    expect(trendRow(ai, 'AI Tag 10')).toBeInTheDocument();
 
-    const collapse = within(ai).getByRole('button', { name: 'Show top 5' });
+    const collapse = within(ai).getByRole('button', { name: 'Show top 7' });
     expect(collapse).toHaveAttribute('aria-expanded', 'true');
     await user.click(collapse);
-    expect(within(ai).getAllByRole('listitem')).toHaveLength(5);
+    expect(within(ai).getAllByRole('listitem')).toHaveLength(7);
   });
 
   test('the combined ranking shows no topic suffix, a narrowed one names its topic', () => {

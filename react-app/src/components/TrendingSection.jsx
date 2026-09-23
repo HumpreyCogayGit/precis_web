@@ -8,7 +8,7 @@ export const ALL_TRENDS_KEY = 'All';
 const DEFAULT_WINDOW = '7d';
 // Rows shown before "Show all". The payload already carries every ranked category,
 // so expanding costs no request.
-export const COLLAPSED_ROWS = 5;
+export const COLLAPSED_ROWS = 7;
 const WINDOW_SPOKEN = { '24h': '24 hours', '7d': '7 days', '30d': '30 days' };
 // Leaving the ? for the panel crosses a small gap; a short grace period keeps the
 // panel from closing under the pointer on its way there.
@@ -68,14 +68,6 @@ const growthTone = (row) => {
   return row.growth_pct > 0 ? 'up' : 'down';
 };
 
-// Bars show VOLUME — this window's article count relative to the section's busiest
-// row — and the % beside them shows direction. Scaling bars by % made every "New" row
-// and the top rise look identical at full width, even when they rested on 2 articles.
-const barWidths = (rows) => {
-  const busiest = Math.max(1, ...rows.map((row) => row.now_n));
-  return rows.map((row) => Math.max(4, Math.round((row.now_n / busiest) * 100)));
-};
-
 // What the numbers mean, in the reader's selected window. Kept in step with the
 // metric in web/lib/topicTrends.js.
 function TrendHelp({ span }) {
@@ -94,10 +86,10 @@ function TrendHelp({ span }) {
             is more news about it&mdash;if other categories grew even more.
           </p>
         </dd>
-        <dt>Bar</dt>
+        <dt>Counts</dt>
         <dd>
-          Articles tagged with the category in the last {span}, relative to the busiest
-          category here. Grey means falling. Hover a row for the exact counts.
+          Hover a row for the number of articles tagged with the category in the last
+          {span}, and in the {span} before.
         </dd>
         <dt>New</dt>
         <dd>No articles in the previous {span}.</dd>
@@ -172,9 +164,6 @@ export default function TrendingSection({
   }
 
   const rows = windows?.[selectedWindow]?.[topic] || [];
-  // Widths come from every row, not just the visible ones, so bars keep their length
-  // when the list expands or collapses.
-  const widths = barWidths(rows);
   const visibleRows = showAll ? rows : rows.slice(0, COLLAPSED_ROWS);
   const span = WINDOW_SPOKEN[selectedWindow];
 
@@ -246,7 +235,7 @@ export default function TrendingSection({
 
       {rows.length > 0 ? (
         <ol id={listId} className="topic-trend-list">
-          {visibleRows.map((row, index) => {
+          {visibleRows.map((row) => {
             const growth = formatGrowth(row);
             const detail = `${row.now_n} article${row.now_n === 1 ? '' : 's'} in the last ${span}, ${row.prev_n} in the ${span} before`;
             return (
@@ -261,9 +250,6 @@ export default function TrendingSection({
                 >
                   <span className="brief-rank topic-trend-rank" aria-hidden="true">{row.rank}</span>
                   <span className="topic-trend-label">{row.tag}</span>
-                  <span className={`topic-trend-bar topic-trend-bar--${growthTone(row)}`} aria-hidden="true">
-                    <span style={{ width: `${widths[index]}%` }} />
-                  </span>
                   <span className="topic-trend-count" aria-hidden="true">{row.now_n}</span>
                   <span className={`topic-trend-growth topic-trend-growth--${growthTone(row)}`}>{growth}</span>
                 </button>
