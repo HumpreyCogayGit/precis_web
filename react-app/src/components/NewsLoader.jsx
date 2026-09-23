@@ -18,8 +18,10 @@ const NewsLoader = () => (
           <span className="news-loader__grid" />
           <span className="news-loader__route news-loader__route--one" />
           <span className="news-loader__route news-loader__route--two" />
+          <span className="news-loader__route news-loader__route--three" />
           <span className="news-loader__signal news-loader__signal--one" />
           <span className="news-loader__signal news-loader__signal--two" />
+          <span className="news-loader__signal news-loader__signal--three" />
 
           <div className="news-loader__press">
             <span className="news-loader__press-mark">P</span>
