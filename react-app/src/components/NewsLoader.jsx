@@ -52,9 +52,9 @@ const NewsLoader = () => {
 
     loader.mount(node);
     setEnhanced(true);
-    // `keep` leaves the node itself alone: React owns it and will unmount it,
-    // and a loader that removed it first would break that unmount.
-    return () => loader.destroy(node, { immediate: true, keep: true });
+    // `handoff` moves the scene off this node before React unmounts it, so the
+    // burst can finish over the brief it is revealing.
+    return () => loader.destroy(node, { handoff: true, explode: true });
   }, []);
 
   return (

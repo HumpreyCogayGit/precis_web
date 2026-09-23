@@ -73,7 +73,13 @@
 
   var GLYPH_INTERVAL = 2200;
   var KICKER_INTERVAL = 2600;
-  var LEAVE_MS = 420;
+  var FADE_MS = 420;
+  var BURST_MS = 820;
+  /* React's StrictMode mounts, tears down and remounts effects back to back in
+     development. A loader that only existed for a few frames was never on
+     screen, so bursting it would flash the exit animation on every dev reload.
+     Below this age the exit is skipped and the loader just goes. */
+  var MIN_VISIBLE_MS = 500;
 
   function prefersReducedMotion() {
     return (
@@ -328,6 +334,7 @@
 
     var handle = {
       root: host,
+      mountedAt: Date.now(),
       timers: timers,
       destroy: function (destroyOptions) {
         return teardown(handle, destroyOptions);
@@ -337,10 +344,42 @@
     return handle;
   }
 
-  /* Fades out, then removes the element entirely -- a loader left in the DOM
+  /* Hands the mount point back to whoever owns it, stripped of everything the
+     loader put on it. */
+  function releaseNode(node) {
+    node.className = '';
+    node.removeAttribute('role');
+    node.removeAttribute('aria-live');
+    node.removeAttribute('aria-busy');
+    node.removeAttribute('aria-label');
+    node.textContent = '';
+  }
+
+  /* Moves the scene onto a body-level element of our own. The caller's node is
+     about to be unmounted by its framework, and the exit animation has to
+     outlive it -- which it cannot do as that node's child. */
+  function handOff(root) {
+    var carrier = document.createElement('div');
+    carrier.className = 'pl';
+    if (root.hasAttribute('data-theme')) {
+      carrier.setAttribute('data-theme', root.getAttribute('data-theme'));
+    }
+    // The page underneath is the live content now; this is only its send-off.
+    carrier.setAttribute('aria-hidden', 'true');
+
+    while (root.firstChild) carrier.appendChild(root.firstChild);
+    document.body.appendChild(carrier);
+    releaseNode(root);
+    return carrier;
+  }
+
+  /* Plays the loader out, then removes it entirely -- a loader left in the DOM
      keeps aria-busy on the page and its animations on the compositor.
-     `keep` empties the mount point instead of removing it, for hosts such as
-     React that own the element and will unmount it themselves. */
+       explode: burst the scene apart and push the camera through it, for the
+                hand-off to the real page.
+       handoff: the mount point belongs to a framework; move the scene off it
+                first so the exit can finish after that node is gone.
+       immediate: no exit at all. */
   function teardown(handle, options) {
     var index = instances.indexOf(handle);
     if (index === -1) return;
@@ -355,26 +394,24 @@
     var root = handle.root;
     root.setAttribute('aria-busy', 'false');
 
-    var dispose = function () {
-      if (opts.keep) {
-        root.className = '';
-        root.removeAttribute('role');
-        root.removeAttribute('aria-live');
-        root.removeAttribute('aria-busy');
-        root.removeAttribute('aria-label');
-        root.textContent = '';
-      } else {
-        root.remove();
-      }
-    };
+    var reduced = prefersReducedMotion();
+    var burst = Boolean(opts.explode) && !reduced && Date.now() - handle.mountedAt >= MIN_VISIBLE_MS;
+    // An exit that was asked for but did not qualify is dropped, not downgraded
+    // to a fade: the caller wanted the burst or nothing.
+    var animate = !opts.immediate && !reduced && (opts.explode ? burst : true);
 
-    if (opts.immediate || prefersReducedMotion()) {
-      dispose();
+    if (!animate) {
+      if (opts.handoff) releaseNode(root);
+      else root.remove();
       return;
     }
 
-    root.classList.add('is-leaving');
-    global.setTimeout(dispose, LEAVE_MS);
+    if (opts.handoff) root = handOff(root);
+
+    root.classList.add(burst ? 'is-bursting' : 'is-leaving');
+    global.setTimeout(function () {
+      root.remove();
+    }, burst ? BURST_MS : FADE_MS);
   }
 
   /* destroy(target?, options?) -- name a mount point to dismiss just that one,
