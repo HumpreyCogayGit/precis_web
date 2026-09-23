@@ -175,6 +175,8 @@
     return machine;
   }
 
+  /* Seven cubes: three down the front-left edge, four along the front-right.
+     Their positions live in loader.css; this only fills them. */
   function buildNodes(scene) {
     var glyphs = [];
     for (var i = 0; i < NODE_COUNT; i++) {
@@ -198,8 +200,7 @@
     var scene = el('div', 'pl__scene');
 
     scene.appendChild(el('span', 'pl__shadow'));
-    scene.appendChild(el('span', 'pl__rail pl__rail--outer'));
-    scene.appendChild(el('span', 'pl__rail pl__rail--inner'));
+    scene.appendChild(el('span', 'pl__rail'));
 
     PULSES.forEach(function (p) {
       var dot = el('span', 'pl__pulse');

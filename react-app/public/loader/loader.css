@@ -64,8 +64,11 @@
   /* --- geometry ---------------------------------------------------------- */
   /* The plane is rotated 40deg about Z, so its diagonal -- not its width --
      sets the rendered footprint. The scale keeps that footprint inside the
-     stage; the Y nudge recentres it once the near corner drops. */
-  --pl-cam: translate(-1%, -2%) rotateX(58deg) rotateZ(-40deg) scale(0.78);
+     stage; the nudges recentre it, since the cube ring reaches further to the
+     front-left than anything does to the right. Media queries below override
+     the scale alone. */
+  --pl-scale: 0.78;
+  --pl-cam: translate(11%, -2%) rotateX(58deg) rotateZ(-40deg) scale(var(--pl-scale));
   --pl-board-d: 22px;   /* board thickness      */
   --pl-node-d: 18px;    /* connector cube depth */
   --pl-card-d: 9px;     /* card thickness       */
@@ -228,25 +231,24 @@
   transform: translateZ(-16px);
 }
 
-/* Two nested traces, the way the clip stacks them just outside the board. */
+/* A single routed trace threading the cube ring. Its radius is a percentage so
+   the corner keeps the same shape at every scale -- the pulse keyframes below
+   are plotted against it, and a px radius would drift out from under them. */
 .pl__rail {
   position: absolute;
+  inset: 4% 18% 18% -6%;
   border: 2px solid var(--pl-rail);
-  border-radius: 80px;
+  border-radius: 14%;
+  /* Only the left and bottom runs carry cubes and pulses; the return path
+     behind the board drops to the soft tint so the loop stops reading as a
+     box drawn around the whole animation. */
+  border-top-color: var(--pl-rail-soft);
+  border-right-color: var(--pl-rail-soft);
 }
 
-.pl__rail--outer {
-  inset: 0% 12% 12% 0%;
-  border-color: var(--pl-rail-soft);
-  border-radius: 96px;
-}
-
-.pl__rail--inner {
-  inset: 4% 18% 18% 4%;
-}
-
-/* Signal dots run the bottom edge, turn the near corner, then climb the right
-   edge -- the leg of the loop the camera actually shows. */
+/* Signal dots run down the front-left edge, turn the near corner, then out
+   along the front-right edge -- the leg of the loop the camera actually shows,
+   and the one the cubes sit on. */
 .pl__pulse {
   position: absolute;
   width: 11px;
@@ -260,12 +262,15 @@
 }
 
 @keyframes pl-pulse {
-  0%   { left: 4%;  top: 82%; opacity: 0; }
-  7%   { opacity: 1; }
-  46%  { left: 82%; top: 82%; }
-  54%  { left: 82%; top: 82%; }
-  93%  { left: 82%; top: 8%;  opacity: 1; }
-  100% { left: 82%; top: 8%;  opacity: 0; }
+  0%     { left: -6%;   top: 16%;   opacity: 0; }
+  6%     { left: -6%;   top: 24%;   opacity: 1; }
+  41.4%  { left: -6%;   top: 71.1%; opacity: 1; }
+  44.8%  { left: -5.1%; top: 75.3%; opacity: 1; }
+  48.3%  { left: -2.4%; top: 78.8%; opacity: 1; }
+  51.7%  { left: 1.6%;  top: 81.2%; opacity: 1; }
+  55.1%  { left: 6.3%;  top: 82%;   opacity: 1; }
+  94%    { left: 62%;   top: 82%;   opacity: 1; }
+  100%   { left: 69.7%; top: 82%;   opacity: 0; }
 }
 
 /* ===================================================================== *
@@ -523,8 +528,9 @@
 .pl__arrow--c { --c: var(--pl-blue);  top: 71%; left: 44%; width: 12%; animation-delay: 2s; }
 
 /* ===================================================================== *
- * connector cubes -- three along the near edge, one at the corner, three up
- * the right edge. Their glyphs are swapped by loader.js.
+ * connector cubes -- a V of seven around the near corner: three down the
+ * front-left edge, four along the front-right edge. Their glyphs are swapped
+ * by loader.js.
  * ===================================================================== */
 
 .pl__node {
@@ -586,26 +592,16 @@
   100% { opacity: 1; transform: rotateX(0)    scale(1);    }
 }
 
-/* The short lead from each cube back to the rail. */
-.pl__node::after {
-  position: absolute;
-  top: 46%;
-  left: 100%;
-  width: 16%;
-  height: 3px;
-  border-radius: 2px;
-  background: var(--pl-node-side-dim);
-  content: '';
-  transform: translateZ(calc(var(--pl-node-d) * 0.4));
-}
-
-.pl__node--1 { top: 82%; left: 4%;  animation-delay: 0s;    }
-.pl__node--2 { top: 82%; left: 26%; animation-delay: 0.32s; }
-.pl__node--3 { top: 82%; left: 48%; animation-delay: 0.64s; }
-.pl__node--4 { top: 82%; left: 70%; animation-delay: 0.96s; }
-.pl__node--5 { top: 62%; left: 82%; animation-delay: 1.28s; }
-.pl__node--6 { top: 40%; left: 82%; animation-delay: 1.6s;  }
-.pl__node--7 { top: 18%; left: 82%; animation-delay: 1.92s; }
+/* Delays follow the ring in render order -- far end of the front-left arm,
+   round the near corner, out along the front-right arm -- so the bob reads as
+   one travelling wave rather than seven unrelated cubes. */
+.pl__node--7 { top: 20%; left: -6%; animation-delay: 0s;    }
+.pl__node--6 { top: 40%; left: -6%; animation-delay: 0.32s; }
+.pl__node--5 { top: 60%; left: -6%; animation-delay: 0.64s; }
+.pl__node--1 { top: 82%; left: 8%;  animation-delay: 0.96s; }
+.pl__node--2 { top: 82%; left: 28%; animation-delay: 1.28s; }
+.pl__node--3 { top: 82%; left: 48%; animation-delay: 1.6s;  }
+.pl__node--4 { top: 82%; left: 66%; animation-delay: 1.92s; }
 
 /* ===================================================================== *
  * copy block
@@ -689,12 +685,18 @@
 
   .pl__lid { transform: translateZ(16px); }
   .pl__arrow { opacity: 0.95; }
-  .pl__pulse { top: 82%; left: 44%; opacity: 1; }
+  .pl__pulse { top: 82%; left: 30%; opacity: 1; }
   .pl__progress i { width: 100%; }
+}
+
+/* Narrow viewports: the ring's front-left arm is the first thing to reach the
+   edge, so the whole scene steps down rather than getting cropped. */
+@media (max-width: 620px) {
+  .pl { --pl-scale: 0.72; }
 }
 
 /* Short viewports: the copy matters more than the diorama. */
 @media (max-height: 560px) {
-  .pl__stage { max-height: 40vh; }
+  .pl { --pl-scale: 0.6; }
   .pl__brand { display: none; }
 }
