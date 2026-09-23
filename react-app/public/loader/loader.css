@@ -14,7 +14,8 @@
  * product logos; these carry generic newsroom glyphs instead.
  */
 
-.pl {
+.pl,
+.pl-flight {
   /* --- palette ----------------------------------------------------------
    * light-dark() keeps both themes in one block: the pair is picked by the
    * element's used color-scheme, which follows the OS until a data-theme
@@ -74,7 +75,9 @@
   --pl-node-d: 18px;    /* connector cube depth */
   --pl-card-d: 9px;     /* card thickness       */
   --pl-cycle: 9s;       /* one full assembly    */
+}
 
+.pl {
   position: fixed;
   z-index: 9999;
   inset: 0;
@@ -96,10 +99,14 @@
 /* Pinning a theme -- on the loader itself or on :root, matching the app's
    existing :root[data-theme] convention -- overrides the OS preference. */
 .pl[data-theme="light"],
-:root[data-theme="light"] .pl { color-scheme: light; }
+.pl-flight[data-theme="light"],
+:root[data-theme="light"] .pl,
+:root[data-theme="light"] .pl-flight { color-scheme: light; }
 
 .pl[data-theme="dark"],
-:root[data-theme="dark"] .pl { color-scheme: dark; }
+.pl-flight[data-theme="dark"],
+:root[data-theme="dark"] .pl,
+:root[data-theme="dark"] .pl-flight { color-scheme: dark; }
 
 /* ===================================================================== *
  * wordmark
@@ -752,6 +759,98 @@
 
 @keyframes pl-burst-copy {
   to { opacity: 0; transform: translateY(12px); }
+}
+
+/* --- binding exit ------------------------------------------------------
+ * Instead of throwing the scene away, the diorama rotates up to face the
+ * reader and its cards fly to the page sections they stood for. Phase one is
+ * this stylesheet; phase two is driven from loader.js, which measures both
+ * ends and flies a clone between them.
+ *
+ * These rules follow the burst deliberately: both exits can be class-matched
+ * at once, and binding is the one that should win. */
+
+.pl.is-binding {
+  pointer-events: none;
+  animation: pl-bind-veil 640ms ease forwards;
+}
+
+@keyframes pl-bind-veil {
+  0%, 52% { opacity: 1; }
+  100%    { opacity: 0; }
+}
+
+/* Flat and square-on by the end. That is the point: a card's on-screen box is
+   then a true rectangle, which is what phase two can measure and fly from.
+   Under the isometric camera it is a parallelogram and its bounding box is
+   bigger than the card. */
+.pl.is-binding .pl__scene {
+  animation: pl-bind-cam 340ms cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+@keyframes pl-bind-cam {
+  0%   { transform: var(--pl-cam); }
+  100% { transform: translate(12%, 2%) rotateX(0deg) rotateZ(0deg) scale(calc(var(--pl-scale) * 1.15)); }
+}
+
+/* Cards hold, assembled and opaque, while everything around them clears --
+   the edition finishes, then binds. */
+.pl.is-binding .pl__card {
+  animation: pl-bind-hold 340ms ease-out forwards;
+}
+
+@keyframes pl-bind-hold {
+  to { opacity: 1; transform: translateZ(10px) scale(1); }
+}
+
+/* The deck cannot simply fade: the cards are its children, and opacity on an
+   ancestor takes the whole subtree with it. Its surface goes transparent
+   instead, and its sides fade on their own. */
+.pl.is-binding .pl__board > .f-top {
+  animation: pl-bind-deck 300ms ease-out forwards;
+}
+
+@keyframes pl-bind-deck {
+  to { background: transparent; box-shadow: none; }
+}
+
+.pl.is-binding .pl__board > .f-base,
+.pl.is-binding .pl__board > .f-n,
+.pl.is-binding .pl__board > .f-s,
+.pl.is-binding .pl__board > .f-e,
+.pl.is-binding .pl__board > .f-w,
+.pl.is-binding .pl__perf,
+.pl.is-binding .pl__pill,
+.pl.is-binding .pl__slot,
+.pl.is-binding .pl__arrow,
+.pl.is-binding .pl__machine,
+.pl.is-binding .pl__node,
+.pl.is-binding .pl__rail,
+.pl.is-binding .pl__pulse,
+.pl.is-binding .pl__shadow,
+.pl.is-binding .pl__copy,
+.pl.is-binding .pl__brand {
+  animation: pl-bind-clear 300ms ease-out forwards;
+}
+
+@keyframes pl-bind-clear {
+  to { opacity: 0; }
+}
+
+/* The flying clones live outside the loader, so the veil's fade cannot take
+   them with it -- they have to outlast the thing they came from. */
+.pl-flight {
+  position: fixed;
+  z-index: 10000;
+  inset: 0;
+  pointer-events: none;
+}
+
+/* Its box is animated rather than transformed, so the card's own layout does
+   the shape change -- see flyToTargets in loader.js. */
+.pl-flight__card {
+  position: fixed;
+  will-change: left, top, width, height, opacity;
 }
 
 /* ===================================================================== *

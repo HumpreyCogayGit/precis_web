@@ -39,6 +39,25 @@ const FALLBACK_HEADLINE_STYLE = {
   letterSpacing: '-0.025em',
 };
 
+/* Where each of the loader's six cards lands on the edition it is revealing.
+ * The order follows the loader's own grid, so the movement stays readable: its
+ * left column (cards 1 and 3) goes to the lead panel on the left, the top of
+ * its right column goes to Rising Now on the right, and the bottom four take
+ * the Top Stories rows underneath.
+ *
+ * Resolved at teardown rather than up front, because none of this exists until
+ * the edition renders -- and when it does not (a search is active, an empty
+ * edition, the error state) the missing entries fall back to the burst. */
+const bindTargets = () => {
+  const lead = document.querySelector('.edition-top-lead');
+  const rising = document.querySelector('.topic-trends');
+  const rows = Array.from(
+    document.querySelectorAll('.top-stories-table tbody tr'),
+  ).slice(0, 3);
+
+  return [lead, rising, lead, ...rows];
+};
+
 const NewsLoader = () => {
   const host = useRef(null);
   const [enhanced, setEnhanced] = useState(false);
@@ -53,8 +72,8 @@ const NewsLoader = () => {
     loader.mount(node);
     setEnhanced(true);
     // `handoff` moves the scene off this node before React unmounts it, so the
-    // burst can finish over the brief it is revealing.
-    return () => loader.destroy(node, { handoff: true, explode: true });
+    // exit can finish over the brief it is revealing.
+    return () => loader.destroy(node, { handoff: true, explode: true, bind: bindTargets });
   }, []);
 
   return (

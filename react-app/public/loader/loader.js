@@ -81,6 +81,15 @@
      Below this age the exit is skipped and the loader just goes. */
   var MIN_VISIBLE_MS = 500;
 
+  /* Binding exit: phase one flattens the camera, then the cards fly. */
+  var BIND_PHASE_MS = 340;
+  var BIND_FLIGHT_MS = 560;
+  var BIND_CARRIER_MS = 700;
+  /* Accelerating, not the usual ease-in-out: the card drifts off its slot and
+     then rushes the last two thirds into the page. Phase one ends slow, so the
+     two read as one continuous move that keeps gathering speed. */
+  var BIND_EASE = 'cubic-bezier(0.55, 0.055, 0.675, 0.19)';
+
   function prefersReducedMotion() {
     return (
       typeof global.matchMedia === 'function' &&
@@ -373,10 +382,99 @@
     return carrier;
   }
 
+  /* Phase two of the binding exit. Each card is left where it is and a clone
+     is flown from its box to its target's, because the card itself sits inside
+     a transformed 3D scene and cannot be addressed in viewport coordinates. */
+  function flyToTargets(carrier, targets) {
+    var cards = carrier.querySelectorAll('.pl__card');
+    var flight = el('div', 'pl-flight');
+    var theme = carrier.getAttribute('data-theme');
+
+    if (theme) flight.setAttribute('data-theme', theme);
+    flight.setAttribute('aria-hidden', 'true');
+    document.body.appendChild(flight);
+
+    for (var i = 0; i < cards.length; i++) {
+      var target = targets[i];
+      if (!target) continue;
+
+      var to = target.getBoundingClientRect();
+      // A target scrolled out of view would send the card off the screen, which
+      // reads as throwing it away rather than landing it.
+      if (!to.width || to.bottom < 0 || to.top > global.innerHeight) continue;
+
+      var from = cards[i].getBoundingClientRect();
+      var face = cards[i].querySelector('.f-top');
+      if (!from.width || !face) continue;
+
+      var ghost = el('div', 'pl-flight__card');
+      ghost.style.left = from.left + 'px';
+      ghost.style.top = from.top + 'px';
+      ghost.style.width = from.width + 'px';
+      ghost.style.height = from.height + 'px';
+
+      // Both classes: .pl-box gives the face its fill and radius, .pl__card its
+      // padding and the chip layout inside.
+      var shell = el('div', 'pl-box pl__card');
+      shell.style.cssText =
+        'position:absolute;inset:0;width:auto;height:auto;transform:none;animation:none;filter:none;';
+      shell.appendChild(face.cloneNode(true));
+      ghost.appendChild(shell);
+      flight.appendChild(ghost);
+
+      cards[i].style.opacity = '0';
+
+      // The box is animated, not scaled. Scaling to a table row's proportions
+      // would smear the chip and rules across it; letting the box take the
+      // target's real dimensions makes the card *reflow* into that shape --
+      // the chip settles to row height and the rules draw out lengthwise,
+      // while a panel target inflates the same card into a hero instead.
+      ghost.setAttribute(
+        'data-to',
+        [to.left, to.top, to.width, to.height].join(',')
+      );
+    }
+
+    if (!flight.children.length) {
+      flight.remove();
+      return;
+    }
+
+    // One forced reflow so the browser has the start boxes before the
+    // transition is declared; without it both ends land in the same frame and
+    // nothing animates.
+    void flight.offsetWidth;
+
+    var ghosts = flight.children;
+    for (var g = 0; g < ghosts.length; g++) {
+      var box = ghosts[g].getAttribute('data-to').split(',');
+      var move = BIND_FLIGHT_MS + 'ms ' + BIND_EASE;
+
+      ghosts[g].style.transition =
+        'left ' + move + ', top ' + move + ', width ' + move + ', height ' + move +
+        ', opacity 220ms ease ' + (BIND_FLIGHT_MS - 220) + 'ms';
+      ghosts[g].style.left = box[0] + 'px';
+      ghosts[g].style.top = box[1] + 'px';
+      ghosts[g].style.width = box[2] + 'px';
+      ghosts[g].style.height = box[3] + 'px';
+      // Handing over to the real element underneath, which is already in place.
+      ghosts[g].style.opacity = '0';
+    }
+
+    global.setTimeout(function () {
+      flight.remove();
+    }, BIND_FLIGHT_MS + 140);
+  }
+
   /* Plays the loader out, then removes it entirely -- a loader left in the DOM
      keeps aria-busy on the page and its animations on the compositor.
        explode: burst the scene apart and push the camera through it, for the
                 hand-off to the real page.
+       bind:    () => Element[]. Called one frame after the hand-off, once the
+                page underneath has been laid out; card i flies to targets[i].
+                Falsy entries and off-screen targets fall back to the burst's
+                fade. Keeps the loader ignorant of the app: it is handed
+                elements, never selectors.
        handoff: the mount point belongs to a framework; move the scene off it
                 first so the exit can finish after that node is gone.
        immediate: no exit at all. */
@@ -407,6 +505,43 @@
     }
 
     if (opts.handoff) root = handOff(root);
+
+    if (burst && typeof opts.bind === 'function') {
+      // Deferred one task before measuring: this runs inside the framework's
+      // commit, where the page underneath is not in its final shape yet.
+      // A timeout rather than requestAnimationFrame on purpose -- rAF does not
+      // fire in a background tab, which would strand the loader on screen for
+      // anyone who switched away while the edition loaded. Nothing here needs a
+      // paint: getBoundingClientRect forces layout on its own.
+      var carrier = root;
+      global.setTimeout(function () {
+        var targets = [];
+        try {
+          targets = opts.bind() || [];
+        } catch (error) {
+          targets = [];
+        }
+
+        var usable = false;
+        for (var i = 0; i < targets.length; i++) {
+          if (targets[i]) { usable = true; break; }
+        }
+
+        // Nothing to bind to -- a search is active, or the edition is empty.
+        if (!usable) {
+          carrier.classList.add('is-bursting');
+          global.setTimeout(function () { carrier.remove(); }, BURST_MS);
+          return;
+        }
+
+        carrier.classList.add('is-binding');
+        global.setTimeout(function () {
+          flyToTargets(carrier, targets);
+        }, BIND_PHASE_MS);
+        global.setTimeout(function () { carrier.remove(); }, BIND_CARRIER_MS);
+      }, 0);
+      return;
+    }
 
     root.classList.add(burst ? 'is-bursting' : 'is-leaving');
     global.setTimeout(function () {
