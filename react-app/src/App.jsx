@@ -49,6 +49,13 @@ const INITIAL_ARTICLE_COUNT = 24;
 // each row's excerpt only for the page it returns, so a page's cost scales with its
 // size, not with the archive. Both must not exceed MAX_LIMIT in lib/articles.js: the
 // API rejects a larger limit with a 400 rather than quietly returning fewer rows.
+// TEMPORARY -- debug only. Holds the loading screen open for at least this long
+// so the NewsLoader animation can be watched on a fast connection. Delete this
+// and the two holdForDebug() calls in fetchArticles to restore normal speed.
+// Zero under vitest: the suite waits ~1s for the edition to paint, so a real
+// hold here would time out every render test.
+const DEBUG_MIN_LOADING_MS = import.meta.env.MODE === 'test' ? 0 : 10000;
+
 const FIRST_PAGE_ARTICLE_LIMIT = 48;
 // Every page after the first, fetched one after another in the background until the
 // working set is complete. Sized so each request stays a few hundred milliseconds
@@ -901,6 +908,16 @@ function App() {
   const fetchArticles = useCallback(async (isCancelled) => {
     let nextOffset = null;
 
+    // TEMPORARY -- debug only, see DEBUG_MIN_LOADING_MS.
+    const isInitialLoad = initialLoadRef.current;
+    const startedAt = Date.now();
+    const holdForDebug = async () => {
+      const remaining = DEBUG_MIN_LOADING_MS - (Date.now() - startedAt);
+      if (remaining > 0) {
+        await new Promise((resolve) => { setTimeout(resolve, remaining); });
+      }
+    };
+
     try {
       if (initialLoadRef.current) {
         setLoading(true);
@@ -926,9 +943,22 @@ function App() {
         ? 'Failed to fetch articles. Start the Precis web server, then refresh this page'
         : 'Failed to fetch articles. Check the deployment environment variables and database connection');
       console.error('Error fetching articles:', err);
+      if (isInitialLoad) {
+        await holdForDebug();
+        if (isCancelled()) {
+          return;
+        }
+      }
       initialLoadRef.current = false;
       setLoading(false);
       return;
+    }
+
+    if (isInitialLoad) {
+      await holdForDebug();
+      if (isCancelled()) {
+        return;
+      }
     }
 
     initialLoadRef.current = false;

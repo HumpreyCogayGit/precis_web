@@ -9,10 +9,15 @@
     <link rel="apple-touch-icon" href="/logo192.png" />
     <link rel="manifest" href="/manifest.json" />
     <title>Precis Daily Tech Brief</title>
+    <!-- The loading animation is plain CSS/JS so it paints before the app
+         bundle has parsed; see public/loader/ for the standalone preview. -->
+    <link rel="stylesheet" href="/loader/loader.css" />
   </head>
   <body>
     <noscript>You need to enable JavaScript to run this app.</noscript>
     <div id="root"></div>
+    <div id="precis-loader"></div>
+    <script src="/loader/loader.js"></script>
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>

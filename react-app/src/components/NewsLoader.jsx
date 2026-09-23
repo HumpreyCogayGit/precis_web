@@ -1,68 +1,28 @@
-const ArticleLines = () => (
-  <span className="news-loader__lines">
-    <i />
-    <i />
-    <i />
-  </span>
-);
+import { useEffect, useRef } from 'react';
 
-const NewsLoader = () => (
-  <main className="news-loading" aria-live="polite" aria-busy="true">
-    <div className="news-loading__brand" aria-hidden="true">
-      Precis<span>.</span>
-    </div>
+/* The loading scene itself lives in public/loader/ as plain CSS and JS, so the
+ * same animation can paint from index.html before this bundle has parsed. This
+ * component is only the React mount point for it -- keeping one implementation
+ * means the boot splash and the in-app loader are the same picture, and the
+ * handoff between them is invisible.
+ *
+ * public/loader/loader.html is a standalone preview of the same three files. */
+const NewsLoader = () => {
+  const host = useRef(null);
 
-    <div className="news-loader" aria-hidden="true">
-      <div className="news-loader__scene">
-        <div className="news-loader__board">
-          <span className="news-loader__grid" />
-          <span className="news-loader__route news-loader__route--one" />
-          <span className="news-loader__route news-loader__route--two" />
-          <span className="news-loader__route news-loader__route--three" />
-          <span className="news-loader__signal news-loader__signal--one" />
-          <span className="news-loader__signal news-loader__signal--two" />
-          <span className="news-loader__signal news-loader__signal--three" />
+  useEffect(() => {
+    const node = host.current;
+    const loader = window.PrecisLoader;
+    if (!node || !loader) return undefined;
 
-          <div className="news-loader__press">
-            <span className="news-loader__press-mark">P</span>
-            <span className="news-loader__press-label">TODAY</span>
-          </div>
+    loader.mount(node);
+    // `keep` leaves the node itself alone: React owns it and will unmount it,
+    // and a loader that removed it first would break that unmount.
+    return () => loader.destroy(node, { immediate: true, keep: true });
+  }, []);
 
-          <div className="news-loader__article news-loader__article--one">
-            <span className="news-loader__article-image" />
-            <ArticleLines />
-          </div>
-          <div className="news-loader__article news-loader__article--two">
-            <span className="news-loader__article-image" />
-            <ArticleLines />
-          </div>
-          <div className="news-loader__article news-loader__article--three">
-            <span className="news-loader__article-image" />
-            <ArticleLines />
-          </div>
-
-          <div className="news-loader__topic news-loader__topic--ai">
-            <strong>AI</strong>
-            <span>01</span>
-          </div>
-          <div className="news-loader__topic news-loader__topic--cyber">
-            <strong>CY</strong>
-            <span>02</span>
-          </div>
-          <div className="news-loader__topic news-loader__topic--signal">
-            <span className="news-loader__pulse" />
-            <span>LIVE</span>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <div className="news-loading__copy">
-      <p className="state-kicker">Gathering the signal</p>
-      <h1>Building today&rsquo;s <span>edition.</span></h1>
-      <div className="news-loading__progress" aria-hidden="true"><span /></div>
-    </div>
-  </main>
-);
+  // Sized by the loader's own fixed positioning once mounted; empty until then.
+  return <div ref={host} />;
+};
 
 export default NewsLoader;

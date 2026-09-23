@@ -43,4 +43,14 @@ root.render(
   </React.StrictMode>
 );
 
+// The loader in index.html covers the gap before this bundle has parsed and
+// painted. Two frames after the first render puts the dismissal after React has
+// committed, so the brief is on screen rather than a blank page.
+requestAnimationFrame(() => {
+  requestAnimationFrame(() => {
+    // Scoped to the boot splash: App mounts its own loader while it fetches.
+    if (window.PrecisLoader) window.PrecisLoader.destroy('#precis-loader');
+  });
+});
+
 reportWebVitals();
