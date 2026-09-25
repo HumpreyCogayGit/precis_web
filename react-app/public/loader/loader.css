@@ -52,6 +52,9 @@
 
   --pl-ink: light-dark(#14171a, #eef2f7);
   --pl-muted: light-dark(#6b7280, #94a2b2);
+  /* The site's --accent (App.css), for blue type. --pl-blue below stays the
+     saturated fill behind white glyphs, where the softer accent lacks contrast. */
+  --pl-accent: light-dark(#5980a6, #8bb6df);
 
   --pl-blue: #2f6fed;
   --pl-green: #17a05f;
@@ -116,7 +119,7 @@
   position: absolute;
   top: clamp(20px, 4vh, 40px);
   left: clamp(20px, 5vw, 64px);
-  color: var(--pl-blue);
+  color: var(--pl-accent);
   font-size: 1.7rem;
   font-weight: 900;
   letter-spacing: -0.075em;
@@ -642,7 +645,7 @@
   line-height: 1.2;
 }
 
-.pl__headline span { color: var(--pl-blue); }
+.pl__headline span { color: var(--pl-accent); }
 
 .pl__progress {
   overflow: hidden;
