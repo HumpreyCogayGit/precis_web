@@ -3,9 +3,12 @@ import { Link, useSearchParams } from 'react-router-dom';
 import axios from 'axios';
 
 import SiteFooter from '../components/SiteFooter.jsx';
-import TldrArt from '../components/TldrArt.jsx';
 import ThemeToggle from '../components/ThemeToggle.jsx';
-import { buildHighlightPattern, formatRelativeTime, safeHttpUrl } from '../App.jsx';
+import ThreatCover from '../components/ThreatCover.jsx';
+import {
+  ArticleCoverContext, BriefRow, EVERYTHING_VIEW_MODES, EverythingCard, SearchHighlightContext,
+  SmallListRow, ViewModeToggle, buildCardLayout, buildHighlightPattern,
+} from '../App.jsx';
 import { CloseIcon, SearchIcon } from '../icons.jsx';
 import { THREAT_SITES, formatSiteName } from '../sources';
 import useRevealOnScroll from '../useRevealOnScroll.js';
@@ -18,7 +21,6 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL
 // fetched one after another until the set is complete, as on the front page.
 const PAGE_LIMIT = 250;
 const RENDER_STEP = 48;
-const TYPE_TAG = 'Cyber Security';
 
 // `sites: null` is every threat feed. `slug` is the tab's form in the URL
 // (?feed=exploits), and the first tab is the absence of the parameter.
@@ -40,12 +42,24 @@ const MAX_QUERY_LENGTH = 200;
 // so "linux kernel" narrows rather than widens, as a CVE hunt expects.
 const searchTermsOf = (query) => query.toLowerCase().split(/\s+/).filter(Boolean);
 
-const haystackOf = (article) => [
-  article.title,
-  article.summary || article.excerpt,
-  ...(Array.isArray(article.tags) ? article.tags : []),
-  formatSiteName(article.site),
-].filter(Boolean).join(' ').toLowerCase();
+// The threat details count too, so "critical" or "ingress-nginx" finds items whose
+// headline never says so.
+const haystackOf = (article) => {
+  const threat = article.threat || {};
+  return [
+    article.title,
+    article.summary || article.excerpt,
+    ...(Array.isArray(article.tags) ? article.tags : []),
+    formatSiteName(article.site),
+    ...(Array.isArray(threat.cves) ? threat.cves : []),
+    ...(Array.isArray(threat.products) ? threat.products : []),
+    threat.severity,
+    threat.github,
+  ].filter(Boolean).join(' ').toLowerCase();
+};
+
+// Every cover on this page is a threat card; see components/ThreatCover.jsx.
+const renderThreatCover = (article, className) => <ThreatCover article={article} className={className} />;
 
 const matchesTerms = (article, terms) => {
   if (terms.length === 0) return true;
@@ -53,85 +67,34 @@ const matchesTerms = (article, terms) => {
   return terms.every((term) => haystack.includes(term));
 };
 
-// Same markup as the front page's highlight, so .search-hit styles it.
-const highlight = (text, pattern) => {
-  if (!pattern || !text) return text;
-  return text.split(pattern).map((part, index) => (
-    index % 2 === 1 ? <mark key={`${index}-${part}`} className="search-hit">{part}</mark> : part
-  ));
-};
+// Sploitus prefixes every summary with its page's "Description" heading. Cleaned
+// once on load, so every layout and the search see the same text.
+const cleanSummary = (article) => ({
+  ...article,
+  summary: (article.summary || '').replace(/\s+/g, ' ').replace(/^Description\s+/i, '').trim() || null,
+});
 
-// Sploitus prefixes every summary with its page's "Description" heading.
-const summaryOf = (article) => (
-  (article.summary || article.excerpt || '').replace(/\s+/g, ' ').replace(/^Description\s+/i, '').trim()
-);
+// A reading preference rather than a place, so it lives in localStorage like the
+// TL;DR page's layout, not in the URL like the tab and search do.
+const VIEW_STORAGE_KEY = 'precis:threats-view';
+// A list scans faster than cards when hunting through CVEs, so this page opens on it
+// (the front page opens on cards).
+const DEFAULT_VIEW = 'list';
 
-const proxiedImageUrl = (imageUrl) => {
-  const safe = safeHttpUrl(imageUrl);
-  return safe ? `${API_BASE_URL}/api/image-proxy?url=${encodeURIComponent(safe)}` : '';
-};
-
-// The source's image when it has one, generated art otherwise -- the same rule as
-// the TL;DR page, so the two lists read as one family.
-const ThreatCover = ({ article }) => {
-  const [failed, setFailed] = useState(false);
-  const src = proxiedImageUrl(article.image_url);
-  const item = { article_url: article.url, title: article.title, tags: article.tags };
-
-  if (!src || failed) {
-    return <TldrArt item={item} topic={TYPE_TAG} />;
+const readStoredView = () => {
+  try {
+    const stored = window.localStorage.getItem(VIEW_STORAGE_KEY);
+    return EVERYTHING_VIEW_MODES.includes(stored) ? stored : DEFAULT_VIEW;
+  } catch {
+    return DEFAULT_VIEW;
   }
-
-  return (
-    <div className="tldr-art tldr-art--photo">
-      <img src={src} alt="" loading="lazy" decoding="async" onError={() => setFailed(true)} />
-    </div>
-  );
-};
-
-const ThreatItem = ({ article, pattern }) => {
-  const url = safeHttpUrl(article.url);
-  const summary = summaryOf(article);
-  const tag = Array.isArray(article.tags) ? article.tags[0] : null;
-
-  return (
-    <li className="tldr-item">
-      {url ? (
-        <a className="tldr-item-art" href={url} target="_blank" rel="noopener noreferrer" tabIndex={-1} aria-hidden="true">
-          <ThreatCover article={article} />
-        </a>
-      ) : (
-        <div className="tldr-item-art" aria-hidden="true"><ThreatCover article={article} /></div>
-      )}
-      <div className="tldr-item-body">
-        <p className="tldr-item-text">
-          {url ? (
-            <a href={url} target="_blank" rel="noopener noreferrer">{highlight(article.title, pattern)}</a>
-          ) : highlight(article.title, pattern)}
-        </p>
-        <p className="tldr-item-meta">
-          {summary && <span>{highlight(summary, pattern)}</span>}
-        </p>
-        <p className="tldr-item-meta">
-          <span>{formatSiteName(article.site)}</span>
-          <span aria-hidden="true"> &middot; </span>
-          <span>{formatRelativeTime(article.published_at || article.fetched_at)}</span>
-          {tag && (
-            <>
-              <span aria-hidden="true"> &middot; </span>
-              <span>{tag}</span>
-            </>
-          )}
-        </p>
-      </div>
-    </li>
-  );
 };
 
 const ThreatsPage = () => {
   const [articles, setArticles] = useState([]);
   const [status, setStatus] = useState('loading');
   const [shown, setShown] = useState(RENDER_STEP);
+  const [view, setView] = useState(readStoredView);
   const [searchParams, setSearchParams] = useSearchParams();
   const tabRefs = useRef({});
 
@@ -148,7 +111,17 @@ const ThreatsPage = () => {
     tab.sites ? matching.filter((article) => tab.sites.includes(article.site)) : matching
   );
   const visible = inTab(activeTab);
-  const listRef = useRevealOnScroll([activeTab.slug, visible.length, shown, query]);
+  const page = visible.slice(0, shown);
+  const listRef = useRevealOnScroll([view, activeTab.slug, visible.length, shown, query]);
+
+  const selectView = (nextView) => {
+    setView(nextView);
+    try {
+      window.localStorage.setItem(VIEW_STORAGE_KEY, nextView);
+    } catch {
+      // Storage blocked (private mode, disabled site data): the choice just won't persist.
+    }
+  };
 
   // Both live in the URL so a filtered view can be shared; replace, not push, so
   // typing and tab switches don't fill the back button's history.
@@ -174,15 +147,15 @@ const ThreatsPage = () => {
           // few requests, well inside RATE_LIMITS.articles.
           // eslint-disable-next-line no-await-in-loop
           const response = await axios.get(buildThreatsUrl(offset));
-          const page = (response.data?.items || []).filter((article) => {
+          const fresh = (response.data?.items || []).filter((article) => {
             const key = articleKey(article);
             if (seen.has(key)) return false;
             seen.add(key);
             return true;
-          });
+          }).map(cleanSummary);
 
           if (cancelled) return;
-          setArticles((current) => [...current, ...page]);
+          setArticles((current) => [...current, ...fresh]);
           setStatus('ready');
           offset = response.data?.next_offset ?? null;
         }
@@ -294,6 +267,8 @@ const ThreatsPage = () => {
               </button>
             )}
           </div>
+
+          <ViewModeToggle value={view} onChange={selectView} label="Threats layout" />
         </div>
 
         {status === 'loading' && <p className="trend-note">Loading threats&hellip;</p>}
@@ -321,13 +296,31 @@ const ThreatsPage = () => {
                 {visible.length} match{visible.length === 1 ? '' : 'es'} for &ldquo;{query}&rdquo;
               </p>
             )}
-            {visible.length > 0 && (
-              <ol className="tldr-list tldr-list--list" ref={listRef}>
-                {visible.slice(0, shown).map((article) => (
-                  <ThreatItem key={articleKey(article)} article={article} pattern={pattern} />
-                ))}
-              </ol>
-            )}
+            <ArticleCoverContext.Provider value={renderThreatCover}>
+              <SearchHighlightContext.Provider value={pattern}>
+                {page.length > 0 && view === 'cards' && (
+                  <div className="everything-grid" ref={listRef}>
+                    {buildCardLayout(page).map(({ article, feature, trioEnd }) => (
+                      <EverythingCard key={articleKey(article)} article={article} feature={feature} trioEnd={trioEnd} />
+                    ))}
+                  </div>
+                )}
+                {page.length > 0 && view === 'list' && (
+                  <div className="brief-list">
+                    {page.map((article, index) => (
+                      <BriefRow key={articleKey(article)} article={article} index={index} />
+                    ))}
+                  </div>
+                )}
+                {page.length > 0 && view === 'small-list' && (
+                  <ul className="small-list">
+                    {page.map((article) => (
+                      <SmallListRow key={articleKey(article)} article={article} />
+                    ))}
+                  </ul>
+                )}
+              </SearchHighlightContext.Provider>
+            </ArticleCoverContext.Provider>
             {visible.length > shown && (
               <div className="show-more-inline">
                 <button type="button" className="show-more-link" onClick={() => setShown((n) => n + RENDER_STEP)}>

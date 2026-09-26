@@ -3563,6 +3563,172 @@ mark.search-hit {
   gap: 12px;
 }
 
+/* Threat cards (components/ThreatCover.jsx): the cover for exploit and CVE items,
+   drawn from the item's own details because both feeds publish one logo for every
+   post. Sized by whatever slot holds it; text scales with container units. */
+.threat-cover {
+  position: relative;
+  overflow: hidden;
+  container-type: size;
+  width: 100%;
+  height: 100%;
+  background: #0b0b0d;
+  color: #fff;
+  /* Severity accent, drawn as the left rule below. */
+  --threat-accent: #64748b;
+}
+
+.threat-cover--critical { --threat-accent: #dc2626; }
+.threat-cover--high { --threat-accent: #ea580c; }
+.threat-cover--medium { --threat-accent: #eab308; }
+.threat-cover--low { --threat-accent: #16a34a; }
+
+.threat-cover::after {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 4px;
+  background: var(--threat-accent);
+}
+
+.brief-thumb .threat-cover,
+.everything-card-image-link .threat-cover {
+  display: block;
+}
+
+.threat-cover .tldr-art {
+  position: absolute;
+  inset: 0;
+  aspect-ratio: auto;
+  height: 100%;
+}
+
+.threat-cover .tldr-art-label {
+  display: none;
+}
+
+.threat-cover-photo {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+  background: #fff;
+}
+
+.threat-cover-top {
+  position: absolute;
+  top: 0;
+  right: 0;
+  left: 4px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 6px;
+  padding: clamp(4px, 4cqi, 12px);
+}
+
+.threat-kind,
+.threat-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4em;
+  padding: 0.25em 0.5em;
+  font-size: clamp(0.5625rem, 3.4cqi, 0.75rem);
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  line-height: 1.1;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.threat-kind {
+  border: 1px solid rgba(255, 255, 255, 0.7);
+  background: rgba(0, 0, 0, 0.45);
+  color: #fff;
+}
+
+.threat-pill {
+  background: var(--threat-accent);
+  color: #fff;
+}
+
+.threat-pill--medium {
+  color: #111;
+}
+
+.threat-pill-score {
+  font-variant-numeric: tabular-nums;
+}
+
+.threat-cover-text {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3em;
+  padding: clamp(4px, 5cqi, 16px);
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.78), rgba(0, 0, 0, 0));
+}
+
+.threat-headline {
+  overflow: hidden;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: clamp(0.625rem, 8cqi, 1.75rem);
+  font-weight: 700;
+  line-height: 1.1;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.threat-sub {
+  overflow: hidden;
+  color: rgba(255, 255, 255, 0.82);
+  font-size: clamp(0.625rem, 3.6cqi, 0.875rem);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* The 96px list thumbnail: room for the severity and the CVE only. */
+@container (max-width: 160px) {
+  .threat-kind,
+  .threat-sub {
+    display: none;
+  }
+
+  .threat-cover-top {
+    justify-content: flex-end;
+  }
+
+  .threat-pill-label {
+    display: none;
+  }
+}
+
+.threat-cover .threat-cover-photo,
+.threat-cover .tldr-art svg {
+  transition: transform 320ms ease;
+}
+
+/* The slot's own hover zoom would scale the badges and text with the picture. */
+.everything-card:hover .threat-cover.everything-card-image {
+  transform: none;
+}
+
+.everything-card:hover .threat-cover .threat-cover-photo,
+.everything-card:hover .threat-cover .tldr-art svg {
+  transform: scale(1.04);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .threat-cover .threat-cover-photo,
+  .threat-cover .tldr-art svg {
+    transition: none;
+  }
+}
+
 .threats-search {
   display: flex;
   flex: 1 1 260px;

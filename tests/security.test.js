@@ -234,6 +234,8 @@ test('article list queries use the public view and expose only public fields', (
   assert.match(built.text, /\blead_selected_at\b/i);
   assert.match(ARTICLE_PAGE_SQL, /\blead_selected_at\b/i);
   // The page query binds its URLs as one array parameter, never interpolated.
+  // Exploit/CVE details for the /threats cover; NULL for every other source.
+  assert.match(ARTICLE_PAGE_SQL, /\bthreat\b/i);
   assert.match(ARTICLE_PAGE_SQL, /url = ANY\(\$1::text\[\]\)/);
   // Topic is an array overlap, so even one value binds as a one-element array.
   assert.deepEqual(built.params, ['nvidia', ['AI'], WORKING_SET_LIMIT]);

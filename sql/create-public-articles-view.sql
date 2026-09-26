@@ -111,7 +111,11 @@ SELECT
        FROM public.article_leads l
       WHERE l.article_url = a.url),
     '{}'::jsonb
-  ) AS lead_selected_at
+  ) AS lead_selected_at,
+  -- Exploit/CVE details for the threat feeds: CVE IDs, CVSS score and severity,
+  -- affected products, GitHub repository (scraper/blogscraper/threat_meta.py). NULL
+  -- for every other source. Appended last, for the same CREATE OR REPLACE reason.
+  a.threat
 FROM public.articles a
 WHERE COALESCE(a.needs_review, FALSE) = FALSE
   -- Per-source kill switch. A row in hidden_sites withholds that source's whole

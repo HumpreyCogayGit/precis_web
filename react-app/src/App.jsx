@@ -93,7 +93,7 @@ const ARCHIVE_RESULT_LIMIT = 24;
 const MIN_ARCHIVE_QUERY_LENGTH = 2;
 const ARCHIVE_DEBOUNCE_MS = 400;
 const PAGE_SIZE_OPTIONS = [24, 48, 96, 192];
-const EVERYTHING_VIEW_MODES = ['cards', 'list', 'small-list'];
+export const EVERYTHING_VIEW_MODES = ['cards', 'list', 'small-list'];
 
 const proxiedImageUrl = (imageUrl) => (
   imageUrl ? `${API_BASE_URL}/api/image-proxy?url=${encodeURIComponent(imageUrl)}` : ''
@@ -363,8 +363,10 @@ const EVERYTHING_VIEW_OPTIONS = [
   { id: 'small-list', label: 'Small list', Icon: SmallListViewIcon },
 ];
 
-const ViewModeToggle = ({ value, onChange }) => (
-  <div className="view-toggle" role="group" aria-label="Latest News layout">
+// Exported, with the rows below, for pages/ThreatsPage.jsx, so both pages lay out
+// their lists the same way.
+export const ViewModeToggle = ({ value, onChange, label = 'Latest News layout' }) => (
+  <div className="view-toggle" role="group" aria-label={label}>
     {EVERYTHING_VIEW_OPTIONS.map(({ id, label, Icon }) => (
       <button
         key={id}
@@ -569,7 +571,18 @@ const FallbackNewsImage = ({ site, seed, className = '' }) => {
 // Renders the fallback graphic whenever there's no image_url, and also falls
 // back to it if the real image fails to load (broken link, timed-out fetch
 // through the image proxy, etc.) rather than leaving a blank broken-image icon.
+// Lets a page draw its own cover for every article in place of the image/fallback pair
+// below -- the /threats page draws a threat card. (article, className) => element, or
+// null to keep the default.
+export const ArticleCoverContext = createContext(null);
+
 const ArticleImage = ({ article, className = '' }) => {
+  const renderCover = useContext(ArticleCoverContext);
+  const cover = renderCover ? renderCover(article, className) : null;
+  return cover ?? <DefaultArticleImage article={article} className={className} />;
+};
+
+const DefaultArticleImage = ({ article, className = '' }) => {
   const [hasError, setHasError] = useState(false);
   const imageUrl = article?.image_url;
 
@@ -597,7 +610,7 @@ const ArticleImage = ({ article, className = '' }) => {
 // searched. Passed by context rather than threaded as a prop: highlighting has to
 // reach the headline and summary of four different row components plus the lead,
 // and none of them otherwise care that a search is running.
-const SearchHighlightContext = createContext(null);
+export const SearchHighlightContext = createContext(null);
 
 const escapeRegExp = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
@@ -645,7 +658,7 @@ const SaveAffordance = ({ iconOnly = false }) => (
   </button>
 );
 
-const BriefRow = ({ article, index }) => {
+export const BriefRow = ({ article, index }) => {
   const summaryText = getSummaryText(article);
 
   return (
@@ -774,7 +787,7 @@ export const buildCardLayout = (articles, seedOf = (article) => article.url || a
   return layout;
 };
 
-const EverythingCard = ({ article, feature = null, trioEnd = false }) => {
+export const EverythingCard = ({ article, feature = null, trioEnd = false }) => {
   const articleUrl = safeHttpUrl(article.url);
   const summaryText = getCardSummaryText(article);
   const image = <ArticleImage article={article} className="everything-card-image" />;
@@ -806,7 +819,7 @@ const EverythingCard = ({ article, feature = null, trioEnd = false }) => {
   );
 };
 
-const SmallListRow = ({ article }) => (
+export const SmallListRow = ({ article }) => (
   <li className="small-list-row">
     <h4><SafeArticleTitle article={article} /></h4>
     <span className="small-list-meta">
