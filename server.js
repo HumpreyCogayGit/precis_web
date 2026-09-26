@@ -34,6 +34,7 @@ app.get('/api/articles', rateLimitMiddleware(RATE_LIMITS.articles), async (req, 
   try {
     await sendTimedJson(res, () => fetchArticles({
       site: req.query.site,
+      notSite: req.query.not_site,
       topic: req.query.topic,
       tags: req.query.tags,
       notTags: req.query.not_tags,
@@ -50,6 +51,7 @@ app.get('/api/article-count', rateLimitMiddleware(RATE_LIMITS.articles), async (
     res.json({
       count: await countArticles({
         site: req.query.site,
+        notSite: req.query.not_site,
         topic: req.query.topic,
         tags: req.query.tags,
         notTags: req.query.not_tags,

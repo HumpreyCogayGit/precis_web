@@ -14,7 +14,9 @@ export const SOURCE_DISPLAY_NAMES = {
   nvidia: 'NVIDIA',
   open_ai: 'OpenAI',
   open_ai_releases: 'OpenAI',
+  oss_security: 'oss-security',
   perplexity_blog: 'Perplexity',
+  sploitus: 'Sploitus',
   together_ai_blog: 'Together AI',
   x_ai_news: 'xAI',
 };
@@ -31,3 +33,9 @@ export const formatSiteName = (site = '') => {
     .replace(/\b\w/g, (letter) => letter.toUpperCase())
     .replace(/\bAi\b/g, 'AI');
 };
+
+// Exploit and CVE feeds. They have their own page (/threats) and are kept off the
+// front page, which asks the API to leave them out (not_site).
+export const THREAT_SITES = ['sploitus', 'oss_security'];
+
+export const isThreatSite = (site = '') => THREAT_SITES.includes(String(site).trim().toLowerCase());

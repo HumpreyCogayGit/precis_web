@@ -56,6 +56,7 @@ never "match nothing". All accept a single comma-separated value.
 | --- | --- |
 | `topic=AI,Cyber Security` | article topic, OR within |
 | `site=open_ai,nvidia` | source, OR within |
+| `not_site=sploitus,oss_security` | sources to remove, always AND NOT (`/api/articles` and `/api/article-count` only) |
 | `tags=zero-day-exploit,ransomware` | tag slugs, OR within |
 | `not_tags=advisory` | tag slugs to remove, always AND NOT |
 

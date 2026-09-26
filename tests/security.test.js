@@ -250,6 +250,18 @@ test('multi-value site/topic filters build one array param per group', () => {
   assert.deepEqual(built.params, [['nvidia', 'openai'], ['AI'], WORKING_SET_LIMIT]);
 });
 
+test('not_site removes whole sources and can sit alongside a site include list', () => {
+  const excludeOnly = buildFetchArticlesQuery({ notSite: 'sploitus,oss_security' });
+  assert.match(excludeOnly.text, /site <> ALL\(\$1::text\[\]\)/);
+  assert.doesNotMatch(excludeOnly.text, /sploitus|oss_security/);
+  assert.deepEqual(excludeOnly.params, [['sploitus', 'oss_security'], WORKING_SET_LIMIT]);
+
+  const both = buildFetchArticlesQuery({ site: 'nvidia', notSite: 'sploitus' });
+  assert.deepEqual(both.params, [['sploitus'], 'nvidia', WORKING_SET_LIMIT]);
+
+  assertValidationError(() => buildFetchArticlesQuery({ notSite: ['a', 'b'] }), 'not_site');
+});
+
 test('tag slugs never carry a display label into the query string', () => {
   assert.equal(slugifyTag('Zero-Day / Exploit'), 'zero-day-exploit');
   assert.equal(slugifyTag('Identity & Access (IAM)'), 'identity-access-iam');

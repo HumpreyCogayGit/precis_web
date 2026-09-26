@@ -19,6 +19,7 @@ module.exports = async function handler(req, res) {
     res.status(200).json({
       count: await countArticles({
         site: req.query.site,
+        notSite: req.query.not_site,
         topic: req.query.topic,
         tags: req.query.tags,
         notTags: req.query.not_tags,

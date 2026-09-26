@@ -14,6 +14,7 @@ import reportWebVitals from './reportWebVitals';
 // the code of pages the reader never opens.
 const TrendingPage = lazy(() => import('./pages/TrendingPage.jsx'));
 const TldrPage = lazy(() => import('./pages/TldrPage.jsx'));
+const ThreatsPage = lazy(() => import('./pages/ThreatsPage.jsx'));
 const PrivacyPolicyPage = lazy(() => import('./pages/LegalPages.jsx').then((m) => ({ default: m.PrivacyPolicyPage })));
 const TermsPage = lazy(() => import('./pages/LegalPages.jsx').then((m) => ({ default: m.TermsPage })));
 
@@ -32,6 +33,7 @@ root.render(
           <Route path="/" element={<App />} />
           <Route path="/trending" element={<TrendingPage />} />
           <Route path="/tldr" element={<TldrPage />} />
+          <Route path="/threats" element={<ThreatsPage />} />
           <Route path="/privacy" element={<PrivacyPolicyPage />} />
           <Route path="/terms" element={<TermsPage />} />
         </Routes>

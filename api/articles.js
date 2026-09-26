@@ -16,6 +16,7 @@ module.exports = async function handler(req, res) {
     res.setHeader('Cache-Control', 's-maxage=60, stale-while-revalidate=600');
     await sendTimedJson(res, () => fetchArticles({
       site: req.query.site,
+      notSite: req.query.not_site,
       topic: req.query.topic,
       tags: req.query.tags,
       notTags: req.query.not_tags,

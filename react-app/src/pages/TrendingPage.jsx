@@ -365,6 +365,7 @@ const TrendingPage = () => {
           <Link to="/" className="site-nav-link">Today</Link>
           <Link to="/tldr" className="site-nav-link">TL;DR</Link>
           <span className="site-nav-link active" aria-current="page">Trending</span>
+          <Link to="/threats" className="site-nav-link">Threats</Link>
         </nav>
         <div className="site-header-actions">
           <ThemeToggle />

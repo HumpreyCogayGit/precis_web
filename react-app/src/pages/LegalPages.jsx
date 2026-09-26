@@ -14,6 +14,7 @@ const LegalHeader = ({ current }) => (
       <Link to="/" className="site-nav-link">Today</Link>
       <Link to="/tldr" className="site-nav-link">TL;DR</Link>
       <Link to="/trending" className="site-nav-link">Trending</Link>
+      <Link to="/threats" className="site-nav-link">Threats</Link>
       <Link to="/privacy" className={`site-nav-link${current === 'privacy' ? ' active' : ''}`} aria-current={current === 'privacy' ? 'page' : undefined}>Privacy</Link>
       <Link to="/terms" className={`site-nav-link${current === 'terms' ? ' active' : ''}`} aria-current={current === 'terms' ? 'page' : undefined}>Terms</Link>
     </nav>

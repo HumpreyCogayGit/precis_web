@@ -40,7 +40,7 @@ import {
   sanitizeQueryInput,
   sortFacetRows,
 } from './filters';
-import { formatSiteName } from './sources';
+import { THREAT_SITES, formatSiteName, isThreatSite } from './sources';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || (import.meta.env.DEV ? 'http://localhost:5000' : '');
 const INITIAL_ARTICLE_COUNT = 24;
@@ -274,9 +274,10 @@ const writeFiltersToUrl = (filters) => {
 // site/topic/tags/not_tags (see lib/articles.js) for callers that want
 // the database to do the filtering, but the panel needs every reachable row in
 // the browser — a facet count that disagreed with the list behind it would be
-// worse than a slow one.
+// worse than a slow one. The one exception is the exploit feeds, which live on
+// /threats: they are left out server-side so no facet ever counts them.
 const buildArticleUrl = (limit, offset = 0) => (
-  `${API_BASE_URL}/api/articles?limit=${limit}&offset=${offset}`
+  `${API_BASE_URL}/api/articles?limit=${limit}&offset=${offset}&not_site=${THREAT_SITES.join(',')}`
 );
 
 const articleKey = (article) => `${article.site} ${article.url}`;
@@ -1036,7 +1037,7 @@ function App() {
         const stories = entities
           .map((entity) => (entity.articles || []).find((a) => a.is_representative) || entity.articles?.[0])
           .filter((story) => {
-            if (!story || seenUrls.has(story.url)) {
+            if (!story || seenUrls.has(story.url) || isThreatSite(story.site)) {
               return false;
             }
             seenUrls.add(story.url);
@@ -1876,6 +1877,7 @@ function App() {
           <a href="#top" className="site-nav-link active">Today</a>
           <a href="/tldr" className="site-nav-link">TL;DR</a>
           <a href="/trending" className="site-nav-link">Trending</a>
+          <a href="/threats" className="site-nav-link">Threats</a>
         </nav>
         <div className="site-header-actions">
           <ThemeToggle />

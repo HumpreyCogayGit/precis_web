@@ -3563,6 +3563,18 @@ mark.search-hit {
   gap: 12px;
 }
 
+.threats-search {
+  display: flex;
+  flex: 1 1 260px;
+  max-width: 420px;
+  align-items: center;
+  gap: 10px;
+}
+
+.threats-search .header-search input {
+  font-size: 1rem;
+}
+
 .tldr-actions {
   display: inline-flex;
   flex-shrink: 0;
