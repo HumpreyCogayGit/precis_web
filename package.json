@@ -10,7 +10,9 @@
     "verify:readonly-role": "test -n \"$WEB_READONLY_DATABASE_URL\" || { echo 'WEB_READONLY_DATABASE_URL is required' >&2; exit 1; }; psql \"$WEB_READONLY_DATABASE_URL\" -v ON_ERROR_STOP=1 -f sql/verify-readonly-web-role.sql",
     "start": "node server.js",
     "dev": "nodemon server.js",
-    "check:node": "node -v && npm -v"
+    "check:node": "node -v && npm -v",
+    "maintenance:on": "npx vercel deploy --prod --local-config vercel.maintenance.json",
+    "maintenance:off": "npx vercel deploy --prod"
   },
   "engines": {
     "node": "24.x"

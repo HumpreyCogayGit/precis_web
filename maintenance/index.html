@@ -1,0 +1,175 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex">
+  <!-- Reload every 5 minutes, so an open tab comes back on its own once the site is restored. -->
+  <meta http-equiv="refresh" content="300">
+  <title>Précis · Back shortly</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%231f2b3b'/%3E%3Ccircle cx='23' cy='23' r='4' fill='%23e5484d'/%3E%3C/svg%3E">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@600;700;800&display=swap" rel="stylesheet">
+  <style>
+    /* Tokens copied from react-app/src/App.css so the page reads as the same site. */
+    :root {
+      --accent: #5980a6;
+      --accent-dark: #416180;
+      --ink: #1d1f20;
+      --ink-soft: #424244;
+      --muted: #7a7a7d;
+      --paper: #f2f2f3;
+      --line-dark: #1d1f20;
+      --on-accent: #ffffff;
+      --masthead-bg: #1f2b3b;
+      --masthead-ink: #ffffff;
+      --masthead-muted: #c9d3de;
+      --brand-dot: #e5484d;
+      --font-body: Barlow, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      --font-display: "Barlow Condensed", "Arial Narrow", ui-sans-serif, system-ui, sans-serif;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --accent: #8bb6df;
+        --accent-dark: #b8d6f2;
+        --ink: #f4f7fa;
+        --ink-soft: #d5dce4;
+        --muted: #a4afbb;
+        --paper: #0d141b;
+        --line-dark: #d8e1ea;
+        --on-accent: #07111b;
+      }
+    }
+
+    * { box-sizing: border-box; }
+
+    html, body { margin: 0; }
+
+    body {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      background: var(--paper);
+      color: var(--ink);
+      font-family: var(--font-body);
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .site-header {
+      display: flex;
+      align-items: center;
+      min-height: 56px;
+      padding: 16px max(16px, calc((100% - 1200px) / 2));
+      background: var(--masthead-bg);
+      color: var(--masthead-ink);
+    }
+
+    .brand {
+      font-family: var(--font-display);
+      font-size: 2.125rem;
+      font-weight: 800;
+      line-height: 1;
+      color: var(--masthead-ink);
+      text-decoration: none;
+    }
+
+    .brand::after { content: "."; color: var(--brand-dot); }
+
+    main {
+      flex: 1;
+      width: 100%;
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: clamp(40px, 9vw, 104px) 16px 64px;
+    }
+
+    .eyebrow {
+      margin: 0 0 16px;
+      font-family: var(--font-display);
+      font-size: 0.95rem;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--accent);
+    }
+
+    h1 {
+      margin: 0;
+      padding-bottom: 28px;
+      border-bottom: 3px solid var(--line-dark);
+      font-family: var(--font-display);
+      font-size: clamp(3rem, 11vw, 6.5rem);
+      font-weight: 800;
+      line-height: 0.95;
+      letter-spacing: -0.01em;
+    }
+
+    .lede {
+      max-width: 40rem;
+      margin: 28px 0 0;
+      font-size: clamp(1.1rem, 2.4vw, 1.3rem);
+      line-height: 1.55;
+      color: var(--ink-soft);
+    }
+
+    .actions {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 16px 24px;
+      margin-top: 32px;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      min-height: 44px;
+      padding: 0 22px;
+      border: 0;
+      background: var(--accent);
+      color: var(--on-accent);
+      font-family: var(--font-display);
+      font-size: 1.15rem;
+      font-weight: 700;
+      text-decoration: none;
+      cursor: pointer;
+    }
+
+    .btn:hover { background: var(--accent-dark); }
+
+    .btn:focus-visible { outline: 3px solid var(--accent-dark); outline-offset: 3px; }
+
+    .note { margin: 0; font-size: 0.95rem; color: var(--muted); }
+
+    footer {
+      padding: 24px 16px;
+      text-align: center;
+      font-size: 0.85rem;
+      color: var(--muted);
+    }
+  </style>
+</head>
+<body>
+  <header class="site-header">
+    <a class="brand" href="/" aria-label="Précis home">PRÉCIS</a>
+  </header>
+
+  <main>
+    <p class="eyebrow">Maintenance</p>
+    <h1>Back shortly</h1>
+    <p class="lede">
+      Précis is briefly offline while we fix a problem with our database.
+      The news will be back as soon as it's sorted. Thanks for your patience.
+    </p>
+    <div class="actions">
+      <a class="btn" href="/">Try again</a>
+      <p class="note">This page checks back by itself every few minutes.</p>
+    </div>
+  </main>
+
+  <footer>Précis · AI and cybersecurity news, summarised</footer>
+
+</body>
+</html>
