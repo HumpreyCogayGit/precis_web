@@ -23,11 +23,13 @@ const PAGE_LIMIT = 250;
 const RENDER_STEP = 48;
 
 // `sites: null` is every threat feed. `slug` is the tab's form in the URL
-// (?feed=exploits), and the first tab is the absence of the parameter.
+// (?feed=exploits), and the first tab is the absence of the parameter. `noun` is
+// what the empty and no-match messages call the tab's items.
 const TABS = [
-  { slug: 'all', title: 'All', sites: null },
-  { slug: 'exploits', title: 'Exploits', sites: ['sploitus'] },
-  { slug: 'advisories', title: 'CVE advisories', sites: ['oss_security'] },
+  { slug: 'all', title: 'All', noun: 'threats', sites: null },
+  { slug: 'cves', title: 'CVE', noun: 'CVEs', sites: ['oss_security'] },
+  { slug: 'exploits', title: 'Exploits', noun: 'exploits', sites: ['sploitus', 'exploit_db'] },
+  { slug: 'advisories', title: 'Advisories', noun: 'advisories', sites: ['github_advisories'] },
 ];
 
 const buildThreatsUrl = (offset) => (
@@ -287,8 +289,8 @@ const ThreatsPage = () => {
             {visible.length === 0 && (
               <p className="tldr-note">
                 {query
-                  ? `No ${activeTab === TABS[0] ? 'threats' : activeTab.title.toLowerCase()} match "${query}".`
-                  : `Nothing from ${activeTab.title.toLowerCase()} yet.`}
+                  ? `No ${activeTab.noun} match "${query}".`
+                  : `No ${activeTab.noun} yet.`}
               </p>
             )}
             {query && visible.length > 0 && (

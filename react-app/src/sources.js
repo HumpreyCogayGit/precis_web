@@ -8,6 +8,7 @@
 export const SOURCE_DISPLAY_NAMES = {
   alibaba: 'Alibaba Cloud',
   anthropic_news: 'Anthropic',
+  github_advisories: 'GitHub Advisories',
   google_innovation_ai: 'Google AI',
   krebs_on_security: 'KrebsOnSecurity',
   microsoft_ai_blog: 'Microsoft AI',
@@ -36,6 +37,7 @@ export const formatSiteName = (site = '') => {
 
 // Exploit and CVE feeds. They have their own page (/threats) and are kept off the
 // front page, which asks the API to leave them out (not_site).
-export const THREAT_SITES = ['sploitus', 'oss_security'];
+// Keep in step with THREAT_SITES in scraper/blogscraper/threat_meta.py.
+export const THREAT_SITES = ['sploitus', 'exploit_db', 'oss_security', 'github_advisories'];
 
 export const isThreatSite = (site = '') => THREAT_SITES.includes(String(site).trim().toLowerCase());

@@ -28,6 +28,17 @@ const ARTICLES = [
       v: 1, kind: 'advisory', cves: ['CVE-2026-4242'], cvss: null, severity: null, products: [], subject: null, github: null,
     },
   },
+  {
+    site: 'github_advisories',
+    url: 'https://github.com/advisories/GHSA-q986-4x7x-gx39',
+    title: 'Unauthenticated Ops API exposes operator email digests',
+    summary: 'The AetherBrowser API server exposes an endpoint without authentication.',
+    tags: ['Vulnerability Disclosure', 'Advisory'],
+    threat: {
+      v: 1, kind: 'advisory', cves: ['CVE-2026-57443'], cvss: 7.5, cvss_source: 'page', severity: 'high',
+      products: ['scbe-aethermoore'], subject: 'scbe-aethermoore', github: 'issdandavis/SCBE-AETHERMOORE',
+    },
+  },
 ];
 
 const renderPage = (path = '/threats') => render(
@@ -48,7 +59,7 @@ describe('ThreatsPage search', () => {
     renderPage();
     await screen.findByText('Linux kernel use-after-free');
 
-    expect(axios.get.mock.calls[0][0]).toContain('site=sploitus,oss_security');
+    expect(axios.get.mock.calls[0][0]).toContain('site=sploitus,exploit_db,oss_security,github_advisories');
   });
 
   test('every search word must match, across title, summary and tags', async () => {
@@ -105,6 +116,27 @@ describe('ThreatsPage search', () => {
 
     fireEvent.change(search, { target: { value: 'critical kubernetes' } });
     expect(screen.getByText('1 match for', { exact: false })).toBeInTheDocument();
+  });
+
+  test('tabs run All, CVE, Exploits, Advisories and each shows its own feeds', async () => {
+    renderPage();
+    await screen.findByText('Linux kernel use-after-free');
+
+    const tabs = screen.getAllByRole('tab');
+    expect(tabs.map((tab) => tab.textContent.replace(/\d+$/, ''))).toEqual(['All', 'CVE', 'Exploits', 'Advisories']);
+
+    fireEvent.click(screen.getByRole('tab', { name: /^Advisories/ }));
+    expect(screen.getByText('Unauthenticated Ops API exposes operator email digests')).toBeInTheDocument();
+    expect(screen.queryByText('Linux kernel use-after-free')).toBeNull();
+
+    fireEvent.click(screen.getByRole('tab', { name: /^CVE/ }));
+    expect(screen.getByText('Linux kernel use-after-free')).toBeInTheDocument();
+    expect(screen.queryByText('Unauthenticated Ops API exposes operator email digests')).toBeNull();
+  });
+
+  test('an Advisories tab link opens on GitHub advisories', async () => {
+    renderPage('/threats?feed=advisories&q=nomatch');
+    expect(await screen.findByText(/No advisories match "nomatch"/)).toBeInTheDocument();
   });
 
   test('drops Sploitus\'s "Description" prefix from summaries', async () => {
