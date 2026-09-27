@@ -1,5 +1,5 @@
 const { fetchArticles } = require('../../lib/articles');
-const { allowMethods, sendError } = require('../../lib/http');
+const { allowMethods, sendError, setDataCacheHeaders } = require('../../lib/http');
 const { RATE_LIMITS, checkRateLimit } = require('../../lib/rateLimit');
 
 module.exports = async function handler(req, res) {
@@ -12,7 +12,7 @@ module.exports = async function handler(req, res) {
   }
 
   try {
-    res.setHeader('Cache-Control', 's-maxage=60, stale-while-revalidate=300');
+    setDataCacheHeaders(res);
     res.status(200).json(await fetchArticles({
       site: req.query.site,
       topic: req.query.topic,

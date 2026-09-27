@@ -1,5 +1,5 @@
 const { countArticles } = require('../lib/articles');
-const { allowMethods, sendError } = require('../lib/http');
+const { allowMethods, sendError, setDataCacheHeaders } = require('../lib/http');
 const { RATE_LIMITS, checkRateLimit } = require('../lib/rateLimit');
 
 // Backs the filter panel's live "Show N results" / "Show all N" label: a
@@ -15,7 +15,7 @@ module.exports = async function handler(req, res) {
   }
 
   try {
-    res.setHeader('Cache-Control', 's-maxage=60, stale-while-revalidate=300');
+    setDataCacheHeaders(res);
     res.status(200).json({
       count: await countArticles({
         site: req.query.site,

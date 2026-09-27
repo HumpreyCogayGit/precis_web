@@ -1,5 +1,5 @@
 const { searchArticles } = require('../lib/articles');
-const { allowMethods, sendError } = require('../lib/http');
+const { allowMethods, sendError, setDataCacheHeaders } = require('../lib/http');
 const { RATE_LIMITS, checkRateLimit } = require('../lib/rateLimit');
 
 module.exports = async function handler(req, res) {
@@ -15,7 +15,7 @@ module.exports = async function handler(req, res) {
     // Same edge caching as /api/articles. A search URL is as cacheable as a list
     // URL — the query string is the whole cache key, and results only change when
     // the scraper adds rows.
-    res.setHeader('Cache-Control', 's-maxage=60, stale-while-revalidate=300');
+    setDataCacheHeaders(res);
     res.status(200).json(await searchArticles({
       q: req.query.q,
       site: req.query.site,

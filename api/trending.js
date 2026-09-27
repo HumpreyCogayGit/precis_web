@@ -1,6 +1,6 @@
 const { fetchTrending } = require('../lib/trending');
 const { sendTimedJson } = require('../lib/db');
-const { allowMethods, sendError } = require('../lib/http');
+const { allowMethods, sendError, setDataCacheHeaders } = require('../lib/http');
 const { RATE_LIMITS, checkRateLimit } = require('../lib/rateLimit');
 
 module.exports = async function handler(req, res) {
@@ -13,7 +13,7 @@ module.exports = async function handler(req, res) {
   }
 
   try {
-    res.setHeader('Cache-Control', 's-maxage=60, stale-while-revalidate=600');
+    setDataCacheHeaders(res);
     await sendTimedJson(res, () => fetchTrending({
       limit: req.query.limit,
       articlesPerEntity: req.query.articles_per_entity,
