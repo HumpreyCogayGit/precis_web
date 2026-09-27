@@ -722,6 +722,31 @@ test('image proxy rejects images larger than configured maximum bytes', async ()
   });
 });
 
+test('image proxy serves a PNG whose metadata embeds an SVG as PNG', async () => {
+  await withEnv({ NODE_ENV: 'development' }, async () => {
+    // C2PA manifests store an SVG icon near the top of the file, inside the first 1 KiB.
+    const png = Buffer.concat([
+      Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
+      Buffer.from('caBXjumbc2pa.icon image/svg+xml <svg width="716" height="716"></svg>'),
+    ]);
+    const res = createMockResponse();
+
+    await withMockedDns({
+      'images.example.com': [{ address: '8.8.8.8', family: 4 }],
+    }, async () => {
+      await withMockedFetch(async () => pngResponse(png), async () => {
+        await proxyImage(createImageProxyRequest('https://images.example.com/hero.png'), res, {
+          fetchImpl: global.fetch,
+        });
+      });
+    });
+
+    assert.equal(res.statusCode, undefined, 'success keeps the default 200');
+    assert.equal(res.headers['content-type'], 'image/png');
+    assert.ok(Buffer.from(res.body).equals(png), 'the original PNG bytes pass through untouched');
+  });
+});
+
 async function proxySvg(svg) {
   const res = createMockResponse();
   await withMockedDns({

@@ -79,6 +79,17 @@ blog.eleuther.ai,blog.jetbrains.com,blogger.googleusercontent.com,blogs.nvidia.c
 Four configured sites store no images at all and need no entry: `cert_cc_vulnotes`,
 `cisa_advisories`, `okta_security_advisories`, `zero_day_initiative`.
 
+## 2026-09-28 addition: BigChange.ai (`bigchange_ai`)
+
+BigChange.ai serves its `og:image` from its own origin under `https://bigchange.ai/api/media/file/...`
+(Payload CMS media route). No redirect to another host was observed. A GET returns 200 `image/png` at
+about 2.5 MB, which is under the default 5 MB `IMAGE_PROXY_MAX_BYTES`. HEAD on the same path returns 404,
+but the proxy only sends GET requests. Add to `IMAGE_PROXY_ALLOWED_HOSTS` in Vercel Production + Preview:
+
+```
+bigchange.ai
+```
+
 ## 2026-09-18 addition: MarkTechPost thumbnail host
 
 MarkTechPost article thumbnails are stored as direct WordPress uploads under
