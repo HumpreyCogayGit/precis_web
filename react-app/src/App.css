@@ -35,6 +35,7 @@
   --scrim-mobile: rgba(29, 31, 32, 0.35);
   --font-body: Barlow, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   --font-display: "Barlow Condensed", "Arial Narrow", ui-sans-serif, system-ui, sans-serif;
+  --section-heading-size: 2rem;
   /* The navy band the header sits on, and the type set on it. */
   --masthead-bg: #1f2b3b;
   --masthead-ink: #ffffff;
@@ -2139,6 +2140,15 @@ mark.search-hit {
   width: 56px;
 }
 
+/* The end of a windowed strip: a shorter, fainter dash says more stories lie beyond. */
+.lead-carousel-dot.is-edge {
+  width: 14px;
+}
+
+.lead-carousel-dot.is-edge::before {
+  opacity: 0.6;
+}
+
 /* The active bar fills over the rotation interval, showing when the next story lands. */
 .lead-carousel-progress {
   position: absolute;
@@ -2323,11 +2333,14 @@ mark.search-hit {
   padding: 26px 0 12px;
 }
 
+/* Every page-level section (Top Stories, Latest News, Results, the archive) shares one
+   heading size, and it stays the largest type below the lead headline: card titles in
+   the section must never outrank it. */
 .tier-heading h3 {
   margin: 0;
-  font-size: 1.5rem;
-  font-weight: 900;
-  letter-spacing: -0.03em;
+  font-size: var(--section-heading-size);
+  font-weight: 700;
+  letter-spacing: 0;
 }
 
 .tier-count {
@@ -2801,7 +2814,8 @@ mark.search-hit {
 }
 
 .everything-card--feature .everything-card-body h4 {
-  font-size: clamp(1.45rem, 2.4vw, 1.95rem);
+  /* Capped below --section-heading-size so the story never outranks "Latest News". */
+  font-size: clamp(1.4rem, 2.2vw, 1.75rem);
   line-height: 1.1;
 }
 
@@ -4987,9 +5001,9 @@ mark.search-hit {
   display: none;
 }
 
-/* The count is editorial, not fixed: "All" rotates the AI and Cyber Security leads
-   together, so the strip has to hold twice what one topic shows. The dashes shrink
-   to share whatever the reservation leaves rather than growing past it. */
+/* The count is editorial, not fixed, so the carousel shows at most seven dashes as a
+   window around the active story: 7 x 30px + 6 x 6px = 246px, inside the reservation
+   at any lead count. The dashes can still shrink where the strip is narrower. */
 .edition-top .lead-carousel-dots {
   min-width: 0;
   gap: 6px;
@@ -5000,6 +5014,11 @@ mark.search-hit {
   flex: 0 1 30px;
   width: 30px;
   min-width: 8px;
+}
+
+.edition-top .lead-carousel-dot.is-edge {
+  flex-basis: 14px;
+  width: 14px;
 }
 
 .edition-top .lead-carousel-dot::before,
@@ -5110,12 +5129,6 @@ mark.search-hit {
   align-items: center;
   justify-content: space-between;
   padding-top: 40px;
-}
-
-.top-stories-head h3 {
-  font-size: 2rem;
-  font-weight: 700;
-  letter-spacing: 0;
 }
 
 .topic-pills {

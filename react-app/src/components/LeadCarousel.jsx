@@ -4,6 +4,8 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 export const LEAD_ROTATE_MS = 7000;
 // A horizontal drag at least this long (px) counts as a swipe.
 const SWIPE_PX = 48;
+// The most dashes shown at once; past this the strip is a window around the active story.
+const MAX_DASHES = 7;
 
 const prefersReducedMotion = () => (
   typeof window !== 'undefined'
@@ -108,6 +110,13 @@ export default function LeadCarousel({
   const leaving = leavingFound !== -1 && leavingFound !== index ? leavingFound : null;
   const animation = state.dir ? ` lead-slide--${state.dir}` : '';
 
+  // The lead count is editorial and unbounded, so the dashes are a window that keeps
+  // the active story centred where it can. A shrunken end dash means more lie beyond.
+  const windowSize = Math.min(count, MAX_DASHES);
+  const start = Math.min(Math.max(index - Math.floor(windowSize / 2), 0), count - windowSize);
+  const end = start + windowSize;
+  const isEdge = (i) => i !== index && ((i === start && start > 0) || (i === end - 1 && end < count));
+
   return (
     <section
       className={`lead-carousel${holding ? ' is-holding' : ''}`}
@@ -155,24 +164,27 @@ export default function LeadCarousel({
           <span aria-hidden="true">&larr;</span>
         </button>
         <div className="lead-carousel-dots">
-          {items.map((item, i) => (
-            <button
-              key={keys[i]}
-              type="button"
-              className={`lead-carousel-dot${i === index ? ' is-active' : ''}`}
-              aria-label={`Show lead story ${i + 1} of ${count}`}
-              aria-current={i === index ? 'true' : undefined}
-              onClick={() => go(i > index ? 'next' : 'prev', i)}
-            >
-              {i === index && (
-                <span
-                  key={`${index}-${holding}`}
-                  className="lead-carousel-progress"
-                  style={{ animationDuration: `${interval}ms` }}
-                />
-              )}
-            </button>
-          ))}
+          {keys.slice(start, end).map((key, offset) => {
+            const i = start + offset;
+            return (
+              <button
+                key={key}
+                type="button"
+                className={`lead-carousel-dot${i === index ? ' is-active' : ''}${isEdge(i) ? ' is-edge' : ''}`}
+                aria-label={`Show lead story ${i + 1} of ${count}`}
+                aria-current={i === index ? 'true' : undefined}
+                onClick={() => go(i > index ? 'next' : 'prev', i)}
+              >
+                {i === index && (
+                  <span
+                    key={`${index}-${holding}`}
+                    className="lead-carousel-progress"
+                    style={{ animationDuration: `${interval}ms` }}
+                  />
+                )}
+              </button>
+            );
+          })}
         </div>
         <button type="button" className="lead-carousel-arrow" onClick={next} aria-label="Next lead story">
           <span aria-hidden="true">&rarr;</span>

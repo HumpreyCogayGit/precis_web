@@ -84,6 +84,38 @@ describe('LeadCarousel', () => {
   });
 });
 
+describe('LeadCarousel with more leads than dashes', () => {
+  const MANY = Array.from({ length: 12 }, (_, i) => `Story ${i + 1}`);
+  const dots = () => screen.getAllByRole('button', { name: /^Show lead story/ });
+
+  test('shows a window of seven dashes', () => {
+    renderCarousel(MANY);
+    expect(dots()).toHaveLength(7);
+    expect(dots()[0]).toHaveAttribute('aria-current', 'true');
+    expect(dots()[0]).not.toHaveClass('is-edge');
+    expect(dots()[6]).toHaveClass('is-edge');
+  });
+
+  test('the window follows the active story', () => {
+    renderCarousel(MANY);
+    fireEvent.click(screen.getByRole('button', { name: 'Show lead story 6 of 12' }));
+    expect(dots()).toHaveLength(7);
+    expect(screen.getByRole('button', { name: 'Show lead story 6 of 12' }))
+      .toHaveAttribute('aria-current', 'true');
+    expect(dots()[0]).toHaveClass('is-edge');
+    expect(dots()[6]).toHaveClass('is-edge');
+  });
+
+  test('wrapping to the last story puts its dash at the end of the window', () => {
+    renderCarousel(MANY);
+    fireEvent.click(screen.getByRole('button', { name: 'Previous lead story' }));
+    expect(active()).toHaveTextContent('Story 12');
+    expect(dots()[6]).toHaveAttribute('aria-current', 'true');
+    expect(dots()[6]).not.toHaveClass('is-edge');
+    expect(dots()[0]).toHaveClass('is-edge');
+  });
+});
+
 describe('LeadCarousel first paint and late leads', () => {
   test('the first story is shown at rest, without a slide-in', () => {
     renderCarousel();
