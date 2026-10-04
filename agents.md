@@ -35,7 +35,8 @@ react-app/src/       main.jsx (router), App.jsx (home), pages/, components/, fil
 sql/                 hosted-database SQL, applied by hand
 tests/               backend tests (node --test)
 docs/                moderation, auth readiness, monitoring, image proxy allowlist
-SECURITY_AUDIT_PLAN.md  audit findings and remediation checklist (some items still open)
+SECURITY_AUDIT_PLAN.md  git-ignored, local only. Audit findings and checklist; the open items
+                     are production checks for the owner (credentials, DB role, live headers)
 maintenance/         static page shipped when MAINTENANCE_MODE=1
 design_handoff_*/    design references, not shipped code
 ```
@@ -181,6 +182,8 @@ Local run: `npm start` (API on `http://localhost:5000`) and, in another terminal
 ## Git
 
 - This is its own repository, separate from the parent PrecisNews folder. Run git from here.
+- A commit message says why the change was made and what was wrong before, not only what
+  changed. `git log` is the only record of that.
 - Do not commit unless explicitly asked.
 - Do not reset/revert unrelated user changes.
 - Do not modify unrelated files.
