@@ -19,7 +19,7 @@ Vercel
 - `precis_web/api/*` exposes Vercel Serverless Functions for:
   - `GET /api/articles`
   - `GET /api/articles?topic=...&site=...&tags=...&not_tags=...&limit=50&offset=0`
-  - `GET /api/articles/:site?topic=...&limit=50&offset=0`
+  - `GET /api/articles/:site?topic=...&tags=...&not_tags=...&limit=50&offset=0`
   - `GET /api/article-count`
   - `GET /api/sites`
   - `GET /api/topics`
@@ -38,7 +38,7 @@ Use Vercel Postgres/Neon/Supabase/Railway or another provider that allows extern
 - Vercel Serverless Functions
 - Your local machine running the scraper
 
-Prefer a pooled Neon/Vercel connection string for Vercel, usually including `channel_binding=require&sslmode=require`.
+Production uses Supabase. Prefer the provider's pooled connection string for Vercel, with `sslmode=require` or stricter.
 
 ### 2. Initialize the database schema
 
@@ -127,7 +127,7 @@ In Vercel:
 | Variable | Where | Purpose |
 | --- | --- | --- |
 | `DATABASE_URL` or `POSTGRES_URL` | Vercel Production/Preview | Pooled hosted PostgreSQL connection string for API functions using the dedicated read-only web role |
-| `POSTGRES_PRISMA_URL` | Vercel Production/Preview, optional | Alternative pooled Neon/Vercel URL with connection timeout |
+| `POSTGRES_PRISMA_URL` | Vercel Production/Preview, optional | Alternative pooled URL with connection timeout |
 | `DATABASE_URL_UNPOOLED` or `POSTGRES_URL_NON_POOLING` | Local/admin jobs only, optional | Direct database connection for uses that require no pooler |
 | `PGSSLMODE=require` | Vercel Production/Preview, if your URL does not include `sslmode=require` | Enables verified SSL for hosted Postgres |
 | `PG_SSL_CA` or `POSTGRES_CA_CERT` | Vercel Production/Preview, provider-dependent | Optional PEM CA bundle when your DB provider requires a custom CA for certificate verification |

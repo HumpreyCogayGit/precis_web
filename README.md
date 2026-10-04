@@ -18,7 +18,7 @@ This is a React web application that displays news blog items from the Precis Sc
 2. **Start the API server:**
    ```bash
    cp .env.example .env
-   # edit .env and set DATABASE_URL to your pooled Neon/Vercel Postgres URL
+   # edit .env and set DATABASE_URL to the pooled hosted Postgres URL (Supabase in production)
    npm start
    ```
    
@@ -38,7 +38,8 @@ This is a React web application that displays news blog items from the Precis Sc
 - `GET /api/health` - Public liveness check returning only `{ "ok": true }`
 - `GET /api/articles` - Get articles as `{ items, facets }`, optionally filtered/paginated with
   `?topic=...&source=...&tags=...&not_tags=...&limit=50&offset=0`
-- `GET /api/articles/:site` - Get articles from specific site, with the same filters
+- `GET /api/articles/:site` - Get articles from specific site, with the same `topic`, `tags`,
+  `not_tags`, `limit` and `offset` parameters (`not_site` does not apply)
 - `GET /api/article-count` - Count articles for a candidate filter combination
 - `GET /api/sites` - Get list of all available sites
 - `GET /api/topics` - Get list of all available topics
@@ -92,7 +93,7 @@ If neither is set, local development falls back to `postgresql://localhost:5432/
 
 Production database TLS verifies server certificates by default. Use a provider connection string with `sslmode=require`, `verify-ca`, or `verify-full`. If your database provider requires a custom CA, set `PG_SSL_CA` or `POSTGRES_CA_CERT` to the PEM bundle. `PG_SSL_ALLOW_UNAUTHORIZED=true` is an explicit insecure opt-in for exceptional provider compatibility only and should not be used for normal production.
 
-Keep real database credentials only in local ignored `.env` files and Vercel Environment Variables. Do not commit real Neon/Vercel Postgres URLs to GitHub. The public web API reads `public.public_articles`, a view that exposes only public article fields, returns a truncated `excerpt` instead of `body_text`, and excludes rows where `needs_review` is true. Use a dedicated read-only database role with access to that view only; see `sql/create-public-articles-view.sql`, `sql/create-readonly-web-role.sql`, and `sql/verify-readonly-web-role.sql`.
+Keep real database credentials only in local ignored `.env` files and Vercel Environment Variables. Do not commit real database URLs to GitHub. The public web API reads `public.public_articles`, a view that exposes only public article fields, returns a truncated `excerpt` instead of `body_text`, and excludes rows where `needs_review` is true. Use a dedicated read-only database role with access to that view only; see `sql/create-public-articles-view.sql`, `sql/create-readonly-web-role.sql`, and `sql/verify-readonly-web-role.sql`.
 
 The current moderation model is automatic publication for scraper records with `needs_review = FALSE`; scraper-flagged records are held from the public view until reviewed or re-extracted. See `docs/content-moderation.md`. Before adding admin/write features, implement the authentication, authorization, CSRF, and audit-log readiness criteria in `docs/auth-readiness.md`.
 
