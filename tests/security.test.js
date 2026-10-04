@@ -852,3 +852,27 @@ test('image proxy timeout remains active while the response body is downloading'
     assert.match(res.body.error, /timed out/);
   });
 });
+
+test('the per-site route passes the same filters on Vercel as on local Express', () => {
+  const read = (...parts) => fs.readFileSync(path.join(__dirname, '..', ...parts), 'utf8');
+  const vercelHandler = read('api', 'articles', '[site].js');
+  const expressRoute = read('server.js').split("app.get('/api/articles/:site'")[1].split('app.get(')[0];
+
+  for (const param of ['topic:', 'tags:', 'notTags:', 'limit:', 'offset:']) {
+    assert.ok(expressRoute.includes(param), `server.js /api/articles/:site passes ${param}`);
+    assert.ok(vercelHandler.includes(param), `api/articles/[site].js passes ${param}`);
+  }
+});
+
+test('source files hold no raw control characters, so text search never skips them', () => {
+  const root = path.join(__dirname, '..');
+  const files = ['server.js', ...['lib', 'api', path.join('api', 'articles')].flatMap((dir) => (
+    fs.readdirSync(path.join(root, dir))
+      .filter((name) => name.endsWith('.js'))
+      .map((name) => path.join(dir, name))
+  ))];
+
+  for (const file of files) {
+    assert.doesNotMatch(fs.readFileSync(path.join(root, file), 'utf8'), /[\x00-\x08\x0b\x0c\x0e-\x1f]/, file);
+  }
+});

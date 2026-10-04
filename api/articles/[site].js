@@ -16,6 +16,8 @@ module.exports = async function handler(req, res) {
     res.status(200).json(await fetchArticles({
       site: req.query.site,
       topic: req.query.topic,
+      tags: req.query.tags,
+      notTags: req.query.not_tags,
       limit: req.query.limit,
       offset: req.query.offset,
     }));
