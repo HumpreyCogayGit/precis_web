@@ -103,3 +103,14 @@ export const DocumentIcon = () => (
     <path d="M9 16h6" />
   </svg>
 );
+
+// Three linked nodes: share a story or page (native share sheet, or copy the link).
+export const ShareIcon = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true">
+    <circle cx="18" cy="5" r="3" />
+    <circle cx="6" cy="12" r="3" />
+    <circle cx="18" cy="19" r="3" />
+    <path d="m8.6 13.5 6.8 4" />
+    <path d="m15.4 6.5-6.8 4" />
+  </svg>
+);

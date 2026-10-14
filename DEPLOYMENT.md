@@ -135,6 +135,7 @@ In Vercel:
 | `PG_POOL_MAX=1` | Vercel Production/Preview | Keeps serverless Postgres connection usage low unless you use a pooled DB URL |
 | `VITE_API_BASE_URL` | Usually unset on Vercel | Leave blank so the browser calls same-origin `/api/*` |
 | `VITE_GA_MEASUREMENT_ID` | Vercel Production, optional | GA4 measurement ID; unset falls back to the default in `react-app/src/analytics.js`. Set it to an empty string on Preview so preview builds stay out of the analytics property |
+| `SITE_URL` | Build, optional | Origin written into canonical links, Open Graph tags and `sitemap.xml` by `scripts/render-pages.js`. Defaults to `https://precisnews.vercel.app`; must be a bare `https://host` with no path. `react-app/public/robots.txt` names the sitemap URL separately, so change both if the domain moves |
 | `CORS_ALLOWED_ORIGINS` | Usually unset on Vercel | Comma-separated exact origins only when a separate frontend origin must call the Express API; same-origin Vercel `/api` calls do not need CORS |
 | `IMAGE_PROXY_TIMEOUT_MS=5000` | Optional | Limits remote image fetch time |
 | `IMAGE_PROXY_MAX_BYTES=5242880` | Optional | Limits proxied image size to 5 MB |
@@ -212,6 +213,10 @@ Use `docs/monitoring.md` as the monitoring runbook. At minimum, configure dashbo
 - Confirm records with `needs_review = TRUE` do not appear through `/api/articles`, `/api/sites`, or `/api/topics`; see `docs/content-moderation.md`.
 - Confirm invalid article query parameters such as `?limit=abc`, `?offset=-1`, and excessively long `topic` values return `400 Bad Request`.
 - Open the home page and verify filters, images, and article links work.
+- Confirm `curl -s https://<domain>/tldr | grep -E '<title>|og:'` shows the TL;DR page's own title and
+  Open Graph tags (not the home page's), that `/sitemap.xml` lists every page, and that
+  `/og-default.png` loads. Check a link preview in the Facebook Sharing Debugger or LinkedIn Post
+  Inspector; both also refresh their cached copy of the page.
 - Confirm response headers include `Content-Security-Policy`, `X-Content-Type-Options`, `Referrer-Policy`, `Permissions-Policy`, `Strict-Transport-Security`, and `X-Frame-Options`.
 - Confirm production starts only when a production DB URL/env tuple is present and that DB TLS certificate verification is enabled or configured with your provider CA.
 - Confirm repeated requests beyond the documented limits receive `429 Too Many Requests`.

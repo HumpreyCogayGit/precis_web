@@ -99,6 +99,8 @@ The current moderation model is automatic publication for scraper records with `
 
 The frontend uses Vite. Set `VITE_API_BASE_URL` only when you need the browser to call a separate API origin; leave it unset on Vercel for same-origin `/api/*` calls. The local Express API allows the Vite dev origins by default. In production, Express CORS defaults to no cross-origin browser access; set `CORS_ALLOWED_ORIGINS` to exact trusted origins only if you intentionally deploy a separate frontend origin.
 
+Page titles and link previews: the SPA serves one `index.html`, which link-preview bots and most crawlers read without running JavaScript. `npm run build` therefore runs `scripts/render-pages.js` after the Vite build. It writes `public/<route>/index.html` for each page in `react-app/src/pageMeta.json`, each with its own title, description, canonical link and Open Graph/Twitter tags (`lib/pageMeta.js`), and writes `public/sitemap.xml`. `vercel.json` routes `/tldr`, `/trending`, `/threats`, `/privacy` and `/terms` to those files. To add a page, add it to `pageMeta.json` and to that route pattern. The preview image `react-app/public/og-default.png` is rendered from `assets/og-default.svg` by `scripts/render-og-image.js` (see that script for how to re-run it).
+
 For production deployment details, including how to keep the scraper local while hosting the site and database, see `DEPLOYMENT.md`.
 
 ## Security validation

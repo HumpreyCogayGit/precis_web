@@ -14,9 +14,14 @@ if [[ "${MAINTENANCE_MODE:-}" == "1" ]]; then
   rm -rf public
   mkdir public
   cp maintenance/index.html public/index.html
+  # Still writes /tldr/index.html etc.: vercel.json routes those paths to them, and
+  # the maintenance page has no meta markers, so each is a plain copy of it.
+  node scripts/render-pages.js
   exit 0
 fi
 
 (cd react-app && npm ci && npm run build)
 rm -rf public
 cp -R react-app/dist public
+# Per-route HTML shells with their own <title> and Open Graph tags, plus sitemap.xml.
+node scripts/render-pages.js

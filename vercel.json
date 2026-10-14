@@ -60,6 +60,10 @@
       "dest": "/api/$1.js"
     },
     {
+      "src": "^/(tldr|trending|threats|privacy|terms)/?$",
+      "dest": "/$1/index.html"
+    },
+    {
       "handle": "filesystem"
     },
     {

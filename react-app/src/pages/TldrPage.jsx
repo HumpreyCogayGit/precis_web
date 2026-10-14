@@ -4,6 +4,7 @@ import axios from 'axios';
 
 import SiteFooter from '../components/SiteFooter.jsx';
 import TldrArt from '../components/TldrArt.jsx';
+import ShareButton from '../components/ShareButton.jsx';
 import TldrExportDialog from '../components/TldrExportDialog.jsx';
 import ThemeToggle from '../components/ThemeToggle.jsx';
 import { buildCardLayout, formatRelativeTime, safeHttpUrl } from '../App.jsx';
@@ -277,6 +278,8 @@ const TldrPage = () => {
           </div>
 
           <div className="tldr-actions">
+            {/* The page URL as it stands, so the ?topic= tab travels with the link. */}
+            <ShareButton url={window.location.href} title="Precis TL;DR" contentType="tldr" className="tldr-share-btn" />
             <button
               type="button"
               className="tldr-export-btn"

@@ -83,6 +83,18 @@ export function trackPageView(pathname) {
   return true;
 }
 
+// GA4's recommended `share` event, so shares can be compared with referral traffic.
+// `method` is how it left (native sheet or copied link); `contentType` is what was
+// shared (article, tldr, threats). The URL itself is not sent.
+export function trackShare(method, contentType) {
+  if (!initialized || !window.gtag) {
+    return false;
+  }
+
+  window.gtag('event', 'share', { method, content_type: contentType });
+  return true;
+}
+
 // Test-only state reset. Keeping this here avoids making runtime behavior depend
 // on DOM cleanup or module reload order in the Vitest suite.
 export function resetAnalyticsForTests() {

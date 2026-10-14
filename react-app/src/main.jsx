@@ -6,6 +6,7 @@ import './index.css';
 import { BrowserRouter, Route, Routes } from 'react-router-dom';
 import App from './App.jsx';
 import AnalyticsTracker from './components/AnalyticsTracker.jsx';
+import PageMeta from './components/PageMeta.jsx';
 import { initTheme } from './components/ThemeToggle.jsx';
 import reportWebVitals from './reportWebVitals';
 
@@ -38,6 +39,7 @@ root.render(
           <Route path="/terms" element={<TermsPage />} />
         </Routes>
       </Suspense>
+      <PageMeta />
       <AnalyticsTracker />
     </BrowserRouter>
     <Analytics />

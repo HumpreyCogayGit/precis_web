@@ -1,0 +1,36 @@
+{
+  "siteName": "Precis",
+  "defaultImage": "/og-default.png",
+  "pages": [
+    {
+      "path": "/",
+      "title": "Precis Daily Tech Brief: AI and cybersecurity news",
+      "description": "Today's AI and cybersecurity news from about 120 sources, ranked, tagged and summarised in one daily edition. Every story links to the original."
+    },
+    {
+      "path": "/tldr",
+      "title": "TL;DR: AI and cybersecurity in a few minutes | Precis",
+      "description": "A short digest of the day's AI and cybersecurity stories, grouped by theme, with links to every original source."
+    },
+    {
+      "path": "/trending",
+      "title": "Trending in AI and security | Precis",
+      "description": "The companies, products and vulnerabilities that the most independent sources are writing about right now."
+    },
+    {
+      "path": "/threats",
+      "title": "Threats: new CVEs, exploits and advisories | Precis",
+      "description": "New CVE disclosures, public exploits and security advisories in one searchable feed, with severity and affected products."
+    },
+    {
+      "path": "/privacy",
+      "title": "Privacy policy | Precis",
+      "description": "What Precis collects when you read the site, and why."
+    },
+    {
+      "path": "/terms",
+      "title": "Terms of use | Precis",
+      "description": "The terms for using the Precis site."
+    }
+  ]
+}

@@ -5,6 +5,7 @@ import {
   initAnalytics,
   resetAnalyticsForTests,
   trackPageView,
+  trackShare,
 } from './analytics';
 
 const LEGACY_CONSENT_STORAGE_KEY = 'precis_cookie_consent_v1';
@@ -76,5 +77,18 @@ describe('Google Analytics', () => {
 
     expect(() => clearLegacyAnalyticsPreference()).not.toThrow();
     removeItem.mockRestore();
+  });
+});
+describe('trackShare', () => {
+  test('sends nothing before analytics is initialized', () => {
+    expect(trackShare('copy_link', 'article')).toBe(false);
+  });
+
+  test('sends a GA4 share event without the URL', () => {
+    initAnalytics();
+    window.gtag = vi.fn();
+
+    expect(trackShare('native', 'tldr')).toBe(true);
+    expect(window.gtag).toHaveBeenCalledWith('event', 'share', { method: 'native', content_type: 'tldr' });
   });
 });

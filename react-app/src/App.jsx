@@ -10,6 +10,7 @@ import LeadCarousel from './components/LeadCarousel.jsx';
 import ThemeToggle from './components/ThemeToggle.jsx';
 import TrendingSection, { ALL_TRENDS_KEY } from './components/TrendingSection.jsx';
 import NewsLoader from './components/NewsLoader.jsx';
+import ShareButton from './components/ShareButton.jsx';
 import useTopicTrends from './useTopicTrends.js';
 import useRevealOnScroll from './useRevealOnScroll.js';
 import DateFilterBar, { rangeChipLabel as dateRangeChipLabel } from './DateFilterBar.jsx';
@@ -676,7 +677,10 @@ export const BriefRow = ({ article, index }) => {
           <span>{formatRelativeTime(getArticleTimestamp(article))}</span>
         </div>
       </div>
-      <SaveAffordance iconOnly />
+      <span className="brief-actions">
+        <ShareButton url={safeHttpUrl(article.url)} title={article.title} contentType="article" iconOnly />
+        <SaveAffordance iconOnly />
+      </span>
     </div>
   );
 };
@@ -811,6 +815,7 @@ export const EverythingCard = ({ article, feature = null, trioEnd = false }) => 
           <span className="everything-card-site">Source: {formatSiteName(article.site)}</span>
           {article.topic && <span className="everything-card-topic">{article.topic}</span>}
           <span className="everything-card-date">{formatShortDate(getArticleTimestamp(article))}</span>
+          <ShareButton url={articleUrl} title={article.title} contentType="article" iconOnly className="everything-card-share" />
         </div>
         <h4><SafeArticleTitle article={article} /></h4>
         {summaryText && <p><Highlight text={summaryText} /></p>}
@@ -1606,6 +1611,7 @@ function App() {
               Read at {formatSiteName(leadArticle.site)}
             </a>
           )}
+          <ShareButton url={leadArticleUrl} title={leadArticle.title} contentType="article" />
           <SaveAffordance />
         </div>
       </article>
