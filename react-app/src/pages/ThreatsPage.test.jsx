@@ -59,7 +59,7 @@ describe('ThreatsPage search', () => {
     renderPage();
     await screen.findByText('Linux kernel use-after-free');
 
-    expect(axios.get.mock.calls[0][0]).toContain('site=sploitus,exploit_db,oss_security,github_advisories');
+    expect(axios.get.mock.calls[0][0]).toContain('site=sploitus,exploit_db,oss_security,github_advisories,zero_day_initiative');
   });
 
   test('every search word must match, across title, summary and tags', async () => {

@@ -29,7 +29,7 @@ const TABS = [
   { slug: 'all', title: 'All', noun: 'threats', sites: null },
   { slug: 'cves', title: 'CVE', noun: 'CVEs', sites: ['oss_security'] },
   { slug: 'exploits', title: 'Exploits', noun: 'exploits', sites: ['sploitus', 'exploit_db'] },
-  { slug: 'advisories', title: 'Advisories', noun: 'advisories', sites: ['github_advisories'] },
+  { slug: 'advisories', title: 'Advisories', noun: 'advisories', sites: ['github_advisories', 'zero_day_initiative'] },
 ];
 
 const buildThreatsUrl = (offset) => (

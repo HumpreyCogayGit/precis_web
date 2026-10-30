@@ -38,6 +38,8 @@ export const formatSiteName = (site = '') => {
 // Exploit and CVE feeds. They have their own page (/threats) and are kept off the
 // front page, which asks the API to leave them out (not_site).
 // Keep in step with THREAT_SITES in scraper/blogscraper/threat_meta.py.
-export const THREAT_SITES = ['sploitus', 'exploit_db', 'oss_security', 'github_advisories'];
+export const THREAT_SITES = [
+  'sploitus', 'exploit_db', 'oss_security', 'github_advisories', 'zero_day_initiative',
+];
 
 export const isThreatSite = (site = '') => THREAT_SITES.includes(String(site).trim().toLowerCase());
