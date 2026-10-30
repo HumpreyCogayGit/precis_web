@@ -11,6 +11,7 @@ import ThemeToggle from './components/ThemeToggle.jsx';
 import TrendingSection, { ALL_TRENDS_KEY } from './components/TrendingSection.jsx';
 import NewsLoader from './components/NewsLoader.jsx';
 import ShareButton from './components/ShareButton.jsx';
+import HalloweenDecor from './components/HalloweenDecor.jsx';
 import useTopicTrends from './useTopicTrends.js';
 import useRevealOnScroll from './useRevealOnScroll.js';
 import DateFilterBar, { rangeChipLabel as dateRangeChipLabel } from './DateFilterBar.jsx';
@@ -55,7 +56,7 @@ const INITIAL_ARTICLE_COUNT = 24;
 // and the two holdForDebug() calls in fetchArticles to restore normal speed.
 // Zero under vitest: the suite waits ~1s for the edition to paint, so a real
 // hold here would time out every render test.
-const DEBUG_MIN_LOADING_MS = import.meta.env.MODE === 'test' ? 0 : 10000;
+const DEBUG_MIN_LOADING_MS = import.meta.env.MODE === 'test' ? 0 : 5000;
 
 const FIRST_PAGE_ARTICLE_LIMIT = 48;
 // Every page after the first, fetched one after another in the background until the
@@ -2195,6 +2196,7 @@ function App() {
         </>
       )}
       <SiteFooter />
+      <HalloweenDecor />
     </div>
     </SearchHighlightContext.Provider>
   );
