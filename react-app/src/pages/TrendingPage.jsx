@@ -5,6 +5,7 @@ import axios from 'axios';
 
 import FilterPanel from '../FilterPanel.jsx';
 import SiteFooter from '../components/SiteFooter.jsx';
+import HalloweenDecor from '../components/HalloweenDecor.jsx';
 import ThemeToggle from '../components/ThemeToggle.jsx';
 import { formatRelativeTime, safeHttpUrl } from '../App.jsx';
 import { formatSiteName } from '../sources';
@@ -453,6 +454,7 @@ const TrendingPage = () => {
         </ol>
       </main>
       <SiteFooter />
+      <HalloweenDecor />
     </div>
   );
 };

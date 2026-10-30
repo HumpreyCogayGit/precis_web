@@ -3,6 +3,7 @@ import { Link, useSearchParams } from 'react-router-dom';
 import axios from 'axios';
 
 import SiteFooter from '../components/SiteFooter.jsx';
+import HalloweenDecor from '../components/HalloweenDecor.jsx';
 import ThemeToggle from '../components/ThemeToggle.jsx';
 import ThreatCover from '../components/ThreatCover.jsx';
 import {
@@ -334,6 +335,7 @@ const ThreatsPage = () => {
         )}
       </main>
       <SiteFooter />
+      <HalloweenDecor />
     </div>
   );
 };
