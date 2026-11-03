@@ -11,7 +11,6 @@ import ThemeToggle from './components/ThemeToggle.jsx';
 import TrendingSection, { ALL_TRENDS_KEY } from './components/TrendingSection.jsx';
 import NewsLoader from './components/NewsLoader.jsx';
 import ShareButton from './components/ShareButton.jsx';
-import HalloweenDecor from './components/HalloweenDecor.jsx';
 import useTopicTrends from './useTopicTrends.js';
 import useRevealOnScroll from './useRevealOnScroll.js';
 import DateFilterBar, { rangeChipLabel as dateRangeChipLabel } from './DateFilterBar.jsx';
@@ -2196,7 +2195,6 @@ function App() {
         </>
       )}
       <SiteFooter />
-      <HalloweenDecor />
     </div>
     </SearchHighlightContext.Provider>
   );

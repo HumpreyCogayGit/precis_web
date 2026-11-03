@@ -3,7 +3,6 @@ import { Link, useSearchParams } from 'react-router-dom';
 import axios from 'axios';
 
 import SiteFooter from '../components/SiteFooter.jsx';
-import HalloweenDecor from '../components/HalloweenDecor.jsx';
 import TldrArt from '../components/TldrArt.jsx';
 import ShareButton from '../components/ShareButton.jsx';
 import TldrExportDialog from '../components/TldrExportDialog.jsx';
@@ -322,7 +321,6 @@ const TldrPage = () => {
         )}
       </main>
       <SiteFooter />
-      <HalloweenDecor />
 
       {exportPreview && (
         <TldrExportDialog
