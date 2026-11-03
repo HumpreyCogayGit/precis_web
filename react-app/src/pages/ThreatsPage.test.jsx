@@ -1,4 +1,6 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import {
+  fireEvent, render, screen, waitFor,
+} from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import {
   beforeEach, describe, expect, test, vi,
@@ -10,6 +12,7 @@ vi.mock('axios', () => ({
 
 const axios = (await import('axios')).default;
 const { default: ThreatsPage } = await import('./ThreatsPage.jsx');
+const { THREAT_SITES } = await import('../sources');
 
 const ARTICLES = [
   {
@@ -52,14 +55,52 @@ describe('ThreatsPage search', () => {
     // The chosen layout persists, so one test's choice must not leak into the next.
     window.localStorage.clear();
     axios.get.mockReset();
-    axios.get.mockResolvedValue({ data: { items: ARTICLES, next_offset: null } });
+    // Answers like the API: only the sites the request names.
+    axios.get.mockImplementation(async (url) => {
+      const sites = new URL(url, 'http://localhost').searchParams.get('site').split(',');
+      return { data: { items: ARTICLES.filter((article) => sites.includes(article.site)), next_offset: null } };
+    });
   });
 
-  test('asks the API for the threat feeds only', async () => {
+  test('asks the API for each tab\'s feeds, covering every threat feed', async () => {
     renderPage();
     await screen.findByText('Linux kernel use-after-free');
 
-    expect(axios.get.mock.calls[0][0]).toContain('site=sploitus,exploit_db,oss_security,github_advisories,zero_day_initiative');
+    const requested = axios.get.mock.calls.map(([url]) => new URL(url, 'http://localhost').searchParams.get('site'));
+    expect(requested).toEqual([
+      'oss_security',
+      'sploitus,exploit_db',
+      'github_advisories,zero_day_initiative,full_disclosure',
+    ]);
+    expect(requested.join(',').split(',').sort()).toEqual([...THREAT_SITES].sort());
+  });
+
+  test('the CVE tab fills even when another feed fails to load', async () => {
+    axios.get.mockImplementation(async (url) => {
+      if (url.includes('sploitus')) throw new Error('network');
+      const sites = new URL(url, 'http://localhost').searchParams.get('site').split(',');
+      return { data: { items: ARTICLES.filter((article) => sites.includes(article.site)), next_offset: null } };
+    });
+    renderPage('/threats?feed=cves');
+
+    expect(await screen.findByText('Linux kernel use-after-free')).toBeInTheDocument();
+  });
+
+  test('the All tab merges the feeds newest first', async () => {
+    axios.get.mockImplementation(async (url) => {
+      const sites = new URL(url, 'http://localhost').searchParams.get('site').split(',');
+      const items = [
+        { site: 'oss_security', url: 'https://seclists.org/oss-sec/2026/q3/9', title: 'Older CVE', published_at: 'Fri, 26 Sep 2026 04:00:00 +0000' },
+        { site: 'zero_day_initiative', url: 'https://www.zerodayinitiative.com/advisories/ZDI-26-1/', title: 'Newer advisory', published_at: 'October 2nd, 2026' },
+        { site: 'sploitus', url: 'https://sploitus.com/exploit?id=9', title: 'Undated exploit', fetched_at: '2026-10-30T00:00:00Z' },
+      ].filter((article) => sites.includes(article.site));
+      return { data: { items, next_offset: null } };
+    });
+    const { container } = renderPage();
+    await waitFor(() => expect(container.querySelectorAll('.brief-list h4')).toHaveLength(3));
+
+    const titles = [...container.querySelectorAll('.brief-list h4')].map((node) => node.textContent);
+    expect(titles).toEqual(['Undated exploit', 'Newer advisory', 'Older CVE']);
   });
 
   test('every search word must match, across title, summary and tags', async () => {

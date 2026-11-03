@@ -11,15 +11,17 @@ import {
   SmallListRow, ViewModeToggle, buildCardLayout, buildHighlightPattern,
 } from '../App.jsx';
 import { CloseIcon, SearchIcon } from '../icons.jsx';
-import { THREAT_SITES, formatSiteName } from '../sources';
+import { articleTimestamp } from '../filters';
+import { formatSiteName } from '../sources';
 import useRevealOnScroll from '../useRevealOnScroll.js';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL
   || (import.meta.env.DEV ? 'http://localhost:5000' : '');
 
-// Every threat feed is fetched as one set and split into tabs in the browser, so a
-// tab switch is instant and each tab's count is right from first paint. Pages are
-// fetched one after another until the set is complete, as on the front page.
+// Each tab's feeds are fetched as their own set, all tabs at once, and merged in the
+// browser, so a tab switch is instant. One set for every feed used to be paged newest
+// first, which left the CVE tab empty until the last of ~16 pages arrived (oss-security
+// is the oldest feed) and empty for good if any page in between failed.
 const PAGE_LIMIT = 250;
 const RENDER_STEP = 48;
 
@@ -30,14 +32,20 @@ const TABS = [
   { slug: 'all', title: 'All', noun: 'threats', sites: null },
   { slug: 'cves', title: 'CVE', noun: 'CVEs', sites: ['oss_security'] },
   { slug: 'exploits', title: 'Exploits', noun: 'exploits', sites: ['sploitus', 'exploit_db'] },
-  { slug: 'advisories', title: 'Advisories', noun: 'advisories', sites: ['github_advisories', 'zero_day_initiative'] },
+  { slug: 'advisories', title: 'Advisories', noun: 'advisories', sites: ['github_advisories', 'zero_day_initiative', 'full_disclosure'] },
 ];
 
-const buildThreatsUrl = (offset) => (
-  `${API_BASE_URL}/api/articles?site=${THREAT_SITES.join(',')}&limit=${PAGE_LIMIT}&offset=${offset}`
+const FEED_GROUPS = TABS.filter((tab) => tab.sites).map((tab) => tab.sites);
+
+const buildThreatsUrl = (sites, offset) => (
+  `${API_BASE_URL}/api/articles?site=${sites.join(',')}&limit=${PAGE_LIMIT}&offset=${offset}`
 );
 
 const articleKey = (article) => `${article.site} ${article.url}`;
+
+// The API sorts each set newest first; the merged All tab is re-sorted by the same
+// timestamp the rows print (published_at, falling back to fetched_at).
+const newestFirst = (articles) => [...articles].sort((a, b) => articleTimestamp(b) - articleTimestamp(a));
 
 const MAX_QUERY_LENGTH = 200;
 
@@ -140,35 +148,35 @@ const ThreatsPage = () => {
   useEffect(() => {
     let cancelled = false;
 
-    (async () => {
-      const seen = new Set();
+    const seen = new Set();
+
+    const loadGroup = async (sites) => {
       let offset = 0;
+      while (offset !== null && !cancelled) {
+        // Sequential within a set: each page is small and the sets together are
+        // complete in a few requests, well inside RATE_LIMITS.articles.
+        // eslint-disable-next-line no-await-in-loop
+        const response = await axios.get(buildThreatsUrl(sites, offset));
+        const fresh = (response.data?.items || []).filter((article) => {
+          const key = articleKey(article);
+          if (seen.has(key)) return false;
+          seen.add(key);
+          return true;
+        }).map(cleanSummary);
 
-      try {
-        while (offset !== null && !cancelled) {
-          // Sequential by design: each page is small and the set is complete in a
-          // few requests, well inside RATE_LIMITS.articles.
-          // eslint-disable-next-line no-await-in-loop
-          const response = await axios.get(buildThreatsUrl(offset));
-          const fresh = (response.data?.items || []).filter((article) => {
-            const key = articleKey(article);
-            if (seen.has(key)) return false;
-            seen.add(key);
-            return true;
-          }).map(cleanSummary);
-
-          if (cancelled) return;
-          setArticles((current) => [...current, ...fresh]);
-          setStatus('ready');
-          offset = response.data?.next_offset ?? null;
-        }
-      } catch {
-        // A later page failing leaves what already loaded on screen.
-        if (!cancelled && seen.size === 0) {
-          setStatus('error');
-        }
+        if (cancelled) return;
+        setArticles((current) => newestFirst([...current, ...fresh]));
+        setStatus('ready');
+        offset = response.data?.next_offset ?? null;
       }
-    })();
+    };
+
+    // A page failing leaves what already loaded on screen, from that set and the others.
+    Promise.allSettled(FEED_GROUPS.map(loadGroup)).then(() => {
+      if (!cancelled && seen.size === 0) {
+        setStatus((current) => (current === 'ready' ? current : 'error'));
+      }
+    });
 
     return () => { cancelled = true; };
   }, []);
