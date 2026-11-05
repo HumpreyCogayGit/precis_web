@@ -44,9 +44,9 @@ import {
 import { THREAT_SITES, formatSiteName, isThreatSite } from './sources';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || (import.meta.env.DEV ? 'http://localhost:5000' : '');
-const INITIAL_ARTICLE_COUNT = 24;
+const INITIAL_ARTICLE_COUNT = 48;
 // The working set arrives in pages (see fetchArticles). The first is small so the
-// edition paints fast — two screens of the default page size. The server builds
+// edition paints fast — one screen of the default page size. The server builds
 // each row's excerpt only for the page it returns, so a page's cost scales with its
 // size, not with the archive. Both must not exceed MAX_LIMIT in lib/articles.js: the
 // API rejects a larger limit with a 400 rather than quietly returning fewer rows.
