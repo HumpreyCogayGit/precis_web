@@ -6,9 +6,10 @@ import { useLayoutEffect, useRef, useState } from 'react';
  * means the boot splash and the in-app loader are the same picture, and the
  * handoff between them is invisible.
  *
- * public/loader/ holds two scenes with the same window.PrecisLoader contract;
- * index.html picks which pair of files is loaded, and this component works
- * with either. Each has a standalone preview (loader.html, sorter.html). */
+ * public/loader/ holds three scenes with the same window.PrecisLoader
+ * contract; pick.js loads one of them at random per visit, and this component
+ * works with whichever it was. Each has a standalone preview (loader.html,
+ * sorter.html, crew.html). */
 
 // Inline rather than a class, deliberately: this is what renders when the
 // loader's own assets did not arrive, so it must not depend on them either.
@@ -41,25 +42,24 @@ const FALLBACK_HEADLINE_STYLE = {
   letterSpacing: '-0.025em',
 };
 
-/* Where each of the loader's six cards lands on the edition it is revealing.
- * Both scenes number their cards as the same two-column, three-row grid, and
- * the order follows that grid, so the movement stays readable: its
- * left column (cards 1 and 3) goes to the lead panel on the left, the top of
- * its right column goes to Rising Now on the right, and the bottom four take
- * the Top Stories rows underneath.
+/* The sections of the edition the loader hands over to, by name. Which piece
+ * of the scene becomes which is the scene's business (see `bind` in each of
+ * public/loader/loader.js, sorter.js and crew.js): the sorting line opens its
+ * two trays into the lead and Rising Now panels and lays its cards down as
+ * these rows, the workshop does the same with its board and cards, and the
+ * wire desk flies its cards to all three.
  *
  * Resolved at teardown rather than up front, because none of this exists until
  * the edition renders -- and when it does not (a search is active, an empty
- * edition, the error state) the missing entries fall back to the burst. */
-const bindTargets = () => {
-  const lead = document.querySelector('.edition-top-lead');
-  const rising = document.querySelector('.topic-trends');
-  const rows = Array.from(
+ * edition, the error state) the loader falls back to its burst. Six rows
+ * because that is how many cards a scene has. */
+const bindTargets = () => ({
+  lead: document.querySelector('.edition-top-lead'),
+  rising: document.querySelector('.topic-trends'),
+  rows: Array.from(
     document.querySelectorAll('.top-stories-table tbody tr'),
-  ).slice(0, 3);
-
-  return [lead, rising, lead, ...rows];
-};
+  ).slice(0, 6),
+});
 
 const NewsLoader = () => {
   const host = useRef(null);

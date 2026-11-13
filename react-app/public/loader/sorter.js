@@ -1,9 +1,9 @@
 /* Precis page-loading animation, second concept ("sorting line") -- behaviour.
  *
- * Pairs with sorter.css, and is a drop-in alternative to loader.js: it defines
- * the same window.PrecisLoader with the same mount / destroy contract, so the
- * app (main.jsx, NewsLoader.jsx) does not know or care which of the two a page
- * loaded. Load one pair or the other, never both.
+ * Pairs with sorter.css, and is interchangeable with loader.js and crew.js: it
+ * defines the same window.PrecisLoader with the same mount / destroy contract,
+ * so the app (main.jsx, NewsLoader.jsx) does not know or care which scene a
+ * page loaded. pick.js loads exactly one of them per visit.
  *
  * The scene's cyclical motion is pure CSS, so the loader still animates if this
  * file is slow to arrive; JavaScript owns only the parts CSS cannot express --
@@ -102,14 +102,25 @@
      Below this age the exit is skipped and the loader just goes. */
   var MIN_VISIBLE_MS = 500;
 
-  /* Binding exit: phase one flattens the camera, then the cards fly. */
-  var BIND_PHASE_MS = 340;
-  var BIND_FLIGHT_MS = 560;
-  var BIND_CARRIER_MS = 700;
-  /* Accelerating, not the usual ease-in-out: the card drifts off its slot and
-     then rushes the last two thirds into the page. Phase one ends slow, so the
-     two read as one continuous move that keeps gathering speed. */
-  var BIND_EASE = 'cubic-bezier(0.55, 0.055, 0.675, 0.19)';
+  /* Binding exit: phase one flattens the camera, then the trays and cards fly
+     to the page sections they become, and only then is the page shown. */
+  var BIND_PHASE_MS = 300;      // must match sl-bind-cam in sorter.css
+  var BIND_FLIGHT_MS = 480;
+  /* Trays leave at once; the first card waits this long so the panels are
+     visibly opening before rows start landing, then cards follow at the
+     stagger. Six thrown at the same instant read as an explosion; one after
+     another they read as something being laid out. */
+  var BIND_CARD_LEAD_MS = 60;
+  var BIND_STAGGER_MS = 25;
+  var BIND_REVEAL_MS = 280;
+  /* When the paper lifts off the page: just before the last card (of
+     CARD_COUNT) settles, so the reveal overlaps the landing instead of waiting
+     for a dead stop. */
+  var BIND_REVEAL_AT =
+    BIND_PHASE_MS + BIND_CARD_LEAD_MS + (CARD_COUNT - 1) * BIND_STAGGER_MS + BIND_FLIGHT_MS - 80;
+  /* Leaves fast and settles slowly. The pieces are being *placed*, so each one
+     should arrive at rest on its section rather than hit it at speed. */
+  var BIND_EASE = 'cubic-bezier(0.6, 0, 0.2, 1)';
 
   function prefersReducedMotion() {
     return (
@@ -434,11 +445,72 @@
     return carrier;
   }
 
-  /* Phase two of the binding exit. Each card is left where it is and a clone
-     is flown from its box to its target's, because the card itself sits inside
-     a transformed 3D scene and cannot be addressed in viewport coordinates. */
-  function flyToTargets(carrier, targets) {
-    var cards = carrier.querySelectorAll('.sl__card');
+  /* Fades out a piece of the scene that has nowhere to land. The Web Animations
+     API on purpose: the piece is being held in place by a filling CSS animation,
+     which an inline style cannot override but a script animation can. */
+  function dismissPiece(node) {
+    if (typeof node.animate === 'function') {
+      node.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 200, fill: 'forwards' });
+    } else {
+      node.style.visibility = 'hidden';
+    }
+  }
+
+  /* Puts a clone of one piece of the scene -- a tray or a card -- into the flight
+     layer, exactly over the original, and records where it is to land. The
+     original is hidden: from here on the clone is the piece.
+
+     A clone, because the piece itself sits inside a transformed 3D scene and
+     cannot be addressed in viewport coordinates. Returns false when there is
+     nowhere to land, and the caller dismisses the piece instead. */
+  function launchGhost(flight, piece, shellClass, target, delay) {
+    if (!target) return false;
+
+    var to = target.getBoundingClientRect();
+    // A target scrolled out of view would send the piece off the screen, which
+    // reads as throwing it away rather than landing it.
+    if (!to.width || to.bottom < 0 || to.top > global.innerHeight) return false;
+
+    var from = piece.getBoundingClientRect();
+    var face = piece.querySelector('.f-top');
+    if (!from.width || !face) return false;
+
+    var ghost = el('div', 'sl-flight__piece');
+    ghost.style.left = from.left + 'px';
+    ghost.style.top = from.top + 'px';
+    ghost.style.width = from.width + 'px';
+    ghost.style.height = from.height + 'px';
+
+    // Both classes: .sl-box gives the face its fill and radius, the piece's own
+    // class its inner layout. The inline reset then strips what that class says
+    // about where the piece sits in the scene, opacity included.
+    var shell = el('div', 'sl-box ' + shellClass);
+    shell.style.cssText =
+      'position:absolute;inset:0;width:auto;height:auto;opacity:1;transform:none;animation:none;filter:none;';
+    shell.appendChild(face.cloneNode(true));
+    ghost.appendChild(shell);
+    flight.appendChild(ghost);
+
+    piece.style.visibility = 'hidden';
+
+    // The box is animated, not scaled. Scaling to a table row's proportions
+    // would smear the chip and rules across it; letting the box take the
+    // target's real dimensions makes the piece *reflow* into that shape -- a
+    // card's chip settles to row height and its rules draw out lengthwise,
+    // while a tray opens out into a panel with its slots still marked on it.
+    ghost.setAttribute('data-to', [to.left, to.top, to.width, to.height].join(','));
+    ghost.setAttribute('data-delay', delay);
+    return true;
+  }
+
+  /* Phase two of the binding exit: the scene's light pieces become the page.
+     The two trays open out into the two panels at the top of the edition and
+     the six cards lay themselves down as the first rows of Top Stories, one
+     after another. All of it happens over the loader's still-opaque paper, so
+     nothing of the real page is seen until its stand-in is sitting on it.
+
+     Returns the flight layer, or null if nothing could be bound. */
+  function flyToSections(carrier, sections) {
     var flight = el('div', 'sl-flight');
     var theme = carrier.getAttribute('data-theme');
 
@@ -446,51 +518,26 @@
     flight.setAttribute('aria-hidden', 'true');
     document.body.appendChild(flight);
 
+    // Trays first, so the cards are stacked above them all the way down.
+    var trays = [
+      { node: carrier.querySelector('.sl__tray--l'), target: sections.lead },
+      { node: carrier.querySelector('.sl__tray--r'), target: sections.rising }
+    ];
+    trays.forEach(function (tray) {
+      if (!tray.node) return;
+      if (!launchGhost(flight, tray.node, 'sl__tray', tray.target, 0)) dismissPiece(tray.node);
+    });
+
+    var cards = carrier.querySelectorAll('.sl__card');
+    var rows = sections.rows || [];
     for (var i = 0; i < cards.length; i++) {
-      var target = targets[i];
-      if (!target) continue;
-
-      var to = target.getBoundingClientRect();
-      // A target scrolled out of view would send the card off the screen, which
-      // reads as throwing it away rather than landing it.
-      if (!to.width || to.bottom < 0 || to.top > global.innerHeight) continue;
-
-      var from = cards[i].getBoundingClientRect();
-      var face = cards[i].querySelector('.f-top');
-      if (!from.width || !face) continue;
-
-      var ghost = el('div', 'sl-flight__card');
-      ghost.style.left = from.left + 'px';
-      ghost.style.top = from.top + 'px';
-      ghost.style.width = from.width + 'px';
-      ghost.style.height = from.height + 'px';
-
-      // Both classes: .sl-box gives the face its fill and radius, .sl__card its
-      // padding and the chip layout inside. The inline reset then strips what
-      // .sl__card says about riding the belt, opacity included.
-      var shell = el('div', 'sl-box sl__card');
-      shell.style.cssText =
-        'position:absolute;inset:0;width:auto;height:auto;opacity:1;transform:none;animation:none;filter:none;';
-      shell.appendChild(face.cloneNode(true));
-      ghost.appendChild(shell);
-      flight.appendChild(ghost);
-
-      cards[i].style.visibility = 'hidden';
-
-      // The box is animated, not scaled. Scaling to a table row's proportions
-      // would smear the chip and rules across it; letting the box take the
-      // target's real dimensions makes the card *reflow* into that shape --
-      // the chip settles to row height and the rules draw out lengthwise,
-      // while a panel target inflates the same card into a hero instead.
-      ghost.setAttribute(
-        'data-to',
-        [to.left, to.top, to.width, to.height].join(',')
-      );
+      var delay = BIND_CARD_LEAD_MS + i * BIND_STAGGER_MS;
+      if (!launchGhost(flight, cards[i], 'sl__card', rows[i], delay)) dismissPiece(cards[i]);
     }
 
     if (!flight.children.length) {
       flight.remove();
-      return;
+      return null;
     }
 
     // One forced reflow so the browser has the start boxes before the
@@ -501,33 +548,31 @@
     var ghosts = flight.children;
     for (var g = 0; g < ghosts.length; g++) {
       var dest = ghosts[g].getAttribute('data-to').split(',');
-      var move = BIND_FLIGHT_MS + 'ms ' + BIND_EASE;
+      var move = BIND_FLIGHT_MS + 'ms ' + BIND_EASE + ' ' + ghosts[g].getAttribute('data-delay') + 'ms';
 
       ghosts[g].style.transition =
-        'left ' + move + ', top ' + move + ', width ' + move + ', height ' + move +
-        ', opacity 220ms ease ' + (BIND_FLIGHT_MS - 220) + 'ms';
+        'left ' + move + ', top ' + move + ', width ' + move + ', height ' + move;
       ghosts[g].style.left = dest[0] + 'px';
       ghosts[g].style.top = dest[1] + 'px';
       ghosts[g].style.width = dest[2] + 'px';
       ghosts[g].style.height = dest[3] + 'px';
-      // Handing over to the real element underneath, which is already in place.
-      ghosts[g].style.opacity = '0';
     }
 
-    global.setTimeout(function () {
-      flight.remove();
-    }, BIND_FLIGHT_MS + 140);
+    return flight;
   }
 
   /* Plays the loader out, then removes it entirely -- a loader left in the DOM
      keeps aria-busy on the page and its animations on the compositor.
        explode: burst the scene apart and push the camera through it, for the
                 hand-off to the real page.
-       bind:    () => Element[]. Called one frame after the hand-off, once the
-                page underneath has been laid out; card i flies to targets[i].
-                Falsy entries and off-screen targets fall back to the burst's
-                fade. Keeps the loader ignorant of the app: it is handed
-                elements, never selectors.
+       bind:    () => { lead, rising, rows }. Called one frame after the
+                hand-off, once the page underneath has been laid out. The page
+                names its sections and the scene decides which of its pieces
+                becomes which: here the left tray opens into `lead`, the right
+                into `rising`, and card i lands on rows[i]. A piece with no
+                section, or one that is off-screen, just fades. Keeps the
+                loader ignorant of the app: it is handed elements, never
+                selectors.
        handoff: the mount point belongs to a framework; move the scene off it
                 first so the exit can finish after that node is gone.
        immediate: no exit at all. */
@@ -568,16 +613,20 @@
       // paint: getBoundingClientRect forces layout on its own.
       var carrier = root;
       global.setTimeout(function () {
-        var targets = [];
+        var sections = null;
         try {
-          targets = opts.bind() || [];
+          sections = opts.bind();
         } catch (error) {
-          targets = [];
+          sections = null;
         }
+        // A bare list is taken as rows, for a caller with nothing else to offer.
+        if (Array.isArray(sections)) sections = { rows: sections };
+        if (!sections) sections = {};
 
-        var usable = false;
-        for (var i = 0; i < targets.length; i++) {
-          if (targets[i]) { usable = true; break; }
+        var usable = Boolean(sections.lead || sections.rising);
+        var rows = sections.rows || [];
+        for (var i = 0; i < rows.length && !usable; i++) {
+          if (rows[i]) usable = true;
         }
 
         // Nothing to bind to -- a search is active, or the edition is empty.
@@ -588,10 +637,26 @@
         }
 
         carrier.classList.add('is-binding');
+
+        var flight = null;
         global.setTimeout(function () {
-          flyToTargets(carrier, targets);
+          flight = flyToSections(carrier, sections);
         }, BIND_PHASE_MS);
-        global.setTimeout(function () { carrier.remove(); }, BIND_CARRIER_MS);
+
+        // The paper and the stand-ins go together, so each real section comes
+        // up exactly where, and exactly as, its stand-in fades.
+        global.setTimeout(function () {
+          carrier.classList.add('is-revealing');
+          if (flight) {
+            flight.style.transition = 'opacity ' + BIND_REVEAL_MS + 'ms ease';
+            flight.style.opacity = '0';
+          }
+        }, BIND_REVEAL_AT);
+
+        global.setTimeout(function () {
+          carrier.remove();
+          if (flight) flight.remove();
+        }, BIND_REVEAL_AT + BIND_REVEAL_MS + 40);
       }, 0);
       return;
     }

@@ -1,0 +1,1085 @@
+/* Precis page-loading animation, third concept -- an isometric "workshop".
+ *
+ * The same world as loader.css (the wire desk) and sorter.css (the sorting
+ * line): one isometric camera, the same palette, dark machinery against a
+ * light perforated slab, the same copy block. This one is staffed. A press at
+ * the back stamps each blank story with its tag; two workers take turns
+ * wheeling the stamped cards down the shop floor on carts and sliding them
+ * onto the edition board, then turn round and go back for the next; a third
+ * works the press.
+ *
+ * Three files, no build step and no dependencies:
+ *   crew.css   this file  -- the whole scene, drawn in CSS 3D
+ *   crew.js    behaviour  -- markup, glyph cycling, status copy, teardown
+ *   crew.html  a standalone page for previewing both
+ *
+ * One of three interchangeable scenes; pick.js chooses which a visit gets.
+ * Selectors are prefixed .cw so the scenes can never restyle each other.
+ */
+
+@property --cw-amp {
+  syntax: '<number>';
+  inherits: true;
+  initial-value: 0;
+}
+
+.cw,
+.cw-flight {
+  /* --- palette ----------------------------------------------------------
+   * Identical values to loader.css, so swapping loaders does not shift the
+   * page's colour at the moment of hand-off. light-dark() keeps both themes in
+   * one block: the pair is picked by the element's used color-scheme, which
+   * follows the OS until a data-theme below pins it. */
+  color-scheme: light dark;
+
+  --cw-paper: light-dark(#f4f5f7, #0d1116);
+  --cw-dot: light-dark(#dcdee3, #1d232c);
+
+  --cw-board-top: light-dark(#f1f2f5, #222b36);
+  --cw-board-side: light-dark(#eceef1, #151b23);
+  --cw-board-side-dim: light-dark(#dfe1e6, #0f141a);
+  --cw-board-base: light-dark(#ced1d7, #0a0e13);
+  --cw-perf: light-dark(#d4d7dd, #323d4b);
+
+  --cw-card: light-dark(#ffffff, #384556);
+  --cw-card-side: light-dark(#e8eaee, #2b3542);
+  --cw-card-edge: light-dark(#e3e5ea, #47566a);
+  --cw-card-line: light-dark(#d8dbe1, #5a6b80);
+  /* The chip of a story the gate has not read yet. */
+  --cw-card-raw: light-dark(#c3c8d0, #5a6b80);
+
+  --cw-node-top: light-dark(#3b3e43, #494e56);
+  --cw-node-plate: light-dark(#4d5158, #5b616a);
+  --cw-node-side: light-dark(#26282c, #2c2f34);
+  --cw-node-side-dim: light-dark(#191a1d, #1d1f23);
+
+  --cw-mach-top: light-dark(#34373c, #40444a);
+  --cw-mach-side: light-dark(#212428, #292d32);
+  --cw-mach-side-dim: light-dark(#151618, #1a1c20);
+  --cw-mach-vent: #5a5f66;
+
+  --cw-rail: light-dark(#a6caee, #3f72a6);
+
+  --cw-ink: light-dark(#14171a, #eef2f7);
+  --cw-muted: light-dark(#6b7280, #94a2b2);
+  /* The site's --accent (App.css), for blue type. --cw-blue below stays the
+     saturated fill behind white glyphs, where the softer accent lacks contrast. */
+  --cw-accent: light-dark(#5980a6, #8bb6df);
+
+  --cw-blue: #2f6fed;
+  --cw-green: #17a05f;
+  --cw-red: #e5484d;
+  --cw-amber: #dfa43a;
+  --cw-violet: #6d5cf5;
+  --cw-cyan: #26a9cf;
+
+  --cw-shadow: light-dark(rgba(18, 21, 27, 0.18), rgba(0, 0, 0, 0.5));
+
+  /* --- geometry ---------------------------------------------------------- */
+  /* One unit is a hundredth of the stage width. Every height in the scene is
+     written in it, so a worker stays the same height against a card on a
+     phone as on a desktop -- a pixel height would make them giants on one
+     and specks on the other. Must track .cw__stage's width below. */
+  --cw-u: min(7.2px, 0.94vw, 1.1vh);
+
+  /* The plane is rotated 40deg about Z, so its diagonal -- not its width --
+     sets the rendered footprint. The scale keeps that footprint inside the
+     stage and the nudge recentres it. Media queries below override the scale
+     alone. */
+  --cw-scale: 0.86;
+  --cw-nudge: translate(0%, 2%);
+  --cw-cam: var(--cw-nudge) rotateX(58deg) rotateZ(-40deg) scale(var(--cw-scale));
+
+  --cw-bench-d: calc(var(--cw-u) * 1.8);  /* press bench, and the carts: one height,
+                                             so a card slides level from one to the other */
+  --cw-board-d: calc(var(--cw-u) * 1.6);  /* edition board thickness  */
+  --cw-card-d: calc(var(--cw-u) * 0.9);   /* card thickness           */
+  --cw-tower-d: calc(var(--cw-u) * 9.5);  /* press column height      */
+  --cw-head-d: calc(var(--cw-u) * 2);     /* press head thickness     */
+
+  /* Where a card rides (on the bench, then on a cart) and where it comes to
+     rest on the board: just clear of the surface under it, so the two never
+     fight for the same depth. */
+  --cw-ride-z: calc(var(--cw-bench-d) + var(--cw-u) * 0.25);
+  --cw-rest-z: calc(var(--cw-board-d) + var(--cw-u) * 0.25);
+
+  /* The press head's travel: parked well clear of a card, and down onto one. */
+  --cw-head-up: calc(var(--cw-u) * 6.6);
+  --cw-head-down: calc(var(--cw-ride-z) + var(--cw-card-d) + var(--cw-u) * 0.15);
+
+  /* The crew are drawn in their own unit, so all three can be resized against
+     the cards without touching a single limb. */
+  --cw-p: calc(var(--cw-u) * 1.6);
+
+  --cw-cycle: 11s;      /* one full shift: see the timetable below */
+}
+
+.cw {
+  position: fixed;
+  z-index: 9999;
+  inset: 0;
+  display: grid;
+  overflow: hidden;
+  align-content: center;
+  justify-items: center;
+  padding: clamp(60px, 8vh, 104px) 16px 40px;
+  background:
+    radial-gradient(circle at 50% 38%, rgba(47, 111, 237, 0.07), transparent 42%),
+    radial-gradient(circle, var(--cw-dot) 1px, transparent 1.25px) 0 0 / 19px 19px,
+    var(--cw-paper);
+  color: var(--cw-ink);
+  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  text-align: center;
+  transition: opacity 420ms ease, visibility 420ms ease;
+}
+
+/* Pinning a theme -- on the loader itself or on :root, matching the app's
+   existing :root[data-theme] convention -- overrides the OS preference. */
+.cw[data-theme="light"],
+.cw-flight[data-theme="light"],
+:root[data-theme="light"] .cw,
+:root[data-theme="light"] .cw-flight { color-scheme: light; }
+
+.cw[data-theme="dark"],
+.cw-flight[data-theme="dark"],
+:root[data-theme="dark"] .cw,
+:root[data-theme="dark"] .cw-flight { color-scheme: dark; }
+
+/* ===================================================================== *
+ * wordmark
+ * ===================================================================== */
+
+.cw__brand {
+  position: absolute;
+  top: clamp(20px, 4vh, 40px);
+  left: clamp(20px, 5vw, 64px);
+  color: var(--cw-accent);
+  font-size: 1.7rem;
+  font-weight: 900;
+  letter-spacing: -0.075em;
+  line-height: 1;
+}
+
+.cw__brand b {
+  color: var(--cw-ink);
+  font-weight: inherit;
+}
+
+/* ===================================================================== *
+ * the isometric camera
+ * ===================================================================== */
+
+.cw__stage {
+  position: relative;
+  /* --cw-u above is a hundredth of this. The height term is for landscape
+     phones and short windows: the stage is 16:9, so capping its width by the
+     viewport's height is what leaves room for the copy underneath. */
+  width: min(720px, 94vw, 110vh);
+  aspect-ratio: 16 / 9;
+  perspective: 1500px;
+  perspective-origin: 50% 44%;
+}
+
+/* One rotation for the whole scene, so every box below can be authored flat
+   and still land on a shared ground plane. */
+.cw__scene {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 86%;
+  aspect-ratio: 1;
+  translate: -50% -50%;
+  transform: var(--cw-cam) translate3d(0, 0, 0);
+  transform-style: preserve-3d;
+  animation: cw-drift 6.4s ease-in-out infinite;
+}
+
+@keyframes cw-drift {
+  0%, 100% { transform: var(--cw-cam) translate3d(0, 0, 0); }
+  50%      { transform: var(--cw-cam) translate3d(0, 0, 12px); }
+}
+
+/* ===================================================================== *
+ * generic extruded box: floor at z=0, lid at z=var(--d)
+ * ===================================================================== */
+
+/* Each wall is hinged on the floor edge it shares with the footprint and
+   folded *up* to meet the lid, as in sorter.css. (loader.css folds them down
+   below the floor, which would leave a worker's head hovering over a body
+   sunk into the ground.) */
+
+.cw-box {
+  position: absolute;
+  transform-style: preserve-3d;
+}
+
+.cw-box > i {
+  position: absolute;
+  display: block;
+  background: var(--fs, currentColor);
+}
+
+.cw-box > .f-base {
+  inset: 0;
+  border-radius: var(--r, 0);
+  background: var(--fd, var(--fs));
+}
+
+.cw-box > .f-top {
+  inset: 0;
+  border-radius: var(--r, 0);
+  background: var(--ft, var(--fs));
+  transform: translateZ(var(--d));
+}
+
+.cw-box > .f-n {
+  bottom: 100%;
+  left: 0;
+  width: 100%;
+  height: var(--d);
+  background: var(--fd, var(--fs));
+  transform-origin: 50% 100%;
+  transform: rotateX(-90deg);
+}
+
+.cw-box > .f-s {
+  top: 100%;
+  left: 0;
+  width: 100%;
+  height: var(--d);
+  transform-origin: 50% 0;
+  transform: rotateX(90deg);
+}
+
+.cw-box > .f-e {
+  top: 0;
+  left: 100%;
+  width: var(--d);
+  height: 100%;
+  transform-origin: 0 50%;
+  transform: rotateY(-90deg);
+}
+
+.cw-box > .f-w {
+  top: 0;
+  right: 100%;
+  width: var(--d);
+  height: 100%;
+  background: var(--fd, var(--fs));
+  transform-origin: 100% 50%;
+  transform: rotateY(90deg);
+}
+
+/* ===================================================================== *
+ * shop floor: contact shadow + the two lanes the carts run in
+ * ===================================================================== */
+
+.cw__shadow {
+  position: absolute;
+  inset: 0 8% 8% 8%;
+  border-radius: 64px;
+  background: var(--cw-shadow);
+  filter: blur(30px);
+  opacity: 0.5;
+  transform: translateZ(-16px);
+}
+
+/* Painted lane lines, one down the middle of each cart's run. */
+.cw__lane {
+  position: absolute;
+  top: 14%;
+  width: 2px;
+  height: 76%;
+  margin-left: -1px;
+  background: repeating-linear-gradient(
+    180deg,
+    var(--cw-rail) 0 calc(var(--cw-u) * 1.6),
+    transparent calc(var(--cw-u) * 1.6) calc(var(--cw-u) * 2.8)
+  );
+}
+
+.cw__lane--l { left: 18.5%; }
+.cw__lane--r { left: 81.5%; }
+
+/* ===================================================================== *
+ * the press -- a bench, a column behind it, and a head that comes down
+ * ===================================================================== */
+
+.cw__bench {
+  --d: var(--cw-bench-d);
+  --r: calc(var(--cw-u) * 1);
+  --ft: var(--cw-mach-top);
+  --fs: var(--cw-mach-side);
+  --fd: var(--cw-mach-side-dim);
+  top: 1%;
+  left: 27%;
+  width: 46%;
+  height: 12%;
+}
+
+/* Rollers: a stamped card is pushed off sideways, to whichever cart is in. */
+.cw__bench > .f-top {
+  overflow: hidden;
+  background:
+    repeating-linear-gradient(
+      90deg,
+      var(--cw-mach-vent) 0 calc(var(--cw-u) * 0.3),
+      transparent calc(var(--cw-u) * 0.3) calc(var(--cw-u) * 1.8)
+    ),
+    var(--ft);
+  box-shadow:
+    inset 0 0 0 calc(var(--cw-u) * 0.5) var(--cw-mach-side),
+    inset 0 2px 0 rgba(255, 255, 255, 0.14);
+}
+
+.cw__tower {
+  --d: var(--cw-tower-d);
+  --r: calc(var(--cw-u) * 0.6);
+  --ft: var(--cw-node-top);
+  --fs: var(--cw-node-side);
+  --fd: var(--cw-node-side-dim);
+  top: -7%;
+  left: 43%;
+  width: 14%;
+  height: 8%;
+}
+
+.cw__tower > .f-top {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8%;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.14);
+}
+
+.cw__tower__dot {
+  width: calc(var(--cw-u) * 1.3);
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: var(--cw-green);
+  animation: cw-blink 0.6s ease-in-out infinite;
+}
+
+@keyframes cw-blink {
+  0%, 100% { opacity: 0.45; box-shadow: none; }
+  50%      { opacity: 1; box-shadow: 0 0 8px 1px var(--cw-green); }
+}
+
+.cw__tower__label {
+  color: #e8ebef;
+  font-size: calc(var(--cw-u) * 1.5);
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.cw__head {
+  --d: var(--cw-head-d);
+  --r: calc(var(--cw-u) * 0.7);
+  --ft: #50565e;
+  --fs: #2f3339;
+  --fd: #1d1f23;
+  top: 1.5%;
+  left: 43.5%;
+  width: 13%;
+  height: 11%;
+  transform: translateZ(var(--cw-head-up));
+  animation: cw-stamp var(--cw-cycle) linear infinite;
+}
+
+/* The lamp strip along the head's lower front edge. On this face "top" is the
+   floor of the box, so the strip is the first stop of the gradient. */
+.cw__head > .f-s {
+  background: linear-gradient(180deg, var(--cw-cyan) 0 30%, var(--fs) 30%);
+}
+
+/* --- the timetable -------------------------------------------------------
+ * Everything that moves on the floor shares one 11s cycle, and the keyframes
+ * below are that cycle written out. They were generated from these numbers;
+ * change one and the others have to follow.
+ *
+ *   carts run at 65% of the scene per second
+ *   left worker:   press stamps at 0.60s, 3.41s, 5.72s  -> rows 3, 2, 1
+ *   right worker:  the same shift, 0.6s later (animation-delay)
+ *
+ *   one trip, from its stamp t0:
+ *     t0 - 0.45   blank card fades in on the bench
+ *     t0          head lands: the card is tagged
+ *     t0 + 0.10   card rolls off the bench onto the waiting cart   (0.4s)
+ *     t0 + 0.50   worker sets off; the run is  distance / 65  seconds
+ *     arrival     card slides off the cart onto its slot           (0.4s)
+ *     + 0.15      worker swings the cart round (0.25s) and heads back,
+ *                 swinging round again at the press, in time for the next
+ *
+ *   9.8s -> 10.4s  the finished cards clear, and the shift starts over
+ */
+
+@keyframes cw-stamp {
+  0%, 100% { transform: translateZ(var(--cw-head-up)); }
+  3.64% { transform: translateZ(var(--cw-head-up)); animation-timing-function: cubic-bezier(0.6, 0, 0.9, 0.4); }
+  5.45% { transform: translateZ(var(--cw-head-down)); animation-timing-function: cubic-bezier(0.2, 0.8, 0.3, 1); }
+  6.91% { transform: translateZ(var(--cw-head-up)); }
+  9.09% { transform: translateZ(var(--cw-head-up)); animation-timing-function: cubic-bezier(0.6, 0, 0.9, 0.4); }
+  10.91% { transform: translateZ(var(--cw-head-down)); animation-timing-function: cubic-bezier(0.2, 0.8, 0.3, 1); }
+  12.36% { transform: translateZ(var(--cw-head-up)); }
+  29.18% { transform: translateZ(var(--cw-head-up)); animation-timing-function: cubic-bezier(0.6, 0, 0.9, 0.4); }
+  31% { transform: translateZ(var(--cw-head-down)); animation-timing-function: cubic-bezier(0.2, 0.8, 0.3, 1); }
+  32.45% { transform: translateZ(var(--cw-head-up)); }
+  34.64% { transform: translateZ(var(--cw-head-up)); animation-timing-function: cubic-bezier(0.6, 0, 0.9, 0.4); }
+  36.45% { transform: translateZ(var(--cw-head-down)); animation-timing-function: cubic-bezier(0.2, 0.8, 0.3, 1); }
+  37.91% { transform: translateZ(var(--cw-head-up)); }
+  50.18% { transform: translateZ(var(--cw-head-up)); animation-timing-function: cubic-bezier(0.6, 0, 0.9, 0.4); }
+  52% { transform: translateZ(var(--cw-head-down)); animation-timing-function: cubic-bezier(0.2, 0.8, 0.3, 1); }
+  53.45% { transform: translateZ(var(--cw-head-up)); }
+  55.64% { transform: translateZ(var(--cw-head-up)); animation-timing-function: cubic-bezier(0.6, 0, 0.9, 0.4); }
+  57.45% { transform: translateZ(var(--cw-head-down)); animation-timing-function: cubic-bezier(0.2, 0.8, 0.3, 1); }
+  58.91% { transform: translateZ(var(--cw-head-up)); }
+}
+
+/* ===================================================================== *
+ * the edition board -- the light slab the cards are laid out on
+ * ===================================================================== */
+
+.cw__board {
+  --d: var(--cw-board-d);
+  --r: calc(var(--cw-u) * 2.4);
+  --ft: var(--cw-board-top);
+  --fs: var(--cw-board-side);
+  --fd: var(--cw-board-side-dim);
+  top: 34%;
+  left: 32%;
+  width: 36%;
+  height: 52%;
+}
+
+.cw__board > .f-base { background: var(--cw-board-base); }
+
+.cw__board > .f-top {
+  overflow: hidden;
+  box-shadow:
+    inset 0 0 0 2px var(--cw-card-edge),
+    inset 0 2px 0 rgba(255, 255, 255, 0.55);
+}
+
+/* Perforations, as on the wire desk's board. */
+.cw__perf {
+  position: absolute;
+  inset: 0;
+  background-image: radial-gradient(circle, var(--cw-perf) 1.1px, transparent 1.4px);
+  background-size: 17px 17px;
+  opacity: 0.7;
+}
+
+/* Ghost slots sit under the cards so the board never looks empty between
+   shifts. Positions are relative to the board: two columns of three. */
+.cw__slot {
+  position: absolute;
+  width: 36.1%;
+  height: 19.2%;
+  border-radius: calc(var(--cw-u) * 1.1);
+  background: var(--cw-card-side);
+  opacity: 0.55;
+}
+
+.cw__slot--1, .cw__slot--3, .cw__slot--5 { left: 8.33%; }
+.cw__slot--2, .cw__slot--4, .cw__slot--6 { left: 55.6%; }
+.cw__slot--1, .cw__slot--2 { top: 11.5%; }
+.cw__slot--3, .cw__slot--4 { top: 42.3%; }
+.cw__slot--5, .cw__slot--6 { top: 73.1%; }
+
+/* ===================================================================== *
+ * the crew
+ * ===================================================================== */
+
+/* A worker and the cart in front of them, moved as one. The box is the cart's
+   footprint -- the same size as a card, parked where the bench hands one over
+   -- so the cart and the card on it share coordinates, and the turn at each
+   end of a run pivots about the cart, swinging the worker round behind it. */
+.cw__team {
+  position: absolute;
+  top: 2%;
+  width: 13%;
+  height: 10%;
+  transform-style: preserve-3d;
+  animation: cw-push var(--cw-cycle) linear var(--delay, 0s) infinite;
+}
+
+.cw__team--l { left: 12%; }
+.cw__team--r { left: 75%; --delay: 0.6s; }
+
+/* --cw-amp is the worker's stride: 1 while the cart is moving, 0 while it is
+   not. It is registered as a number above so it eases between the two; where
+   @property is not supported it simply switches, which is also fine. */
+@keyframes cw-push {
+  0%      { transform: translate3d(0, 0%, 0) rotateZ(0deg); --cw-amp: 0; }
+  9.27%   { transform: translate3d(0, 0%, 0) rotateZ(0deg); --cw-amp: 0; }
+  10%     { transform: translate3d(0, 0%, 0) rotateZ(0deg); --cw-amp: 1; }
+  19.79%  { transform: translate3d(0, 700%, 0) rotateZ(0deg); --cw-amp: 1; }
+  20.7%   { transform: translate3d(0, 700%, 0) rotateZ(0deg); --cw-amp: 0; }
+  21.15%  { transform: translate3d(0, 700%, 0) rotateZ(0deg); --cw-amp: 0; }
+  23.43%  { transform: translate3d(0, 700%, 0) rotateZ(180deg); --cw-amp: 1; }
+  33.22%  { transform: translate3d(0, 0%, 0) rotateZ(180deg); --cw-amp: 1; }
+  35.49%  { transform: translate3d(0, 0%, 0) rotateZ(360deg); --cw-amp: 0; }
+  35.55%  { transform: translate3d(0, 0%, 0) rotateZ(360deg); --cw-amp: 1; }
+  43.1%   { transform: translate3d(0, 540%, 0) rotateZ(360deg); --cw-amp: 1; }
+  44.01%  { transform: translate3d(0, 540%, 0) rotateZ(360deg); --cw-amp: 0; }
+  44.46%  { transform: translate3d(0, 540%, 0) rotateZ(360deg); --cw-amp: 0; }
+  46.73%  { transform: translate3d(0, 540%, 0) rotateZ(540deg); --cw-amp: 1; }
+  54.29%  { transform: translate3d(0, 0%, 0) rotateZ(540deg); --cw-amp: 1; }
+  56.56%  { transform: translate3d(0, 0%, 0) rotateZ(720deg); --cw-amp: 0; }
+  56.55%  { transform: translate3d(0, 0%, 0) rotateZ(720deg); --cw-amp: 1; }
+  61.86%  { transform: translate3d(0, 380%, 0) rotateZ(720deg); --cw-amp: 1; }
+  62.77%  { transform: translate3d(0, 380%, 0) rotateZ(720deg); --cw-amp: 0; }
+  63.22%  { transform: translate3d(0, 380%, 0) rotateZ(720deg); --cw-amp: 0; }
+  65.5%   { transform: translate3d(0, 380%, 0) rotateZ(900deg); --cw-amp: 1; }
+  70.81%  { transform: translate3d(0, 0%, 0) rotateZ(900deg); --cw-amp: 1; }
+  73.08%  { transform: translate3d(0, 0%, 0) rotateZ(1080deg); --cw-amp: 0; }
+  100%    { transform: translate3d(0, 0%, 0) rotateZ(1080deg); --cw-amp: 0; }
+}
+
+
+.cw__cart {
+  --d: var(--cw-bench-d);
+  --r: calc(var(--cw-u) * 0.9);
+  --ft: var(--cw-node-top);
+  --fs: var(--cw-node-side);
+  --fd: var(--cw-node-side-dim);
+  inset: 0;
+}
+
+.cw__cart > .f-top {
+  box-shadow:
+    inset 0 0 0 calc(var(--cw-u) * 0.45) var(--cw-node-side),
+    inset 0 2px 0 rgba(255, 255, 255, 0.15);
+}
+
+/* A figure is five kinds of box: legs, torso, arms, head, hard hat. It faces
+   down the scene (+y), arms out in front; the container is its footprint. */
+.cw__figure {
+  position: absolute;
+  width: calc(var(--cw-p) * 2.4);
+  height: calc(var(--cw-p) * 1.6);
+  transform-style: preserve-3d;
+  animation: cw-bob 0.15s ease-in-out infinite alternate;
+}
+
+/* Behind the cart, hands on its back edge. */
+.cw__team .cw__figure {
+  top: calc(var(--cw-p) * -3.1);
+  left: calc(50% - var(--cw-p) * 1.2);
+}
+
+@keyframes cw-bob {
+  from { transform: translateZ(0); }
+  to   { transform: translateZ(calc(var(--cw-amp) * var(--cw-p) * 0.3)); }
+}
+
+.cw__leg {
+  --d: calc(var(--cw-p) * 1.5);
+  --fs: var(--cw-node-side);
+  --ft: var(--cw-node-side);
+  --fd: var(--cw-node-side-dim);
+  top: calc(var(--cw-p) * 0.3);
+  width: calc(var(--cw-p) * 0.9);
+  height: calc(var(--cw-p) * 1);
+  animation: cw-step 0.3s ease-in-out infinite;
+}
+
+.cw__leg--l { left: calc(var(--cw-p) * 0.15); }
+.cw__leg--r { left: calc(var(--cw-p) * 1.35); animation-delay: -0.15s; }
+
+@keyframes cw-step {
+  0%, 100% { transform: translateY(calc(var(--cw-amp) * var(--cw-p) * -0.5)); }
+  50%      { transform: translateY(calc(var(--cw-amp) * var(--cw-p) * 0.5)); }
+}
+
+/* Overalls in the worker's own colour, shaded on the side that faces away
+   from the light like every other solid here. */
+.cw__torso {
+  --d: calc(var(--cw-p) * 2.4);
+  --r: calc(var(--cw-p) * 0.3);
+  --ft: var(--c);
+  --fs: var(--c);
+  --fd: color-mix(in srgb, var(--c) 68%, #000);
+  top: 0;
+  left: calc(var(--cw-p) * 0.1);
+  width: calc(var(--cw-p) * 2.2);
+  height: calc(var(--cw-p) * 1.5);
+  transform: translateZ(calc(var(--cw-p) * 1.5));
+}
+
+.cw__arm {
+  --d: calc(var(--cw-p) * 0.55);
+  --ft: var(--c);
+  --fs: var(--c);
+  --fd: color-mix(in srgb, var(--c) 68%, #000);
+  top: calc(var(--cw-p) * 1.4);
+  width: calc(var(--cw-p) * 0.55);
+  height: calc(var(--cw-p) * 1.8);
+  transform: translateZ(calc(var(--cw-p) * 2.9));
+}
+
+.cw__arm--l { left: calc(var(--cw-p) * 0.1); }
+.cw__arm--r { left: calc(var(--cw-p) * 1.75); }
+
+/* Deliberately not a skin tone: these are toy figures, the same off-white as
+   the lettering on the machines. */
+.cw__noggin {
+  --d: calc(var(--cw-p) * 1.3);
+  --r: calc(var(--cw-p) * 0.35);
+  --ft: #f2f4f7;
+  --fs: #e4e7ec;
+  --fd: #c3c8d0;
+  top: calc(var(--cw-p) * 0.05);
+  left: calc(var(--cw-p) * 0.5);
+  width: calc(var(--cw-p) * 1.4);
+  height: calc(var(--cw-p) * 1.4);
+  transform: translateZ(calc(var(--cw-p) * 3.9));
+}
+
+.cw__hat {
+  --d: calc(var(--cw-p) * 0.5);
+  --r: calc(var(--cw-p) * 0.55);
+  --ft: var(--cw-amber);
+  --fs: var(--cw-amber);
+  --fd: color-mix(in srgb, var(--cw-amber) 70%, #000);
+  top: calc(var(--cw-p) * -0.1);
+  left: calc(var(--cw-p) * 0.3);
+  width: calc(var(--cw-p) * 1.8);
+  /* Longer than the head at the front: the brim. */
+  height: calc(var(--cw-p) * 2);
+  transform: translateZ(calc(var(--cw-p) * 5.2));
+}
+
+/* The press operator stands at the front of the bench, facing it, working the
+   head by hand. `rotate` rather than a transform, so the bob can still own
+   the transform. */
+.cw__figure--op {
+  top: 15.5%;
+  left: calc(50% - var(--cw-p) * 1.2);
+  rotate: 180deg;
+}
+
+.cw__figure--op .cw__arm {
+  animation: cw-pump 0.6s ease-in-out infinite alternate;
+}
+
+@keyframes cw-pump {
+  from { transform: translateZ(calc(var(--cw-p) * 2.3)); }
+  to   { transform: translateZ(calc(var(--cw-p) * 3.5)); }
+}
+
+/* ===================================================================== *
+ * story cards -- six, each stamped, wheeled down and laid on the board
+ * ===================================================================== */
+
+/* A card starts under the press head and is carried by a transform, whose
+   percentages are of the card itself: one card width is 13% of the scene and
+   one card height 10%. --sx is which way it leaves the bench (-1 for the left
+   worker's cards, 1 for the right's) and its keyframes are its row's trip. */
+.cw__card {
+  --d: var(--cw-card-d);
+  --r: calc(var(--cw-u) * 1.1);
+  --ft: var(--cw-card);
+  --fs: var(--cw-card-side);
+  --fd: var(--cw-card-edge);
+  --delay: 0s;
+  top: 2%;
+  left: 43.5%;
+  width: 13%;
+  height: 10%;
+  filter: drop-shadow(0 7px 8px light-dark(rgba(16, 20, 27, 0.24), rgba(0, 0, 0, 0.5)));
+  opacity: 0;
+  /* Linear by default so a card on a cart moves exactly with the cart; the
+     keyframes ease the moves that are the card's own. */
+  animation: var(--cw-cycle) linear var(--delay) infinite;
+}
+
+.cw__card--to-l { --sx: -1; }
+.cw__card--to-r { --sx: 1; --delay: 0.6s; }
+
+.cw__card--row-1 { --ty: 380%; --t0: 5.72s; animation-name: cw-card-1; }
+.cw__card--row-2 { --ty: 540%; --t0: 3.41s; animation-name: cw-card-2; }
+.cw__card--row-3 { --ty: 700%; --t0: 0.6s;  animation-name: cw-card-3; }
+
+@keyframes cw-card-3 {
+  0%, 1.36% { opacity: 0; transform: translate3d(0, 0, var(--cw-ride-z)); }
+  3.18% { opacity: 1; }
+  6.36% { transform: translate3d(0, 0, var(--cw-ride-z)); animation-timing-function: cubic-bezier(0.45, 0, 0.55, 1); }
+  10% { transform: translate3d(calc(var(--sx) * 242.3%), 0, var(--cw-ride-z)); }
+  19.79% { transform: translate3d(calc(var(--sx) * 242.3%), 700%, var(--cw-ride-z)); animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1); }
+  23.43% { transform: translate3d(calc(var(--sx) * 65.4%), 700%, var(--cw-rest-z)); }
+  89.09% { opacity: 1; transform: translate3d(calc(var(--sx) * 65.4%), 700%, var(--cw-rest-z)) scale(1); animation-timing-function: ease-in; }
+  94.55%, 100% { opacity: 0; transform: translate3d(calc(var(--sx) * 65.4%), 700%, 0) scale(0.6); }
+}
+
+@keyframes cw-card-2 {
+  0%, 26.91% { opacity: 0; transform: translate3d(0, 0, var(--cw-ride-z)); }
+  28.73% { opacity: 1; }
+  31.91% { transform: translate3d(0, 0, var(--cw-ride-z)); animation-timing-function: cubic-bezier(0.45, 0, 0.55, 1); }
+  35.55% { transform: translate3d(calc(var(--sx) * 242.3%), 0, var(--cw-ride-z)); }
+  43.1% { transform: translate3d(calc(var(--sx) * 242.3%), 540%, var(--cw-ride-z)); animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1); }
+  46.73% { transform: translate3d(calc(var(--sx) * 65.4%), 540%, var(--cw-rest-z)); }
+  89.09% { opacity: 1; transform: translate3d(calc(var(--sx) * 65.4%), 540%, var(--cw-rest-z)) scale(1); animation-timing-function: ease-in; }
+  94.55%, 100% { opacity: 0; transform: translate3d(calc(var(--sx) * 65.4%), 540%, 0) scale(0.6); }
+}
+
+@keyframes cw-card-1 {
+  0%, 47.91% { opacity: 0; transform: translate3d(0, 0, var(--cw-ride-z)); }
+  49.73% { opacity: 1; }
+  52.91% { transform: translate3d(0, 0, var(--cw-ride-z)); animation-timing-function: cubic-bezier(0.45, 0, 0.55, 1); }
+  56.55% { transform: translate3d(calc(var(--sx) * 242.3%), 0, var(--cw-ride-z)); }
+  61.86% { transform: translate3d(calc(var(--sx) * 242.3%), 380%, var(--cw-ride-z)); animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1); }
+  65.5% { transform: translate3d(calc(var(--sx) * 65.4%), 380%, var(--cw-rest-z)); }
+  89.09% { opacity: 1; transform: translate3d(calc(var(--sx) * 65.4%), 380%, var(--cw-rest-z)) scale(1); animation-timing-function: ease-in; }
+  94.55%, 100% { opacity: 0; transform: translate3d(calc(var(--sx) * 65.4%), 380%, 0) scale(0.6); }
+}
+
+
+.cw__card > .f-top {
+  display: flex;
+  align-items: center;
+  gap: 8%;
+  padding: 0 8%;
+  box-shadow: inset 0 0 0 1.5px var(--cw-card-edge);
+}
+
+/* The chip is the tag, and the press is what puts it there. Its animation is
+   one cycle long and starts at the card's own stamp (--t0, plus the worker's
+   --delay): coloured from that instant until after the card has cleared, then
+   blank again in time for the next one to fade in on the bench. Begun a cycle
+   early (the -11s) so the very first card is blank before its stamp too. */
+.cw__card__chip {
+  flex: none;
+  display: grid;
+  width: auto;
+  height: 62%;
+  aspect-ratio: 1;
+  place-items: center;
+  border-radius: calc(var(--cw-u) * 0.8);
+  background: var(--c, var(--cw-blue));
+  color: #fff;
+  animation: cw-tag var(--cw-cycle) linear calc(var(--t0) + var(--delay) - 11s) infinite;
+}
+
+@keyframes cw-tag {
+  0%         { background: var(--c, var(--cw-blue)); box-shadow: 0 0 0 calc(var(--cw-u) * 0.6) color-mix(in srgb, var(--c, var(--cw-blue)) 35%, transparent); }
+  4%, 91%    { background: var(--c, var(--cw-blue)); box-shadow: none; }
+  91.1%, 99.9% { background: var(--cw-card-raw); box-shadow: none; }
+  100%       { background: var(--c, var(--cw-blue)); box-shadow: none; }
+}
+
+.cw__card__chip svg {
+  width: 62%;
+  height: 62%;
+  animation: cw-tag-glyph var(--cw-cycle) linear calc(var(--t0) + var(--delay) - 11s) infinite;
+}
+
+@keyframes cw-tag-glyph {
+  0%, 91%      { opacity: 1; }
+  91.1%, 99.9% { opacity: 0; }
+  100%         { opacity: 1; }
+}
+
+.cw__card__lines {
+  display: grid;
+  flex: 1;
+  gap: 18%;
+}
+
+.cw__card__lines i {
+  height: calc(var(--cw-u) * 0.5);
+  border-radius: 999px;
+  background: var(--cw-card-line);
+}
+
+.cw__card__lines i:last-child { width: 62%; }
+
+/* ===================================================================== *
+ * copy block
+ * ===================================================================== */
+
+.cw__copy {
+  position: relative;
+  z-index: 2;
+  max-width: 44ch;
+  margin-top: clamp(4px, 2vh, 22px);
+}
+
+.cw__kicker {
+  margin: 0 0 8px;
+  color: var(--cw-muted);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  transition: opacity 320ms ease;
+}
+
+.cw__kicker.is-fading { opacity: 0; }
+
+.cw__headline {
+  margin: 0;
+  font-size: clamp(1.35rem, 3.4vw, 2rem);
+  font-weight: 800;
+  letter-spacing: -0.025em;
+  line-height: 1.2;
+}
+
+.cw__headline span { color: var(--cw-accent); }
+
+.cw__progress {
+  overflow: hidden;
+  width: min(300px, 70vw);
+  height: 4px;
+  margin: 20px auto 0;
+  border-radius: 999px;
+  background: var(--cw-card-edge);
+}
+
+.cw__progress i {
+  display: block;
+  width: 38%;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--cw-cyan), var(--cw-blue));
+  animation: cw-sweep 1.7s cubic-bezier(0.65, 0, 0.35, 1) infinite;
+}
+
+@keyframes cw-sweep {
+  0%   { transform: translateX(-105%); }
+  100% { transform: translateX(370%);  }
+}
+
+/* ===================================================================== *
+ * exits
+ * ===================================================================== */
+
+/* Plain dismissal, used when one loader hands over to an identical one. */
+.cw.is-leaving {
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* The hand-off to the page itself. The camera pushes down through the shop
+   floor while everything on it flies out past the viewer, so the brief
+   underneath reads as the thing we zoomed into rather than a screen that
+   replaced it. */
+.cw.is-bursting {
+  pointer-events: none;
+  animation: cw-burst-veil 820ms cubic-bezier(0.5, 0, 0.9, 0.4) forwards;
+}
+
+@keyframes cw-burst-veil {
+  0%, 46% { opacity: 1; }
+  100%    { opacity: 0; }
+}
+
+/* Rotating toward the viewer as it scales is what sells this as a camera move
+   rather than a zoom on a flat picture. */
+.cw.is-bursting .cw__scene {
+  animation: cw-burst-cam 820ms cubic-bezier(0.5, 0, 0.85, 0.4) forwards;
+}
+
+@keyframes cw-burst-cam {
+  0%   { transform: var(--cw-cam); }
+  100% { transform: var(--cw-nudge) rotateX(26deg) rotateZ(-16deg) scale(calc(var(--cw-scale) * 3.4)); }
+}
+
+/* Whatever is mid-move leaves from where it had got to. Its animation is
+   paused rather than replaced, so that pose is kept, and it is pushed at the
+   lens with the independent translate / scale properties, which compose with
+   the paused transform instead of overwriting it. */
+.cw.is-bursting .cw__card,
+.cw.is-bursting .cw__team,
+.cw.is-bursting .cw__head {
+  animation-play-state: paused;
+  translate: 0 0 calc(var(--cw-u) * 30);
+  scale: 1.45;
+  opacity: 0 !important;
+  transition:
+    translate 640ms cubic-bezier(0.45, 0, 0.9, 0.4),
+    scale 640ms cubic-bezier(0.45, 0, 0.9, 0.4),
+    opacity 640ms cubic-bezier(0.45, 0, 0.9, 0.4);
+}
+
+.cw.is-bursting .cw__card__chip,
+.cw.is-bursting .cw__card__chip svg { animation-play-state: paused; }
+
+/* Everything bolted to the ground drops away under the camera instead of
+   rushing it. */
+.cw.is-bursting .cw__bench,
+.cw.is-bursting .cw__tower,
+.cw.is-bursting .cw__board {
+  animation: cw-burst-floor 720ms cubic-bezier(0.5, 0, 0.9, 0.4) forwards;
+}
+
+@keyframes cw-burst-floor {
+  0%   { opacity: 1; transform: translateZ(0); }
+  100% { opacity: 0; transform: translateZ(-80px) scale(0.88); }
+}
+
+/* Flat marks have no depth to travel, and the operator is too small to be
+   worth a flight of their own, so they simply clear first. */
+.cw.is-bursting .cw__lane,
+.cw.is-bursting .cw__shadow,
+.cw.is-bursting .cw__figure--op {
+  animation: cw-burst-clear 300ms ease-out forwards;
+}
+
+@keyframes cw-burst-clear {
+  to { opacity: 0; }
+}
+
+.cw.is-bursting .cw__copy,
+.cw.is-bursting .cw__brand {
+  animation: cw-burst-copy 280ms ease-in forwards;
+}
+
+@keyframes cw-burst-copy {
+  to { opacity: 0; transform: translateY(12px); }
+}
+
+/* --- binding exit ------------------------------------------------------
+ * Instead of throwing the scene away, the floor rotates up to face the reader
+ * and its light pieces become the page: the board opens out into the lead
+ * panel and the cards lay down as Rising Now and the first rows. Phase one is
+ * this stylesheet; phase two is driven from crew.js, which measures both ends
+ * and flies a clone between them.
+ *
+ * The paper stays opaque throughout, so the page is never seen half-covered.
+ * crew.js adds .is-revealing once the pieces have landed, and paper and
+ * pieces fade together -- which is what makes each real section appear to
+ * have been put there by the piece that was sitting on it.
+ *
+ * These rules follow the burst deliberately: both exits can be class-matched
+ * at once, and binding is the one that should win. */
+
+.cw.is-binding {
+  pointer-events: none;
+}
+
+/* Duration is BIND_REVEAL_MS in crew.js. */
+.cw.is-binding.is-revealing {
+  opacity: 0;
+  transition: opacity 280ms ease;
+}
+
+/* Flat and square-on by the end. That is the point: a card's on-screen box is
+   then a true rectangle, which is what phase two can measure and fly from.
+   Under the isometric camera it is a parallelogram and its bounding box is
+   bigger than the card. */
+.cw.is-binding .cw__scene {
+  /* BIND_PHASE_MS in crew.js: the pieces are measured when this ends. */
+  animation: cw-bind-cam 300ms cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+@keyframes cw-bind-cam {
+  0%   { transform: var(--cw-cam); }
+  100% { transform: translate(0, -8%) rotateX(0deg) rotateZ(0deg) scale(calc(var(--cw-scale) * 1.1)); }
+}
+
+/* Wherever the shift had got to, every card finishes its trip: stamped, on
+   its slot and opaque -- the edition completes, then binds. The board is left
+   alone, since it is about to fly too; the crew and the press clear. */
+.cw.is-binding .cw__card {
+  animation: cw-bind-hold 300ms ease-out forwards;
+}
+
+@keyframes cw-bind-hold {
+  to { opacity: 1; transform: translate3d(calc(var(--sx) * 65.4%), var(--ty), var(--cw-rest-z)) scale(1); }
+}
+
+.cw.is-binding .cw__card__chip,
+.cw.is-binding .cw__card__chip svg,
+.cw-flight .cw__card__chip,
+.cw-flight .cw__card__chip svg {
+  animation: none;
+}
+
+.cw.is-binding .cw__bench,
+.cw.is-binding .cw__tower,
+.cw.is-binding .cw__lane,
+.cw.is-binding .cw__shadow,
+.cw.is-binding .cw__figure--op,
+.cw.is-binding .cw__copy,
+.cw.is-binding .cw__brand {
+  animation: cw-bind-clear 240ms ease-out forwards;
+}
+
+@keyframes cw-bind-clear {
+  to { opacity: 0; }
+}
+
+/* These two are mid-animation, and replacing that animation with the fade
+   would snap them back to their starting pose first. So theirs is frozen and
+   they are faded with a transition instead; !important because a running
+   animation otherwise outranks the declaration. */
+.cw.is-binding .cw__team,
+.cw.is-binding .cw__head {
+  animation-play-state: paused;
+  opacity: 0 !important;
+  transition: opacity 240ms ease-out;
+}
+
+/* The flying clones live outside the loader, above its paper, so they can
+   travel across it and be faded on their own schedule. */
+.cw-flight {
+  position: fixed;
+  z-index: 10000;
+  inset: 0;
+  pointer-events: none;
+}
+
+/* Its box is animated rather than transformed, so the piece's own layout does
+   the shape change -- see launchGhost in crew.js. */
+.cw-flight__piece {
+  position: fixed;
+  will-change: left, top, width, height;
+}
+
+/* A panel is far larger than the board that becomes it, so the board's corner
+   radius, sized for the diorama, would look pinched on it. */
+.cw-flight .cw__board { --r: 14px; }
+
+/* A landed card should read as part of the page, not a card resting on it. */
+.cw-flight .cw__card { filter: none; }
+
+/* The chip is sized off the card's height, which is right for a row but turns
+   it into a poster when one card opens out into a whole panel. */
+.cw-flight .cw__card__chip { max-height: 44px; }
+
+/* ===================================================================== *
+ * reduced motion
+ * ===================================================================== */
+
+/* With motion suppressed the scene still has to *read*, so every card is
+   pinned to where it ends up -- stamped and on the board -- rather than to
+   its hidden 0% frame under the press. The crew stand at the press. */
+@media (prefers-reduced-motion: reduce) {
+  .cw,
+  .cw * {
+    animation: none !important;
+    transition: none !important;
+  }
+
+  .cw__card {
+    opacity: 1;
+    transform: translate3d(calc(var(--sx) * 65.4%), var(--ty), var(--cw-rest-z));
+  }
+
+  .cw__progress i { width: 100%; }
+}
+
+/* Narrow viewports: the scene steps down rather than getting cropped. */
+@media (max-width: 620px) {
+  .cw { --cw-scale: 0.74; }
+}
+
+/* Short viewports: the stage has already shrunk to fit (see .cw__stage), so
+   only the wordmark, which would sit on top of the scene, has to go. */
+@media (max-height: 560px) {
+  .cw { padding-top: 24px; padding-bottom: 20px; }
+  .cw__brand { display: none; }
+}

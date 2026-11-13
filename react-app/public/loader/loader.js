@@ -470,8 +470,9 @@
      keeps aria-busy on the page and its animations on the compositor.
        explode: burst the scene apart and push the camera through it, for the
                 hand-off to the real page.
-       bind:    () => Element[]. Called one frame after the hand-off, once the
-                page underneath has been laid out; card i flies to targets[i].
+       bind:    () => Element[] or { lead, rising, rows }. Called one frame
+                after the hand-off, once the page underneath has been laid out;
+                card i flies to targets[i] (see the mapping in teardown).
                 Falsy entries and off-screen targets fall back to the burst's
                 fade. Keeps the loader ignorant of the app: it is handed
                 elements, never selectors.
@@ -520,6 +521,16 @@
           targets = opts.bind() || [];
         } catch (error) {
           targets = [];
+        }
+
+        // The page may name its sections ({ lead, rising, rows }) rather than
+        // deal them out card by card, so the same answer suits either loading
+        // scene. This one's grid has always mapped as: left column (cards 1
+        // and 3) to the lead, top right to Rising Now, the rest to the rows.
+        if (!Array.isArray(targets)) {
+          targets = [targets.lead, targets.rising, targets.lead].concat(
+            (targets.rows || []).slice(0, 3)
+          );
         }
 
         var usable = false;

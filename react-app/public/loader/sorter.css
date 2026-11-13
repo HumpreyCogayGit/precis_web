@@ -12,10 +12,8 @@
  *   sorter.js    behaviour  -- markup, glyph cycling, status copy, teardown
  *   sorter.html  a standalone page for previewing both
  *
- * This is an alternative to loader.css / loader.js, not an addition: a page
- * loads one pair or the other (see the comment in index.html). Selectors are
- * prefixed .sl rather than .pl so the two can never restyle each other, even
- * if a stale copy of the other sheet is still cached.
+ * One of three interchangeable scenes; pick.js chooses which a visit gets.
+ * Selectors are prefixed .sl so the scenes can never restyle each other.
  */
 
 .sl,
@@ -901,21 +899,27 @@
 
 /* --- binding exit ------------------------------------------------------
  * Instead of throwing the scene away, the line rotates up to face the reader
- * and its cards fly to the page sections they stood for. Phase one is this
+ * and its light pieces become the page: the trays open out into the edition's
+ * two top panels and the cards lay down as its first rows. Phase one is this
  * stylesheet; phase two is driven from sorter.js, which measures both ends and
  * flies a clone between them.
+ *
+ * The paper stays opaque throughout, so the page is never seen half-covered.
+ * sorter.js adds .is-revealing once the pieces have landed, and paper and
+ * pieces fade together -- which is what makes each real section appear to
+ * have been put there by the piece that was sitting on it.
  *
  * These rules follow the burst deliberately: both exits can be class-matched
  * at once, and binding is the one that should win. */
 
 .sl.is-binding {
   pointer-events: none;
-  animation: sl-bind-veil 640ms ease forwards;
 }
 
-@keyframes sl-bind-veil {
-  0%, 52% { opacity: 1; }
-  100%    { opacity: 0; }
+/* Duration is BIND_REVEAL_MS in sorter.js. */
+.sl.is-binding.is-revealing {
+  opacity: 0;
+  transition: opacity 280ms ease;
 }
 
 /* Flat and square-on by the end. That is the point: a card's on-screen box is
@@ -923,7 +927,8 @@
    Under the isometric camera it is a parallelogram and its bounding box is
    bigger than the card. */
 .sl.is-binding .sl__scene {
-  animation: sl-bind-cam 340ms cubic-bezier(0.4, 0, 0.2, 1) forwards;
+  /* BIND_PHASE_MS in sorter.js: the pieces are measured when this ends. */
+  animation: sl-bind-cam 300ms cubic-bezier(0.4, 0, 0.2, 1) forwards;
 }
 
 @keyframes sl-bind-cam {
@@ -932,11 +937,10 @@
 }
 
 /* Whatever the belt was doing, every card finishes its run: sorted into its
-   tray, tagged and opaque -- the edition completes, then binds. Cards are
-   children of the scene, not of the trays, so the trays can fade under them
-   without taking them along. */
+   tray, tagged and opaque -- the edition completes, then binds. The trays are
+   left alone, since they are about to fly too; only the machinery clears. */
 .sl.is-binding .sl__card {
-  animation: sl-bind-hold 340ms ease-out forwards;
+  animation: sl-bind-hold 300ms ease-out forwards;
 }
 
 @keyframes sl-bind-hold {
@@ -951,7 +955,6 @@
 }
 
 .sl.is-binding .sl__belt,
-.sl.is-binding .sl__tray,
 .sl.is-binding .sl__post,
 .sl.is-binding .sl__beam,
 .sl.is-binding .sl__curtain,
@@ -961,15 +964,15 @@
 .sl.is-binding .sl__shadow,
 .sl.is-binding .sl__copy,
 .sl.is-binding .sl__brand {
-  animation: sl-bind-clear 300ms ease-out forwards;
+  animation: sl-bind-clear 240ms ease-out forwards;
 }
 
 @keyframes sl-bind-clear {
   to { opacity: 0; }
 }
 
-/* The flying clones live outside the loader, so the veil's fade cannot take
-   them with it -- they have to outlast the thing they came from. */
+/* The flying clones live outside the loader, above its paper, so they can
+   travel across it and be faded on their own schedule. */
 .sl-flight {
   position: fixed;
   z-index: 10000;
@@ -977,12 +980,22 @@
   pointer-events: none;
 }
 
-/* Its box is animated rather than transformed, so the card's own layout does
-   the shape change -- see flyToTargets in sorter.js. */
-.sl-flight__card {
+/* Its box is animated rather than transformed, so the piece's own layout does
+   the shape change -- see launchGhost in sorter.js. */
+.sl-flight__piece {
   position: fixed;
-  will-change: left, top, width, height, opacity;
+  will-change: left, top, width, height;
 }
+
+/* A panel is far larger than the tray that becomes it, so the tray's corner
+   radius, sized for the diorama, would look pinched on it. */
+.sl-flight .sl__tray { --r: 14px; }
+
+/* The topic name belongs to the tray, not to the panel it is turning into. */
+.sl-flight .sl__tray__label { animation: sl-bind-clear 200ms ease-out forwards; }
+
+/* A landed card should read as a row of the page, not a card resting on it. */
+.sl-flight .sl__card { filter: none; }
 
 /* ===================================================================== *
  * reduced motion

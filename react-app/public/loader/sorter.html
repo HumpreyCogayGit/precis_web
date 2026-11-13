@@ -10,7 +10,10 @@
       to loader.html (the "wire desk").
 
       Open this file directly (no server, no build) to see the scene, check it
-      in both themes and watch the teardown the app will trigger. To use the
+      in both themes and watch the teardown the app will trigger. The grey
+      blocks underneath stand in for the edition (lead panel, Rising Now, Top
+      Stories rows), so "App ready" shows the scene's trays and cards turning
+      into them, as NewsLoader.jsx makes them do on the real page. To use the
       loader in a real page you need only the three lines marked below.
     -->
     <link rel="stylesheet" href="sorter.css" />
@@ -50,6 +53,30 @@
         cursor: pointer;
       }
 
+      /* A stand-in for the edition, so the binding exit has sections to land on. */
+      .demo-page {
+        display: grid;
+        grid-template-columns: 1.7fr 1fr;
+        gap: 18px;
+        max-width: 1100px;
+        margin: 0 auto;
+        padding: 96px 20px 120px;
+      }
+
+      .demo-page > * {
+        border: 1px solid rgba(128, 138, 150, 0.4);
+        border-radius: 14px;
+        background: rgba(128, 138, 150, 0.16);
+      }
+
+      .demo-page .demo-panel { height: 300px; }
+      .demo-page .demo-row { grid-column: 1 / -1; height: 40px; border-radius: 8px; }
+
+      @media (max-width: 620px) {
+        .demo-page { grid-template-columns: 1fr; }
+        .demo-page .demo-panel { height: 180px; }
+      }
+
       .demo-bar button.is-ghost {
         background: rgba(17, 21, 27, 0.08);
         color: #11151b;
@@ -58,6 +85,17 @@
   </head>
 
   <body>
+    <div class="demo-page">
+      <div class="demo-panel" data-section="lead"></div>
+      <div class="demo-panel" data-section="rising"></div>
+      <div class="demo-row"></div>
+      <div class="demo-row"></div>
+      <div class="demo-row"></div>
+      <div class="demo-row"></div>
+      <div class="demo-row"></div>
+      <div class="demo-row"></div>
+    </div>
+
     <!-- (1) the mount point -->
     <div id="precis-loader"></div>
 
@@ -74,7 +112,8 @@
     <script>
       // Preview harness. A real page needs none of this: sorter.js self-mounts
       // into #precis-loader, and the app calls PrecisLoader.destroy() when it
-      // has painted.
+      // has painted. Note the body background: the loader's paper is what hides
+      // the page until its pieces have landed, so it must match the page's.
       (function () {
         var theme = null;
 
@@ -97,7 +136,18 @@
             PrecisLoader.destroy({ immediate: true });
             ensureMounted();
           } else if (act === 'destroy') {
-            PrecisLoader.destroy();
+            // What NewsLoader.jsx does: name the page's sections and let the
+            // scene's pieces become them.
+            PrecisLoader.destroy({
+              explode: true,
+              bind: function () {
+                return {
+                  lead: document.querySelector('[data-section="lead"]'),
+                  rising: document.querySelector('[data-section="rising"]'),
+                  rows: Array.prototype.slice.call(document.querySelectorAll('.demo-row'))
+                };
+              }
+            });
           } else if (act === 'burst') {
             // The exit the app uses when it has no sections to bind cards to.
             PrecisLoader.destroy({ explode: true });

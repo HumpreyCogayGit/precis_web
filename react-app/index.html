@@ -7,6 +7,17 @@
     <meta name="theme-color" content="#2563eb" />
     <link rel="apple-touch-icon" href="/logo192.png" />
     <link rel="manifest" href="/manifest.json" />
+    <!-- The loading animation is plain CSS/JS so it does not wait on the app
+         bundle. public/loader/ holds three interchangeable scenes; pick.js
+         chooses one at random per visit and writes its stylesheet and script
+         in right here. See pick.js to pin one or to add another.
+
+         Keep this above every stylesheet, including the one the build adds to
+         the end of the head: a script cannot run while a stylesheet before it
+         is still loading, and the app's pulls in web fonts from another host.
+         Down in the body, the scene was not even requested until those fonts
+         had answered. -->
+    <script src="/loader/pick.js"></script>
     <!-- Replaced per route at build time by scripts/render-pages.js (lib/pageMeta.js);
          these are the home page values, kept so a plain Vite build is still complete. -->
     <!-- precis:meta -->
@@ -26,21 +37,11 @@
     <meta name="twitter:description" content="Today&#39;s AI and cybersecurity news from about 120 sources, ranked, tagged and summarised in one daily edition. Every story links to the original." />
     <meta name="twitter:image" content="https://precisnews.vercel.app/og-default.png" />
     <!-- /precis:meta -->
-    <!-- The loading animation is plain CSS/JS so it paints before the app
-         bundle has parsed. public/loader/ holds two interchangeable scenes,
-         each with a standalone preview page:
-           sorter.css + sorter.js   "sorting line" (in use)   sorter.html
-           loader.css + loader.js   "wire desk"               loader.html
-         Both define the same window.PrecisLoader, so switching is these two
-         paths and nothing else: the stylesheet here and the script below.
-         Always change them as a pair. -->
-    <link rel="stylesheet" href="/loader/sorter.css" />
   </head>
   <body>
     <noscript>You need to enable JavaScript to run this app.</noscript>
     <div id="root"></div>
     <div id="precis-loader"></div>
-    <script src="/loader/sorter.js"></script>
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>
