@@ -1,0 +1,1020 @@
+/* Precis page-loading animation, second concept -- an isometric "sorting line".
+ *
+ * The same world as loader.css (the wire desk): one isometric camera, the same
+ * palette, dark machinery against a light perforated slab, the same copy block.
+ * What happens in it is different. Stories ride a conveyor in from the back,
+ * pass under a scan gate that tags them -- a blank card comes out with a
+ * coloured chip -- and slide off into one of two topic trays, which fill into
+ * the edition.
+ *
+ * Three files, no build step and no dependencies:
+ *   sorter.css   this file  -- the whole scene, drawn in CSS 3D
+ *   sorter.js    behaviour  -- markup, glyph cycling, status copy, teardown
+ *   sorter.html  a standalone page for previewing both
+ *
+ * This is an alternative to loader.css / loader.js, not an addition: a page
+ * loads one pair or the other (see the comment in index.html). Selectors are
+ * prefixed .sl rather than .pl so the two can never restyle each other, even
+ * if a stale copy of the other sheet is still cached.
+ */
+
+.sl,
+.sl-flight {
+  /* --- palette ----------------------------------------------------------
+   * Identical values to loader.css, so swapping loaders does not shift the
+   * page's colour at the moment of hand-off. light-dark() keeps both themes in
+   * one block: the pair is picked by the element's used color-scheme, which
+   * follows the OS until a data-theme below pins it. */
+  color-scheme: light dark;
+
+  --sl-paper: light-dark(#f4f5f7, #0d1116);
+  --sl-dot: light-dark(#dcdee3, #1d232c);
+
+  --sl-tray-top: light-dark(#f1f2f5, #222b36);
+  --sl-tray-side: light-dark(#eceef1, #151b23);
+  --sl-tray-side-dim: light-dark(#dfe1e6, #0f141a);
+  --sl-tray-base: light-dark(#ced1d7, #0a0e13);
+  --sl-perf: light-dark(#d4d7dd, #323d4b);
+
+  --sl-card: light-dark(#ffffff, #384556);
+  --sl-card-side: light-dark(#e8eaee, #2b3542);
+  --sl-card-edge: light-dark(#e3e5ea, #47566a);
+  --sl-card-line: light-dark(#d8dbe1, #5a6b80);
+  /* The chip of a story the gate has not read yet. */
+  --sl-card-raw: light-dark(#c3c8d0, #5a6b80);
+
+  --sl-node-top: light-dark(#3b3e43, #494e56);
+  --sl-node-plate: light-dark(#4d5158, #5b616a);
+  --sl-node-side: light-dark(#26282c, #2c2f34);
+  --sl-node-side-dim: light-dark(#191a1d, #1d1f23);
+
+  --sl-mach-top: light-dark(#34373c, #40444a);
+  --sl-mach-side: light-dark(#212428, #292d32);
+  --sl-mach-side-dim: light-dark(#151618, #1a1c20);
+  --sl-mach-vent: #5a5f66;
+
+  --sl-rail: light-dark(#a6caee, #3f72a6);
+
+  --sl-ink: light-dark(#14171a, #eef2f7);
+  --sl-muted: light-dark(#6b7280, #94a2b2);
+  /* The site's --accent (App.css), for blue type. --sl-blue below stays the
+     saturated fill behind white glyphs, where the softer accent lacks contrast. */
+  --sl-accent: light-dark(#5980a6, #8bb6df);
+
+  --sl-blue: #2f6fed;
+  --sl-green: #17a05f;
+  --sl-red: #e5484d;
+  --sl-amber: #dfa43a;
+  --sl-violet: #6d5cf5;
+  --sl-cyan: #26a9cf;
+
+  --sl-shadow: light-dark(rgba(18, 21, 27, 0.18), rgba(0, 0, 0, 0.5));
+
+  /* --- geometry ---------------------------------------------------------- */
+  /* One unit is a hundredth of the stage width. Every height in the scene is
+     written in it, so the gate stays the same shape against the belt on a
+     phone as on a desktop -- a pixel height would make it a tall arch on one
+     and a low bar on the other. Must track .sl__stage's width below. */
+  --sl-u: min(7.2px, 0.94vw, 1.1vh);
+
+  /* The plane is rotated 40deg about Z, so its diagonal -- not its width --
+     sets the rendered footprint. The scale keeps that footprint inside the
+     stage and the nudge recentres it. Media queries below override the scale
+     alone. */
+  --sl-scale: 0.8;
+  --sl-nudge: translate(1%, -5%);
+  --sl-cam: var(--sl-nudge) rotateX(58deg) rotateZ(-40deg) scale(var(--sl-scale));
+
+  --sl-belt-d: calc(var(--sl-u) * 2.6);   /* conveyor height          */
+  --sl-tray-d: calc(var(--sl-u) * 1.6);   /* tray thickness           */
+  --sl-card-d: calc(var(--sl-u) * 0.9);   /* card thickness           */
+  --sl-node-d: calc(var(--sl-u) * 2.4);   /* source cube depth        */
+  --sl-gate-h: calc(var(--sl-u) * 9.5);   /* clearance under the beam */
+  --sl-beam-d: calc(var(--sl-u) * 2.2);   /* beam thickness           */
+
+  /* Where a card rides and where it comes to rest: just clear of the surface
+     under it, so the two never fight for the same depth. */
+  --sl-ride-z: calc(var(--sl-belt-d) + var(--sl-u) * 0.25);
+  --sl-rest-z: calc(var(--sl-tray-d) + var(--sl-u) * 0.25);
+
+  --sl-cycle: 10s;      /* one full edition */
+}
+
+.sl {
+  position: fixed;
+  z-index: 9999;
+  inset: 0;
+  display: grid;
+  overflow: hidden;
+  align-content: center;
+  justify-items: center;
+  padding: clamp(60px, 8vh, 104px) 16px 40px;
+  background:
+    radial-gradient(circle at 50% 38%, rgba(47, 111, 237, 0.07), transparent 42%),
+    radial-gradient(circle, var(--sl-dot) 1px, transparent 1.25px) 0 0 / 19px 19px,
+    var(--sl-paper);
+  color: var(--sl-ink);
+  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  text-align: center;
+  transition: opacity 420ms ease, visibility 420ms ease;
+}
+
+/* Pinning a theme -- on the loader itself or on :root, matching the app's
+   existing :root[data-theme] convention -- overrides the OS preference. */
+.sl[data-theme="light"],
+.sl-flight[data-theme="light"],
+:root[data-theme="light"] .sl,
+:root[data-theme="light"] .sl-flight { color-scheme: light; }
+
+.sl[data-theme="dark"],
+.sl-flight[data-theme="dark"],
+:root[data-theme="dark"] .sl,
+:root[data-theme="dark"] .sl-flight { color-scheme: dark; }
+
+/* ===================================================================== *
+ * wordmark
+ * ===================================================================== */
+
+.sl__brand {
+  position: absolute;
+  top: clamp(20px, 4vh, 40px);
+  left: clamp(20px, 5vw, 64px);
+  color: var(--sl-accent);
+  font-size: 1.7rem;
+  font-weight: 900;
+  letter-spacing: -0.075em;
+  line-height: 1;
+}
+
+.sl__brand b {
+  color: var(--sl-ink);
+  font-weight: inherit;
+}
+
+/* ===================================================================== *
+ * the isometric camera
+ * ===================================================================== */
+
+.sl__stage {
+  position: relative;
+  /* --sl-u above is a hundredth of this. The height term is for landscape
+     phones and short windows: the stage is 16:9, so capping its width by the
+     viewport's height is what leaves room for the copy underneath. */
+  width: min(720px, 94vw, 110vh);
+  aspect-ratio: 16 / 9;
+  perspective: 1500px;
+  perspective-origin: 50% 44%;
+}
+
+/* One rotation for the whole scene, so every box below can be authored flat
+   and still land on a shared ground plane. */
+.sl__scene {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 86%;
+  aspect-ratio: 1;
+  translate: -50% -50%;
+  transform: var(--sl-cam) translate3d(0, 0, 0);
+  transform-style: preserve-3d;
+  animation: sl-drift 6.4s ease-in-out infinite;
+}
+
+@keyframes sl-drift {
+  0%, 100% { transform: var(--sl-cam) translate3d(0, 0, 0); }
+  50%      { transform: var(--sl-cam) translate3d(0, 0, 12px); }
+}
+
+/* ===================================================================== *
+ * generic extruded box: floor at z=0, lid at z=var(--d)
+ * ===================================================================== */
+
+/* Each wall is hinged on the floor edge it shares with the footprint and
+   folded *up* to meet the lid. The signs are the opposite of loader.css, whose
+   walls fold down below the floor: that goes unnoticed on its shallow solids,
+   but here it would leave the gate's beam hovering over posts sunk into the
+   ground. */
+
+.sl-box {
+  position: absolute;
+  transform-style: preserve-3d;
+}
+
+.sl-box > i {
+  position: absolute;
+  display: block;
+  background: var(--fs, currentColor);
+}
+
+.sl-box > .f-base {
+  inset: 0;
+  border-radius: var(--r, 0);
+  background: var(--fd, var(--fs));
+}
+
+.sl-box > .f-top {
+  inset: 0;
+  border-radius: var(--r, 0);
+  background: var(--ft, var(--fs));
+  transform: translateZ(var(--d));
+}
+
+.sl-box > .f-n {
+  bottom: 100%;
+  left: 0;
+  width: 100%;
+  height: var(--d);
+  background: var(--fd, var(--fs));
+  transform-origin: 50% 100%;
+  transform: rotateX(-90deg);
+}
+
+.sl-box > .f-s {
+  top: 100%;
+  left: 0;
+  width: 100%;
+  height: var(--d);
+  transform-origin: 50% 0;
+  transform: rotateX(90deg);
+}
+
+.sl-box > .f-e {
+  top: 0;
+  left: 100%;
+  width: var(--d);
+  height: 100%;
+  transform-origin: 0 50%;
+  transform: rotateY(-90deg);
+}
+
+.sl-box > .f-w {
+  top: 0;
+  right: 100%;
+  width: var(--d);
+  height: 100%;
+  background: var(--fd, var(--fs));
+  transform-origin: 100% 50%;
+  transform: rotateY(90deg);
+}
+
+/* ===================================================================== *
+ * ground: contact shadow + the feeds that run into the belt
+ * ===================================================================== */
+
+.sl__shadow {
+  position: absolute;
+  inset: 4% 8% 2% 6%;
+  border-radius: 64px;
+  background: var(--sl-shadow);
+  filter: blur(30px);
+  opacity: 0.7;
+  transform: translateZ(-16px);
+}
+
+/* A routed trace from each source cube into the side of the belt, upstream of
+   the gate: everything that reaches the gate came in off one of these. */
+.sl__feed {
+  position: absolute;
+  height: 2px;
+  margin-top: -1px;
+  background: var(--sl-rail);
+}
+
+.sl__feed--1,
+.sl__feed--2 { left: 17%; width: 21%; }
+.sl__feed--3,
+.sl__feed--4 { left: 58%; width: 21%; }
+
+.sl__feed--1,
+.sl__feed--3 { top: 7%; }
+.sl__feed--2,
+.sl__feed--4 { top: 21%; }
+
+/* A signal dot per feed, always travelling toward the belt. */
+.sl__pulse {
+  position: absolute;
+  top: 50%;
+  width: 11px;
+  height: 11px;
+  margin: -5.5px 0 0 -5.5px;
+  border-radius: 50%;
+  background: var(--c, var(--sl-green));
+  box-shadow: 0 0 10px 1px var(--c, var(--sl-green));
+  opacity: 0;
+  animation: sl-pulse-in 2.4s linear infinite;
+}
+
+.sl__feed--3 .sl__pulse,
+.sl__feed--4 .sl__pulse { animation-name: sl-pulse-in-right; }
+
+@keyframes sl-pulse-in {
+  0%   { left: 0;    opacity: 0; }
+  14%  { left: 14%;  opacity: 1; }
+  86%  { left: 86%;  opacity: 1; }
+  100% { left: 100%; opacity: 0; }
+}
+
+@keyframes sl-pulse-in-right {
+  0%   { left: 100%; opacity: 0; }
+  14%  { left: 86%;  opacity: 1; }
+  86%  { left: 14%;  opacity: 1; }
+  100% { left: 0;    opacity: 0; }
+}
+
+/* ===================================================================== *
+ * the conveyor
+ * ===================================================================== */
+
+.sl__belt {
+  --d: var(--sl-belt-d);
+  --r: calc(var(--sl-u) * 1.1);
+  --ft: var(--sl-mach-top);
+  --fs: var(--sl-mach-side);
+  --fd: var(--sl-mach-side-dim);
+  top: 0;
+  left: 37%;
+  width: 22%;
+  height: 98%;
+}
+
+.sl__belt > .f-top {
+  overflow: hidden;
+  box-shadow:
+    inset 0 0 0 calc(var(--sl-u) * 0.5) var(--sl-mach-side),
+    inset 0 2px 0 rgba(255, 255, 255, 0.14);
+}
+
+/* The moving surface. Its speed is the cards' speed -- 30% of the scene's
+   height per second (the scene is 86 units square, so 25.8 units) -- or the
+   cards would visibly skate over the tread. One 6-unit tile per 0.2326s. */
+.sl__tread {
+  position: absolute;
+  inset: 0 calc(var(--sl-u) * 1.3);
+  background: repeating-linear-gradient(
+    180deg,
+    var(--sl-mach-vent) 0 calc(var(--sl-u) * 0.3),
+    transparent calc(var(--sl-u) * 0.3) calc(var(--sl-u) * 6)
+  );
+  background-size: 100% calc(var(--sl-u) * 6);
+  opacity: 0.7;
+  animation: sl-tread 0.2326s linear infinite;
+}
+
+@keyframes sl-tread {
+  to { background-position: 0 calc(var(--sl-u) * 6); }
+}
+
+/* ===================================================================== *
+ * the scan gate -- two posts, a beam across them, a curtain of light
+ * ===================================================================== */
+
+.sl__post {
+  --d: var(--sl-gate-h);
+  --r: calc(var(--sl-u) * 0.5);
+  --ft: var(--sl-node-top);
+  --fs: var(--sl-node-side);
+  --fd: var(--sl-node-side-dim);
+  top: 33%;
+  width: 5.5%;
+  height: 7%;
+}
+
+.sl__post--l { left: 31%; }
+.sl__post--r { left: 59.5%; }
+
+.sl__beam {
+  --d: var(--sl-beam-d);
+  --r: calc(var(--sl-u) * 0.7);
+  --ft: #50565e;
+  --fs: #2f3339;
+  --fd: #1d1f23;
+  top: 32.5%;
+  left: 30%;
+  width: 36%;
+  height: 8%;
+  transform: translateZ(var(--sl-gate-h));
+}
+
+.sl__beam > .f-top {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6%;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.14);
+}
+
+/* The lamp strip along the beam's lower front edge. On this face "top" is the
+   floor of the box, so the strip is the first stop of the gradient. */
+.sl__beam > .f-s {
+  background: linear-gradient(180deg, var(--sl-cyan) 0 26%, var(--fs) 26%);
+}
+
+.sl__beam__dot {
+  width: calc(var(--sl-u) * 1.5);
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: var(--sl-green);
+  /* One blink per card: they come down the belt 0.6s apart. */
+  animation: sl-blink 0.6s ease-in-out infinite;
+}
+
+@keyframes sl-blink {
+  0%, 100% { opacity: 0.45; box-shadow: none; }
+  50%      { opacity: 1; box-shadow: 0 0 8px 1px var(--sl-green); }
+}
+
+.sl__beam__label {
+  color: #e8ebef;
+  font-size: calc(var(--sl-u) * 1.75);
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+/* A vertical sheet of light from the belt up to the beam. It hangs from its
+   top edge, which sits on the belt; its far edge meets the lamp. */
+.sl__curtain {
+  position: absolute;
+  top: 36.5%;
+  left: 38.5%;
+  width: 19%;
+  height: calc(var(--sl-gate-h) - var(--sl-belt-d));
+  background: linear-gradient(180deg, rgba(38, 169, 207, 0.1), rgba(38, 169, 207, 0.5));
+  transform-origin: 50% 0;
+  transform: translateZ(var(--sl-belt-d)) rotateX(90deg);
+  animation: sl-curtain 1.2s ease-in-out infinite;
+}
+
+@keyframes sl-curtain {
+  0%, 100% { opacity: 0.55; }
+  50%      { opacity: 1; }
+}
+
+/* Where the curtain meets the belt. */
+.sl__scanline {
+  position: absolute;
+  top: 36.5%;
+  left: 38.5%;
+  width: 19%;
+  height: calc(var(--sl-u) * 0.45);
+  margin-top: calc(var(--sl-u) * -0.22);
+  border-radius: 999px;
+  background: var(--sl-cyan);
+  box-shadow: 0 0 10px 2px var(--sl-cyan);
+  transform: translateZ(calc(var(--sl-belt-d) + 1px));
+}
+
+/* ===================================================================== *
+ * topic trays -- the light slabs the edition fills into
+ * ===================================================================== */
+
+.sl__tray {
+  --d: var(--sl-tray-d);
+  --r: calc(var(--sl-u) * 2.4);
+  --ft: var(--sl-tray-top);
+  --fs: var(--sl-tray-side);
+  --fd: var(--sl-tray-side-dim);
+  top: 48%;
+  width: 28%;
+  height: 50%;
+}
+
+.sl__tray--l { left: 7%; }
+.sl__tray--r { left: 61%; }
+
+.sl__tray > .f-base { background: var(--sl-tray-base); }
+
+.sl__tray > .f-top {
+  overflow: hidden;
+  box-shadow:
+    inset 0 0 0 2px var(--sl-card-edge),
+    inset 0 2px 0 rgba(255, 255, 255, 0.55);
+}
+
+/* Perforations, as on the wire desk's board. */
+.sl__perf {
+  position: absolute;
+  inset: 0;
+  background-image: radial-gradient(circle, var(--sl-perf) 1.1px, transparent 1.4px);
+  background-size: 17px 17px;
+  opacity: 0.7;
+}
+
+/* The topic name screen-printed at the head of each tray. */
+.sl__tray__label {
+  position: absolute;
+  top: 5%;
+  left: 14.3%;
+  display: flex;
+  align-items: center;
+  gap: calc(var(--sl-u) * 0.9);
+  color: var(--sl-muted);
+  font-size: calc(var(--sl-u) * 1.7);
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.sl__tray__label::before {
+  width: calc(var(--sl-u) * 2.6);
+  height: calc(var(--sl-u) * 1.2);
+  border: 2px solid var(--c);
+  border-radius: 999px;
+  content: '';
+}
+
+/* Ghost slots sit under the cards so a tray never looks empty between
+   editions. Positions are relative to the tray: three rows of one card. */
+.sl__slot {
+  position: absolute;
+  left: 14.3%;
+  width: 71.4%;
+  height: 22%;
+  border-radius: calc(var(--sl-u) * 1.1);
+  background: var(--sl-card-side);
+  opacity: 0.55;
+}
+
+.sl__slot--1 { top: 16%; }
+.sl__slot--2 { top: 44%; }
+.sl__slot--3 { top: 72%; }
+
+/* ===================================================================== *
+ * source cubes -- two each side of the belt head. Their glyphs are swapped
+ * by sorter.js.
+ * ===================================================================== */
+
+.sl__node {
+  --d: var(--sl-node-d);
+  --r: calc(var(--sl-u) * 1.5);
+  --ft: var(--sl-node-top);
+  --fs: var(--sl-node-side);
+  --fd: var(--sl-node-side-dim);
+  width: 10%;
+  aspect-ratio: 1;
+  margin: -5% 0 0 -5%;
+  animation: sl-bob 3.8s ease-in-out infinite;
+}
+
+@keyframes sl-bob {
+  0%, 100% { transform: translateZ(2px); }
+  50%      { transform: translateZ(9px); }
+}
+
+.sl__node > .f-top {
+  display: grid;
+  place-items: center;
+  box-shadow:
+    inset 0 2px 0 rgba(255, 255, 255, 0.15),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.05);
+}
+
+/* Raised inner plate the glyph is printed on. */
+.sl__node__plate {
+  display: grid;
+  width: 74%;
+  aspect-ratio: 1;
+  place-items: center;
+  border-radius: calc(var(--sl-u) * 1);
+  background: linear-gradient(158deg, var(--sl-node-plate), var(--sl-node-side) 78%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.18),
+    0 3px 7px rgba(0, 0, 0, 0.4);
+}
+
+.sl__node__glyph {
+  display: grid;
+  width: 60%;
+  place-items: center;
+  color: var(--c, var(--sl-blue));
+}
+
+.sl__node__glyph svg { display: block; width: 100%; height: auto; }
+
+/* Set by sorter.js for one frame while the glyph is exchanged. */
+.sl__node__glyph.is-swapping {
+  animation: sl-swap 460ms ease;
+}
+
+@keyframes sl-swap {
+  0%   { opacity: 1; transform: rotateX(0)    scale(1);    }
+  45%  { opacity: 0; transform: rotateX(90deg) scale(0.75); }
+  55%  { opacity: 0; transform: rotateX(-90deg) scale(0.75); }
+  100% { opacity: 1; transform: rotateX(0)    scale(1);    }
+}
+
+/* --bx / --by are each cube's way out in the burst exit, in its own widths. */
+.sl__node--1 { top: 7%;  left: 12%; animation-delay: 0s;    --bx: -260%; --by: -150%; }
+.sl__node--2 { top: 21%; left: 12%; animation-delay: 0.32s; --bx: -290%; --by:  -30%; }
+.sl__node--3 { top: 7%;  left: 84%; animation-delay: 0.64s; --bx:  170%; --by: -260%; }
+.sl__node--4 { top: 21%; left: 84%; animation-delay: 0.96s; --bx:  260%; --by: -170%; }
+
+/* ===================================================================== *
+ * story cards -- six, each riding the belt to its own row and tray
+ * ===================================================================== */
+
+/* A card starts at the head of the belt and is carried by a transform, whose
+   percentages are of the card itself: one card height is 11% of the scene and
+   one card width 20%. --ty is the run down the belt to its row, --tx the slide
+   off the belt into its tray. */
+.sl__card {
+  --d: var(--sl-card-d);
+  --r: calc(var(--sl-u) * 1.1);
+  --ft: var(--sl-card);
+  --fs: var(--sl-card-side);
+  --fd: var(--sl-card-edge);
+  --delay: 0s;
+  top: 2%;
+  left: 38%;
+  width: 20%;
+  height: 11%;
+  filter: drop-shadow(0 7px 8px light-dark(rgba(16, 20, 27, 0.24), rgba(0, 0, 0, 0.5)));
+  opacity: 0;
+  /* Linear by default so the run down the belt keeps the tread's speed; the
+     keyframes ease the two moves that are not belt-driven. */
+  animation: var(--sl-cycle) linear var(--delay) infinite;
+}
+
+.sl__card--to-l { --tx: -135%; }
+.sl__card--to-r { --tx: 135%; }
+
+/* The three rows differ in how far the belt carries the card, and at belt
+   speed that is also how long it takes -- so each row has its own keyframes
+   rather than one set stretched to fit. Run times at 30%/s: 1.8s, 2.27s, 2.73s
+   of the 10s cycle. */
+.sl__card--row-1 { --ty: 491%; animation-name: sl-ride-1; }
+.sl__card--row-2 { --ty: 618%; animation-name: sl-ride-2; }
+.sl__card--row-3 { --ty: 745%; animation-name: sl-ride-3; }
+
+@keyframes sl-ride-1 {
+  0%        { opacity: 0; transform: translate3d(0, 0, var(--sl-ride-z)); }
+  2.5%      { opacity: 1; }
+  18%       { transform: translate3d(0, var(--ty), var(--sl-ride-z)); animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1); }
+  24%       { transform: translate3d(var(--tx), var(--ty), var(--sl-rest-z)); }
+  80%       { opacity: 1; transform: translate3d(var(--tx), var(--ty), var(--sl-rest-z)) scale(1); animation-timing-function: ease-in; }
+  88%, 100% { opacity: 0; transform: translate3d(var(--tx), var(--ty), 0) scale(0.6); }
+}
+
+@keyframes sl-ride-2 {
+  0%        { opacity: 0; transform: translate3d(0, 0, var(--sl-ride-z)); }
+  2.5%      { opacity: 1; }
+  22.7%     { transform: translate3d(0, var(--ty), var(--sl-ride-z)); animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1); }
+  28.7%     { transform: translate3d(var(--tx), var(--ty), var(--sl-rest-z)); }
+  80%       { opacity: 1; transform: translate3d(var(--tx), var(--ty), var(--sl-rest-z)) scale(1); animation-timing-function: ease-in; }
+  88%, 100% { opacity: 0; transform: translate3d(var(--tx), var(--ty), 0) scale(0.6); }
+}
+
+@keyframes sl-ride-3 {
+  0%        { opacity: 0; transform: translate3d(0, 0, var(--sl-ride-z)); }
+  2.5%      { opacity: 1; }
+  27.3%     { transform: translate3d(0, var(--ty), var(--sl-ride-z)); animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1); }
+  33.3%     { transform: translate3d(var(--tx), var(--ty), var(--sl-rest-z)); }
+  80%       { opacity: 1; transform: translate3d(var(--tx), var(--ty), var(--sl-rest-z)) scale(1); animation-timing-function: ease-in; }
+  88%, 100% { opacity: 0; transform: translate3d(var(--tx), var(--ty), 0) scale(0.6); }
+}
+
+/* Furthest rows first, left then right, so no card ever has to pass one that
+   is still sliding off the belt in front of it. */
+.sl__card--5 { --delay: 0s;   }
+.sl__card--6 { --delay: 0.6s; }
+.sl__card--3 { --delay: 1.2s; }
+.sl__card--4 { --delay: 1.8s; }
+.sl__card--1 { --delay: 2.4s; }
+.sl__card--2 { --delay: 3s;   }
+
+.sl__card > .f-top {
+  display: flex;
+  align-items: center;
+  gap: 7%;
+  padding: 0 7%;
+  box-shadow: inset 0 0 0 1.5px var(--sl-card-edge);
+}
+
+/* The chip is the tag. It is blank until the card is under the gate -- 0.97s
+   into its run at belt speed, 9.7% of the cycle -- and coloured from then on. */
+.sl__card__chip {
+  flex: none;
+  display: grid;
+  width: auto;
+  height: 66%;
+  aspect-ratio: 1;
+  place-items: center;
+  border-radius: calc(var(--sl-u) * 0.8);
+  background: var(--c, var(--sl-blue));
+  color: #fff;
+  animation: sl-tag var(--sl-cycle) linear var(--delay) infinite backwards;
+}
+
+@keyframes sl-tag {
+  0%, 8.8%   { background: var(--sl-card-raw); box-shadow: none; }
+  10.6%      { background: var(--c, var(--sl-blue)); box-shadow: 0 0 0 calc(var(--sl-u) * 0.6) color-mix(in srgb, var(--c, var(--sl-blue)) 35%, transparent); }
+  15%, 100%  { background: var(--c, var(--sl-blue)); box-shadow: none; }
+}
+
+.sl__card__chip svg {
+  width: 62%;
+  height: 62%;
+  animation: sl-tag-glyph var(--sl-cycle) linear var(--delay) infinite backwards;
+}
+
+@keyframes sl-tag-glyph {
+  0%, 8.8%   { opacity: 0; }
+  10.6%, 100% { opacity: 1; }
+}
+
+.sl__card__lines {
+  display: grid;
+  flex: 1;
+  gap: 18%;
+}
+
+.sl__card__lines i {
+  height: calc(var(--sl-u) * 0.5);
+  border-radius: 999px;
+  background: var(--sl-card-line);
+}
+
+.sl__card__lines i:last-child { width: 62%; }
+
+/* ===================================================================== *
+ * copy block
+ * ===================================================================== */
+
+.sl__copy {
+  position: relative;
+  z-index: 2;
+  max-width: 44ch;
+  margin-top: clamp(4px, 2vh, 22px);
+}
+
+.sl__kicker {
+  margin: 0 0 8px;
+  color: var(--sl-muted);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  transition: opacity 320ms ease;
+}
+
+.sl__kicker.is-fading { opacity: 0; }
+
+.sl__headline {
+  margin: 0;
+  font-size: clamp(1.35rem, 3.4vw, 2rem);
+  font-weight: 800;
+  letter-spacing: -0.025em;
+  line-height: 1.2;
+}
+
+.sl__headline span { color: var(--sl-accent); }
+
+.sl__progress {
+  overflow: hidden;
+  width: min(300px, 70vw);
+  height: 4px;
+  margin: 20px auto 0;
+  border-radius: 999px;
+  background: var(--sl-card-edge);
+}
+
+.sl__progress i {
+  display: block;
+  width: 38%;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--sl-cyan), var(--sl-blue));
+  animation: sl-sweep 1.7s cubic-bezier(0.65, 0, 0.35, 1) infinite;
+}
+
+@keyframes sl-sweep {
+  0%   { transform: translateX(-105%); }
+  100% { transform: translateX(370%);  }
+}
+
+/* ===================================================================== *
+ * exits
+ * ===================================================================== */
+
+/* Plain dismissal, used when one loader hands over to an identical one. */
+.sl.is-leaving {
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* The hand-off to the page itself. The camera pushes down through the line
+   while every solid on it flies out past the viewer, so the brief underneath
+   reads as the thing we zoomed into rather than a screen that replaced it. */
+.sl.is-bursting {
+  pointer-events: none;
+  animation: sl-burst-veil 820ms cubic-bezier(0.5, 0, 0.9, 0.4) forwards;
+}
+
+@keyframes sl-burst-veil {
+  0%, 46% { opacity: 1; }
+  100%    { opacity: 0; }
+}
+
+/* Rotating toward the viewer as it scales is what sells this as a camera move
+   rather than a zoom on a flat picture. */
+.sl.is-bursting .sl__scene {
+  animation: sl-burst-cam 820ms cubic-bezier(0.5, 0, 0.85, 0.4) forwards;
+}
+
+@keyframes sl-burst-cam {
+  0%   { transform: var(--sl-cam); }
+  100% { transform: var(--sl-nudge) rotateX(26deg) rotateZ(-16deg) scale(calc(var(--sl-scale) * 3.4)); }
+}
+
+.sl.is-bursting .sl__node {
+  animation: sl-burst-node 700ms cubic-bezier(0.4, 0, 0.9, 0.45) 40ms forwards;
+}
+
+@keyframes sl-burst-node {
+  0%   { opacity: 1; transform: translate3d(0, 0, 4px); }
+  100% { opacity: 0; transform: translate3d(var(--bx, 0), var(--by, 0), 60px) scale(1.15); }
+}
+
+/* Each card leaves from wherever the belt had got it to. The animation is
+   paused rather than replaced, so that pose is kept, and the card is pushed at
+   the lens with the independent translate / scale properties, which compose
+   with the paused transform instead of overwriting it. */
+.sl.is-bursting .sl__card {
+  animation-play-state: paused;
+  translate: 0 0 calc(var(--sl-u) * 30);
+  scale: 1.45;
+  opacity: 0 !important;
+  transition:
+    translate 640ms cubic-bezier(0.45, 0, 0.9, 0.4),
+    scale 640ms cubic-bezier(0.45, 0, 0.9, 0.4),
+    opacity 640ms cubic-bezier(0.45, 0, 0.9, 0.4);
+}
+
+.sl.is-bursting .sl__card__chip,
+.sl.is-bursting .sl__card__chip svg { animation-play-state: paused; }
+
+/* The gate lifts off toward the lens ahead of the cards. */
+.sl.is-bursting .sl__beam {
+  animation: sl-burst-beam 620ms cubic-bezier(0.45, 0, 0.9, 0.4) forwards;
+}
+
+@keyframes sl-burst-beam {
+  0%   { opacity: 1; transform: translateZ(var(--sl-gate-h)) scale(1); }
+  100% { opacity: 0; transform: translateZ(calc(var(--sl-gate-h) + var(--sl-u) * 36)) scale(1.7); }
+}
+
+/* Everything bolted to the ground drops away under the camera instead of
+   rushing it. */
+.sl.is-bursting .sl__belt,
+.sl.is-bursting .sl__tray,
+.sl.is-bursting .sl__post {
+  animation: sl-burst-floor 720ms cubic-bezier(0.5, 0, 0.9, 0.4) forwards;
+}
+
+@keyframes sl-burst-floor {
+  0%   { opacity: 1; transform: translateZ(0); }
+  100% { opacity: 0; transform: translateZ(-80px) scale(0.88); }
+}
+
+/* Flat marks and light have no depth to travel, so they simply clear first. */
+.sl.is-bursting .sl__feed,
+.sl.is-bursting .sl__shadow,
+.sl.is-bursting .sl__curtain,
+.sl.is-bursting .sl__scanline {
+  animation: sl-burst-clear 300ms ease-out forwards;
+}
+
+@keyframes sl-burst-clear {
+  to { opacity: 0; }
+}
+
+.sl.is-bursting .sl__copy,
+.sl.is-bursting .sl__brand {
+  animation: sl-burst-copy 280ms ease-in forwards;
+}
+
+@keyframes sl-burst-copy {
+  to { opacity: 0; transform: translateY(12px); }
+}
+
+/* --- binding exit ------------------------------------------------------
+ * Instead of throwing the scene away, the line rotates up to face the reader
+ * and its cards fly to the page sections they stood for. Phase one is this
+ * stylesheet; phase two is driven from sorter.js, which measures both ends and
+ * flies a clone between them.
+ *
+ * These rules follow the burst deliberately: both exits can be class-matched
+ * at once, and binding is the one that should win. */
+
+.sl.is-binding {
+  pointer-events: none;
+  animation: sl-bind-veil 640ms ease forwards;
+}
+
+@keyframes sl-bind-veil {
+  0%, 52% { opacity: 1; }
+  100%    { opacity: 0; }
+}
+
+/* Flat and square-on by the end. That is the point: a card's on-screen box is
+   then a true rectangle, which is what phase two can measure and fly from.
+   Under the isometric camera it is a parallelogram and its bounding box is
+   bigger than the card. */
+.sl.is-binding .sl__scene {
+  animation: sl-bind-cam 340ms cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+@keyframes sl-bind-cam {
+  0%   { transform: var(--sl-cam); }
+  100% { transform: translate(2%, -18%) rotateX(0deg) rotateZ(0deg) scale(calc(var(--sl-scale) * 1.1)); }
+}
+
+/* Whatever the belt was doing, every card finishes its run: sorted into its
+   tray, tagged and opaque -- the edition completes, then binds. Cards are
+   children of the scene, not of the trays, so the trays can fade under them
+   without taking them along. */
+.sl.is-binding .sl__card {
+  animation: sl-bind-hold 340ms ease-out forwards;
+}
+
+@keyframes sl-bind-hold {
+  to { opacity: 1; transform: translate3d(var(--tx), var(--ty), var(--sl-rest-z)) scale(1); }
+}
+
+.sl.is-binding .sl__card__chip,
+.sl.is-binding .sl__card__chip svg,
+.sl-flight .sl__card__chip,
+.sl-flight .sl__card__chip svg {
+  animation: none;
+}
+
+.sl.is-binding .sl__belt,
+.sl.is-binding .sl__tray,
+.sl.is-binding .sl__post,
+.sl.is-binding .sl__beam,
+.sl.is-binding .sl__curtain,
+.sl.is-binding .sl__scanline,
+.sl.is-binding .sl__node,
+.sl.is-binding .sl__feed,
+.sl.is-binding .sl__shadow,
+.sl.is-binding .sl__copy,
+.sl.is-binding .sl__brand {
+  animation: sl-bind-clear 300ms ease-out forwards;
+}
+
+@keyframes sl-bind-clear {
+  to { opacity: 0; }
+}
+
+/* The flying clones live outside the loader, so the veil's fade cannot take
+   them with it -- they have to outlast the thing they came from. */
+.sl-flight {
+  position: fixed;
+  z-index: 10000;
+  inset: 0;
+  pointer-events: none;
+}
+
+/* Its box is animated rather than transformed, so the card's own layout does
+   the shape change -- see flyToTargets in sorter.js. */
+.sl-flight__card {
+  position: fixed;
+  will-change: left, top, width, height, opacity;
+}
+
+/* ===================================================================== *
+ * reduced motion
+ * ===================================================================== */
+
+/* With motion suppressed the scene still has to *read*, so every card is
+   pinned to where it ends up -- sorted and tagged -- rather than to its hidden
+   0% frame at the head of the belt. */
+@media (prefers-reduced-motion: reduce) {
+  .sl,
+  .sl * {
+    animation: none !important;
+    transition: none !important;
+  }
+
+  .sl__card {
+    opacity: 1;
+    transform: translate3d(var(--tx), var(--ty), var(--sl-rest-z));
+  }
+
+  .sl__pulse { left: 60%; opacity: 1; }
+  .sl__progress i { width: 100%; }
+}
+
+/* Narrow viewports: the scene steps down rather than getting cropped. */
+@media (max-width: 620px) {
+  .sl { --sl-scale: 0.7; }
+}
+
+/* Short viewports: the stage has already shrunk to fit (see .sl__stage), so
+   only the wordmark, which would sit on top of the scene, has to go. */
+@media (max-height: 560px) {
+  .sl { padding-top: 24px; padding-bottom: 20px; }
+  .sl__brand { display: none; }
+}

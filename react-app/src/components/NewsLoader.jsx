@@ -6,7 +6,9 @@ import { useLayoutEffect, useRef, useState } from 'react';
  * means the boot splash and the in-app loader are the same picture, and the
  * handoff between them is invisible.
  *
- * public/loader/loader.html is a standalone preview of the same three files. */
+ * public/loader/ holds two scenes with the same window.PrecisLoader contract;
+ * index.html picks which pair of files is loaded, and this component works
+ * with either. Each has a standalone preview (loader.html, sorter.html). */
 
 // Inline rather than a class, deliberately: this is what renders when the
 // loader's own assets did not arrive, so it must not depend on them either.
@@ -40,7 +42,8 @@ const FALLBACK_HEADLINE_STYLE = {
 };
 
 /* Where each of the loader's six cards lands on the edition it is revealing.
- * The order follows the loader's own grid, so the movement stays readable: its
+ * Both scenes number their cards as the same two-column, three-row grid, and
+ * the order follows that grid, so the movement stays readable: its
  * left column (cards 1 and 3) goes to the lead panel on the left, the top of
  * its right column goes to Rising Now on the right, and the bottom four take
  * the Top Stories rows underneath.
