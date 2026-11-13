@@ -65,6 +65,9 @@
 
   var NODE_COUNT = 7;
   var CARD_COUNT = 6;
+  /* Which card (0-based) becomes the Rising Now panel in the binding exit: the
+     top of the board's right column, the corner that panel sits in on the page. */
+  var RISING_CARD = 1;
   var PULSES = [
     { tint: 'var(--pl-green)', delay: '0s' },
     { tint: 'var(--pl-blue)', delay: '1.5s' },
@@ -81,14 +84,25 @@
      Below this age the exit is skipped and the loader just goes. */
   var MIN_VISIBLE_MS = 500;
 
-  /* Binding exit: phase one flattens the camera, then the cards fly. */
-  var BIND_PHASE_MS = 340;
-  var BIND_FLIGHT_MS = 560;
-  var BIND_CARRIER_MS = 700;
-  /* Accelerating, not the usual ease-in-out: the card drifts off its slot and
-     then rushes the last two thirds into the page. Phase one ends slow, so the
-     two read as one continuous move that keeps gathering speed. */
-  var BIND_EASE = 'cubic-bezier(0.55, 0.055, 0.675, 0.19)';
+  /* Binding exit: phase one flattens the camera, then the board and cards fly
+     to the page sections they become, and only then is the page shown. */
+  var BIND_PHASE_MS = 300;      // must match pl-bind-cam in loader.css
+  var BIND_FLIGHT_MS = 480;
+  /* The board leaves at once; the first card waits this long so the panel is
+     visibly opening before rows start landing, then cards follow at the
+     stagger. Six thrown at the same instant read as an explosion; one after
+     another they read as something being laid out. */
+  var BIND_CARD_LEAD_MS = 60;
+  var BIND_STAGGER_MS = 25;
+  var BIND_REVEAL_MS = 280;
+  /* When the paper lifts off the page: just before the last card (of
+     CARD_COUNT) settles, so the reveal overlaps the landing instead of waiting
+     for a dead stop. */
+  var BIND_REVEAL_AT =
+    BIND_PHASE_MS + BIND_CARD_LEAD_MS + (CARD_COUNT - 1) * BIND_STAGGER_MS + BIND_FLIGHT_MS - 80;
+  /* Leaves fast and settles slowly. The pieces are being *placed*, so each one
+     should arrive at rest on its section rather than hit it at speed. */
+  var BIND_EASE = 'cubic-bezier(0.6, 0, 0.2, 1)';
 
   function prefersReducedMotion() {
     return (
@@ -382,11 +396,86 @@
     return carrier;
   }
 
-  /* Phase two of the binding exit. Each card is left where it is and a clone
-     is flown from its box to its target's, because the card itself sits inside
-     a transformed 3D scene and cannot be addressed in viewport coordinates. */
-  function flyToTargets(carrier, targets) {
-    var cards = carrier.querySelectorAll('.pl__card');
+  /* Fades out a piece of the scene that has nowhere to land. The Web Animations
+     API on purpose: the piece is being held in place by a filling CSS animation,
+     which an inline style cannot override but a script animation can. */
+  function dismissPiece(node) {
+    // A card is a child of the board, which is hidden once its clone has
+    // launched; say so explicitly or the card vanishes with it, unfaded.
+    node.style.visibility = 'visible';
+    if (typeof node.animate === 'function') {
+      node.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 200, fill: 'forwards' });
+    } else {
+      node.style.visibility = 'hidden';
+    }
+  }
+
+  /* Puts a clone of one piece of the scene -- the board or a card -- into the flight
+     layer, exactly over the original, and records where it is to land. The
+     original is hidden: from here on the clone is the piece.
+
+     A clone, because the piece itself sits inside a transformed 3D scene and
+     cannot be addressed in viewport coordinates. Returns false when there is
+     nowhere to land, and the caller dismisses the piece instead. */
+  function launchGhost(flight, piece, shellClass, target, delay) {
+    if (!target) return false;
+
+    var to = target.getBoundingClientRect();
+    // A target scrolled out of view would send the piece off the screen, which
+    // reads as throwing it away rather than landing it.
+    if (!to.width || to.bottom < 0 || to.top > global.innerHeight) return false;
+
+    // Measured off the lid, not the box: the lid is the surface being cloned,
+    // and it sits nearer the camera than the box's own footprint does.
+    // :scope, because the board's lid contains the cards, which have lids too.
+    var face = piece.querySelector(':scope > .f-top');
+    var from = face ? face.getBoundingClientRect() : null;
+    if (!from || !from.width) return false;
+
+    var ghost = el('div', 'pl-flight__piece');
+    ghost.style.left = from.left + 'px';
+    ghost.style.top = from.top + 'px';
+    ghost.style.width = from.width + 'px';
+    ghost.style.height = from.height + 'px';
+
+    // Both classes: .pl-box gives the face its fill and radius, the piece's own
+    // class its inner layout. The inline reset then strips what that class says
+    // about where the piece sits in the scene, opacity included.
+    var shell = el('div', 'pl-box ' + shellClass);
+    shell.style.cssText =
+      'position:absolute;inset:0;width:auto;height:auto;opacity:1;transform:none;animation:none;filter:none;';
+    var lid = face.cloneNode(true);
+    // The board's lid carries the cards and the desk block as children. The
+    // cards fly on their own and the block is not coming, so its clone keeps
+    // only what is printed on the board itself: perforations and slots.
+    var extras = lid.querySelectorAll('.pl__card, .pl__machine, .pl__arrow, .pl__pill');
+    for (var x = 0; x < extras.length; x++) extras[x].remove();
+    shell.appendChild(lid);
+    ghost.appendChild(shell);
+    flight.appendChild(ghost);
+
+    piece.style.visibility = 'hidden';
+
+    // The box is animated, not scaled. Scaling to a table row's proportions
+    // would smear the chip and rules across it; letting the box take the
+    // target's real dimensions makes the piece *reflow* into that shape -- a
+    // card's chip settles to row height and its rules draw out lengthwise,
+    // while the board opens out into a panel with its slots still marked on it.
+    ghost.setAttribute('data-to', [to.left, to.top, to.width, to.height].join(','));
+    ghost.setAttribute('data-delay', delay);
+    return true;
+  }
+
+  /* Phase two of the binding exit: the scene's light pieces become the page.
+     The board opens out into the lead panel; the card at the top of its right
+     column -- the corner the Rising Now panel sits in on the page -- becomes
+     that panel; and the other five lay themselves down as the first rows of
+     Top Stories, one after another. All of it happens over the loader's
+     still-opaque paper, so nothing of the real page is seen until its
+     stand-in is sitting on it.
+
+     Returns the flight layer, or null if nothing could be bound. */
+  function flyToSections(carrier, sections) {
     var flight = el('div', 'pl-flight');
     var theme = carrier.getAttribute('data-theme');
 
@@ -394,50 +483,28 @@
     flight.setAttribute('aria-hidden', 'true');
     document.body.appendChild(flight);
 
+    // Cards are collected before the board is launched, and launched after it:
+    // the board's clone has to be underneath theirs all the way down, and
+    // launching it hides the original, cards included, until each is dealt with.
+    var cards = carrier.querySelectorAll('.pl__card');
+    var board = carrier.querySelector('.pl__board');
+    if (board && !launchGhost(flight, board, 'pl__board', sections.lead, 0)) {
+      // Nowhere for the board to go: only its surface fades (see
+      // .is-unbound in loader.css), since fading the box would take the cards.
+      board.classList.add('is-unbound');
+    }
+
+    var rows = sections.rows || [];
+    var nextRow = 0;
     for (var i = 0; i < cards.length; i++) {
-      var target = targets[i];
-      if (!target) continue;
-
-      var to = target.getBoundingClientRect();
-      // A target scrolled out of view would send the card off the screen, which
-      // reads as throwing it away rather than landing it.
-      if (!to.width || to.bottom < 0 || to.top > global.innerHeight) continue;
-
-      var from = cards[i].getBoundingClientRect();
-      var face = cards[i].querySelector('.f-top');
-      if (!from.width || !face) continue;
-
-      var ghost = el('div', 'pl-flight__card');
-      ghost.style.left = from.left + 'px';
-      ghost.style.top = from.top + 'px';
-      ghost.style.width = from.width + 'px';
-      ghost.style.height = from.height + 'px';
-
-      // Both classes: .pl-box gives the face its fill and radius, .pl__card its
-      // padding and the chip layout inside.
-      var shell = el('div', 'pl-box pl__card');
-      shell.style.cssText =
-        'position:absolute;inset:0;width:auto;height:auto;transform:none;animation:none;filter:none;';
-      shell.appendChild(face.cloneNode(true));
-      ghost.appendChild(shell);
-      flight.appendChild(ghost);
-
-      cards[i].style.opacity = '0';
-
-      // The box is animated, not scaled. Scaling to a table row's proportions
-      // would smear the chip and rules across it; letting the box take the
-      // target's real dimensions makes the card *reflow* into that shape --
-      // the chip settles to row height and the rules draw out lengthwise,
-      // while a panel target inflates the same card into a hero instead.
-      ghost.setAttribute(
-        'data-to',
-        [to.left, to.top, to.width, to.height].join(',')
-      );
+      var target = i === RISING_CARD ? sections.rising : rows[nextRow++];
+      var delay = BIND_CARD_LEAD_MS + i * BIND_STAGGER_MS;
+      if (!launchGhost(flight, cards[i], 'pl__card', target, delay)) dismissPiece(cards[i]);
     }
 
     if (!flight.children.length) {
       flight.remove();
-      return;
+      return null;
     }
 
     // One forced reflow so the browser has the start boxes before the
@@ -447,35 +514,32 @@
 
     var ghosts = flight.children;
     for (var g = 0; g < ghosts.length; g++) {
-      var box = ghosts[g].getAttribute('data-to').split(',');
-      var move = BIND_FLIGHT_MS + 'ms ' + BIND_EASE;
+      var dest = ghosts[g].getAttribute('data-to').split(',');
+      var move = BIND_FLIGHT_MS + 'ms ' + BIND_EASE + ' ' + ghosts[g].getAttribute('data-delay') + 'ms';
 
       ghosts[g].style.transition =
-        'left ' + move + ', top ' + move + ', width ' + move + ', height ' + move +
-        ', opacity 220ms ease ' + (BIND_FLIGHT_MS - 220) + 'ms';
-      ghosts[g].style.left = box[0] + 'px';
-      ghosts[g].style.top = box[1] + 'px';
-      ghosts[g].style.width = box[2] + 'px';
-      ghosts[g].style.height = box[3] + 'px';
-      // Handing over to the real element underneath, which is already in place.
-      ghosts[g].style.opacity = '0';
+        'left ' + move + ', top ' + move + ', width ' + move + ', height ' + move;
+      ghosts[g].style.left = dest[0] + 'px';
+      ghosts[g].style.top = dest[1] + 'px';
+      ghosts[g].style.width = dest[2] + 'px';
+      ghosts[g].style.height = dest[3] + 'px';
     }
 
-    global.setTimeout(function () {
-      flight.remove();
-    }, BIND_FLIGHT_MS + 140);
+    return flight;
   }
 
   /* Plays the loader out, then removes it entirely -- a loader left in the DOM
      keeps aria-busy on the page and its animations on the compositor.
        explode: burst the scene apart and push the camera through it, for the
                 hand-off to the real page.
-       bind:    () => Element[] or { lead, rising, rows }. Called one frame
-                after the hand-off, once the page underneath has been laid out;
-                card i flies to targets[i] (see the mapping in teardown).
-                Falsy entries and off-screen targets fall back to the burst's
-                fade. Keeps the loader ignorant of the app: it is handed
-                elements, never selectors.
+       bind:    () => { lead, rising, rows }. Called one frame after the
+                hand-off, once the page underneath has been laid out. The page
+                names its sections and the scene decides which of its pieces
+                becomes which: here the board opens into `lead`, one card
+                becomes `rising`, and the other five land on the rows. A piece with no
+                section, or one that is off-screen, just fades. Keeps the
+                loader ignorant of the app: it is handed elements, never
+                selectors.
        handoff: the mount point belongs to a framework; move the scene off it
                 first so the exit can finish after that node is gone.
        immediate: no exit at all. */
@@ -516,26 +580,23 @@
       // paint: getBoundingClientRect forces layout on its own.
       var carrier = root;
       global.setTimeout(function () {
-        var targets = [];
+        var sections = null;
         try {
-          targets = opts.bind() || [];
+          sections = opts.bind();
         } catch (error) {
-          targets = [];
+          sections = null;
         }
-
-        // The page may name its sections ({ lead, rising, rows }) rather than
-        // deal them out card by card, so the same answer suits either loading
-        // scene. This one's grid has always mapped as: left column (cards 1
-        // and 3) to the lead, top right to Rising Now, the rest to the rows.
-        if (!Array.isArray(targets)) {
-          targets = [targets.lead, targets.rising, targets.lead].concat(
-            (targets.rows || []).slice(0, 3)
-          );
+        // The older per-card answer, [lead, rising, lead, row, row, row], is
+        // still understood.
+        if (Array.isArray(sections)) {
+          sections = { lead: sections[0], rising: sections[1], rows: sections.slice(3) };
         }
+        if (!sections) sections = {};
 
-        var usable = false;
-        for (var i = 0; i < targets.length; i++) {
-          if (targets[i]) { usable = true; break; }
+        var usable = Boolean(sections.lead || sections.rising);
+        var rows = sections.rows || [];
+        for (var i = 0; i < rows.length && !usable; i++) {
+          if (rows[i]) usable = true;
         }
 
         // Nothing to bind to -- a search is active, or the edition is empty.
@@ -546,10 +607,26 @@
         }
 
         carrier.classList.add('is-binding');
+
+        var flight = null;
         global.setTimeout(function () {
-          flyToTargets(carrier, targets);
+          flight = flyToSections(carrier, sections);
         }, BIND_PHASE_MS);
-        global.setTimeout(function () { carrier.remove(); }, BIND_CARRIER_MS);
+
+        // The paper and the stand-ins go together, so each real section comes
+        // up exactly where, and exactly as, its stand-in fades.
+        global.setTimeout(function () {
+          carrier.classList.add('is-revealing');
+          if (flight) {
+            flight.style.transition = 'opacity ' + BIND_REVEAL_MS + 'ms ease';
+            flight.style.opacity = '0';
+          }
+        }, BIND_REVEAL_AT);
+
+        global.setTimeout(function () {
+          carrier.remove();
+          if (flight) flight.remove();
+        }, BIND_REVEAL_AT + BIND_REVEAL_MS + 40);
       }, 0);
       return;
     }

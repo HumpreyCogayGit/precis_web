@@ -49,6 +49,30 @@
         cursor: pointer;
       }
 
+      /* A stand-in for the edition, so the binding exit has sections to land on. */
+      .demo-page {
+        display: grid;
+        grid-template-columns: 1.7fr 1fr;
+        gap: 18px;
+        max-width: 1100px;
+        margin: 0 auto;
+        padding: 96px 20px 120px;
+      }
+
+      .demo-page > * {
+        border: 1px solid rgba(128, 138, 150, 0.4);
+        border-radius: 14px;
+        background: rgba(128, 138, 150, 0.16);
+      }
+
+      .demo-page .demo-panel { height: 300px; }
+      .demo-page .demo-row { grid-column: 1 / -1; height: 40px; border-radius: 8px; }
+
+      @media (max-width: 620px) {
+        .demo-page { grid-template-columns: 1fr; }
+        .demo-page .demo-panel { height: 180px; }
+      }
+
       .demo-bar button.is-ghost {
         background: rgba(17, 21, 27, 0.08);
         color: #11151b;
@@ -57,6 +81,17 @@
   </head>
 
   <body>
+    <div class="demo-page">
+      <div class="demo-panel" data-section="lead"></div>
+      <div class="demo-panel" data-section="rising"></div>
+      <div class="demo-row"></div>
+      <div class="demo-row"></div>
+      <div class="demo-row"></div>
+      <div class="demo-row"></div>
+      <div class="demo-row"></div>
+      <div class="demo-row"></div>
+    </div>
+
     <!-- (1) the mount point -->
     <div id="precis-loader"></div>
 
@@ -95,7 +130,18 @@
             PrecisLoader.destroy({ immediate: true });
             ensureMounted();
           } else if (act === 'destroy') {
-            PrecisLoader.destroy();
+            // What NewsLoader.jsx does: name the page's sections and let the
+            // scene's pieces become them.
+            PrecisLoader.destroy({
+              explode: true,
+              bind: function () {
+                return {
+                  lead: document.querySelector('[data-section="lead"]'),
+                  rising: document.querySelector('[data-section="rising"]'),
+                  rows: Array.prototype.slice.call(document.querySelectorAll('.demo-row'))
+                };
+              }
+            });
           }
         });
       })();
